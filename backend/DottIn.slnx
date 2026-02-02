@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/1.Presentation/" />
+  <Folder Name="/2.Application/" />
+  <Folder Name="/3.Domain/">
+    <Project Path="src/DottIn.Domain.Core/DottIn.Domain.Core.csproj" Id="1a1d2612-2bf0-4c66-a940-7850d183da64" />
+    <Project Path="src/DottIn.Domain/DottIn.Domain.csproj" Id="60bd9f21-a00d-490c-b0ba-bf907223b58c" />
+  </Folder>
+  <Folder Name="/4.Infra/" />
+  <Folder Name="/4.Infra/4-1.Data/" />
+  <Folder Name="/4.Infra/4-2.Services/" />
+  <Folder Name="/4.Infra/4-3.CrossCutting/" />
+</Solution>
