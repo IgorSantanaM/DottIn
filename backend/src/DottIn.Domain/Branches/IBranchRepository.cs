@@ -4,9 +4,9 @@ namespace DottIn.Domain.Branches
 {
     public interface IBranchRepository : IRepository<Branch, Guid>
     {
-        Task<Branch?> GetByDocumentAsync(string document);
-        Task<IEnumerable<Branch>> GetByOwnerIdAsync(string ownerId);
-        Task<IEnumerable<Branch>> GetActiveBranchesAsync();
-        Task<Branch?> GetHeadquartersAsync();
+        Task<Branch?> GetByDocumentAsync(string document, CancellationToken token = default);
+        Task<IEnumerable<Branch>> GetByOwnerIdAsync(string ownerId, CancellationToken token = default);
+        Task<IEnumerable<Branch>> GetActiveBranchesAsync(CancellationToken token = default);
+        Task<IEnumerable<Branch>?> GetHeadquartersAsync(CancellationToken token = default);
     }
 }

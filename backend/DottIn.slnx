@@ -6,7 +6,9 @@
     <Project Path="src/DottIn.Domain/DottIn.Domain.csproj" Id="60bd9f21-a00d-490c-b0ba-bf907223b58c" />
   </Folder>
   <Folder Name="/4.Infra/" />
-  <Folder Name="/4.Infra/4-1.Data/" />
+  <Folder Name="/4.Infra/4-1.Data/">
+    <Project Path="DottIn.Infra.Data/DottIn.Infra.Data.csproj" Id="3b7c234c-fff0-4b02-801b-06665013b236" />
+  </Folder>
   <Folder Name="/4.Infra/4-2.Services/" />
   <Folder Name="/4.Infra/4-3.CrossCutting/" />
 </Solution>
