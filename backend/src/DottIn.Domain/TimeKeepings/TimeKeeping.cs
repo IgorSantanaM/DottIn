@@ -23,6 +23,8 @@ namespace DottIn.Domain.TimeKeepings
 
         public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation)
         {
+            Id = Guid.NewGuid();
+
             if (branchId == Guid.Empty) 
                 throw new DomainException("Empresa Invalida.");
 

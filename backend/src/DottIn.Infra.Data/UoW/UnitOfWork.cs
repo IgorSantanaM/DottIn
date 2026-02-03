@@ -6,8 +6,9 @@ namespace DottIn.Infra.Data.UoW
     public class UnitOfWork(DottInContext context) : IUnitOfWork, IDisposable
     {
         private bool _disposed;
+
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => await context.SaveChangesAsync();
+            => await context.SaveChangesAsync(cancellationToken);
 
         public void Dispose()
         {
@@ -17,7 +18,7 @@ namespace DottIn.Infra.Data.UoW
 
         private void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (!_disposed && disposing)
             {
                 context.Dispose();
             }
