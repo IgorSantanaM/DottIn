@@ -1,5 +1,6 @@
 ﻿using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
+using DottIn.Domain.ValueObjects;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,24 +9,31 @@ namespace DottIn.Domain.TimeKeepings
 {
     public class TimeKeeping : Entity<Guid>, IAggregateRoot
     {
-        public Guid EmployeeId { get; protected set; }
-        public Guid BranchId { get; protected set; }
+        public Guid EmployeeId { get; private set; }
+        public Guid BranchId { get; private set; }
         public TimeKeepingStatus Status => GetCurrentStatus();
+        public DateOnly WorkDate { get; private set; }
+        public DateTime CreatedAt { get; private set; }
+        public Geolocation? Location { get; private set; }
+
         private readonly List<TimeEntry> _entries = new();
         public IReadOnlyCollection<TimeEntry> Entries => _entries.AsReadOnly();
 
         private TimeKeeping() { }
 
-        public TimeKeeping(Guid branchId, Guid employeeId)
+        public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation)
         {
             if (branchId == Guid.Empty) 
-                throw new DomainException("Funcionário Invalido.");
+                throw new DomainException("Empresa Invalida.");
 
             if (employeeId == Guid.Empty)
-                throw new DomainException("Empresa Invalida.");
+                throw new DomainException("Funcionário Invalido.");
 
             BranchId = branchId;
             EmployeeId = employeeId;
+            Location = geolocation;
+            CreatedAt = DateTime.UtcNow;
+            WorkDate = DateOnly.FromDateTime(CreatedAt);
         }
 
         public void ClockIn(DateTime time)
@@ -58,10 +66,7 @@ namespace DottIn.Domain.TimeKeepings
                 throw new DomainException("Já Finalizado");
 
             if (Status == TimeKeepingStatus.OnBreak)
-            {
                 EndBreak(time);
-                return;
-            }
 
             AddEntry(time, TimeKeepingType.ClockOut);
         }

@@ -1,23 +1,30 @@
 ﻿using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
 using DottIn.Domain.ValueObjects;
-using System;
 
 namespace DottIn.Domain.Branches
 {
     public class Branch : Entity<Guid>, IAggregateRoot
     {
+        #region Geolocation variables
+        private const double EarthRadiusMeters = 6371000;
+        private const double MinLatitude = -90.0;
+        private const double MaxLatitude = 90.0;
+        private const double MinLongitude = -180.0;
+        private const double MaxLongitude = 180.0;
+        #endregion
+
         public string Name { get; private set; }
         public Document Document { get; private set; }
         public string? Email { get; private set; }
         public string? PhoneNumber { get; private set; }
         public Address Address { get; private set; }
-        public Geolocation Geolocation { get; private set; }
-        public string TimeZoneId { get; private set; } 
+        public Geolocation Location { get; private set; }
+        public string TimeZoneId { get; private set; }
         public int AllowedRadiusMeters { get; private set; }
-        public int ToleranceMinutes { get; set; }
+        public int ToleranceMinutes { get; private set; }
         public Guid? HolidayCalendarId { get; private set; }
-        public bool AllowOvernightShifts { get; private set; } 
+        public bool AllowOvernightShifts { get; private set; }
         public bool IsActive { get; private set; }
         public bool IsHeadquarters { get; private set; }
         public string? OwnerId { get; private set; }
@@ -41,7 +48,7 @@ namespace DottIn.Domain.Branches
             string? ownerId = null,
             bool isHeadquarters = false,
             int allowedRadiusMeters = 100,
-            int toleranceMinutes = 10) 
+            int toleranceMinutes = 10)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("O Nome da filial é obrigatório.");
@@ -52,23 +59,19 @@ namespace DottIn.Domain.Branches
             if (string.IsNullOrWhiteSpace(email) && string.IsNullOrWhiteSpace(phoneNumber))
                 throw new DomainException("Informe ao menos um contato (E-mail ou Telefone).");
 
-            try 
-            {
-                TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            }
-            catch
-            {
-                throw new DomainException($"Fuso horário inválido: {timeZoneId}");
-            }
+            ValidateTimezone(timeZoneId);
 
             if (allowedRadiusMeters < 10)
                 throw new DomainException("O raio de permissão deve ser de no mínimo 10 metros.");
+
             if (toleranceMinutes < 5)
                 throw new DomainException("A tolerância em minutos não deve ser menor do que 5 minutos.");
 
+            SetScheduleInternal(startWorkTime, endWorkTime);
+
             Name = name;
             Document = document;
-            Geolocation = geolocation;
+            Location = geolocation;
             Address = address;
             TimeZoneId = timeZoneId;
             AllowedRadiusMeters = allowedRadiusMeters;
@@ -86,25 +89,49 @@ namespace DottIn.Domain.Branches
         public void MoveLocation(Address newAddress, Geolocation newLocation, string? newTimeZoneId = null)
         {
             Address = newAddress ?? throw new DomainException("Endereço inválido");
-            Geolocation = newLocation ?? throw new DomainException("Geolocalização inválida");
+            Location = newLocation ?? throw new DomainException("Geolocalização inválida");
 
             if (!string.IsNullOrEmpty(newTimeZoneId))
             {
-                try { TimeZoneInfo.FindSystemTimeZoneById(newTimeZoneId); }
-                catch { throw new DomainException($"Fuso horário inválido: {newTimeZoneId}"); }
+                ValidateTimezone(newTimeZoneId);
                 TimeZoneId = newTimeZoneId;
             }
 
             UpdatedAt = DateTime.UtcNow;
         }
 
+
+        public bool IsWithinRange(double userLat, double userLon)
+        {
+            if (userLat < MinLatitude || userLat > MaxLatitude ||
+                userLon < MinLongitude || userLon > MaxLongitude)
+            {
+                return false;
+            }
+
+            var dLat = ToRadians(userLat - Location.Latitude);
+            var dLon = ToRadians(userLon - Location.Longitude);
+
+            var lat1 = ToRadians(Location.Latitude);
+            var lat2 = ToRadians(userLat);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2) * Math.Cos(lat1) * Math.Cos(lat2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+            var distance = EarthRadiusMeters * c;
+
+            return distance <= AllowedRadiusMeters;
+        }
+
+
         public void UpdateConfig(int allowedRadiusMeters, string timeZoneId)
         {
             if (allowedRadiusMeters < 10)
                 throw new DomainException("O raio de permissão deve ser de no mínimo 10 metros.");
 
-            try { TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); }
-            catch { throw new DomainException($"Fuso horário inválido: {timeZoneId}"); }
+            ValidateTimezone(timeZoneId);
 
             AllowedRadiusMeters = allowedRadiusMeters;
             TimeZoneId = timeZoneId;
@@ -113,15 +140,7 @@ namespace DottIn.Domain.Branches
 
         public void UpdateSchedule(TimeOnly start, TimeOnly end)
         {
-            var duration = start < end
-                        ? end - start
-                        : (TimeSpan.FromHours(24) - start.ToTimeSpan()) + end.ToTimeSpan();
-
-            if (duration.TotalHours < 1) 
-                throw new DomainException("O turno de trabalho deve ter pelo menos 1 hora.");
-
-            StartWorkTime = start;
-            EndWorkTime = end;
+            SetScheduleInternal(start, end);
 
             UpdatedAt = DateTime.UtcNow;
         }
@@ -157,6 +176,38 @@ namespace DottIn.Domain.Branches
             ToleranceMinutes = toleranceMinutes;
             HolidayCalendarId = holidayCalendarId;
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        private void SetScheduleInternal(TimeOnly start, TimeOnly end)
+        {
+            var duration = start < end
+                ? end - start
+                : (TimeSpan.FromHours(24) - start.ToTimeSpan()) + end.ToTimeSpan();
+
+            if (duration.TotalHours < 1)
+                throw new DomainException("O turno de trabalho deve ter pelo menos 1 hora.");
+
+            StartWorkTime = start;
+            EndWorkTime = end;
+
+            AllowOvernightShifts = start > end;
+        }
+
+        private static void ValidateTimezone(string newTimeZoneId)
+        {
+            try
+            {
+                TimeZoneInfo.FindSystemTimeZoneById(newTimeZoneId);
+            }
+
+            catch
+            {
+                throw new DomainException($"Fuso horário inválido: {newTimeZoneId}");
+            }
+        }
+        private static double ToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180.0;
         }
     }
 }
