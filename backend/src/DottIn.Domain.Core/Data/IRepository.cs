@@ -6,9 +6,9 @@ namespace DottIn.Domain.Core.Data
         where TEntity : IAggregateRoot 
         where TId : notnull
     {
-        Task AddAsync(TEntity entity);
+        Task AddAsync(TEntity entity, CancellationToken token = default);
         Task UpdateAsync(TEntity entity);
         Task DeleteAsync(TEntity entity);
-        Task<TEntity?> GetByIdAsync(TId id);
+        Task<TEntity?> GetByIdAsync(TId id, CancellationToken token = default);
     }
 }

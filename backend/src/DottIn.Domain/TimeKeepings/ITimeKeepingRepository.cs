@@ -6,14 +6,20 @@ namespace DottIn.Domain.TimeKeepings
     {
         Task<TimeKeeping?> GetTodayByEmployeeAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);
 
+        Task<TimeKeeping?> GetTodayByEmployeeForUpdateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);
+
         Task<TimeKeeping?> GetActiveByEmployeeAsync(Guid employeeId, CancellationToken token = default);
 
         Task<IEnumerable<TimeKeeping>> GetByEmployeeAndPeriodAsync(
             Guid employeeId,
             DateOnly startDate,
-            DateOnly endDate, CancellationToken token = default);
+            DateOnly? endDate, 
+            CancellationToken token = default);
+
         Task<IEnumerable<TimeKeeping>> GetByBranchAndDateAsync(Guid branchId, DateOnly workDate, CancellationToken token = default);
+
         Task<IEnumerable<TimeKeeping>> GetActiveByBranchAsync(Guid branchId, CancellationToken token = default);
+
         Task<bool> ExistsForEmployeeOnDateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);
     }
 }

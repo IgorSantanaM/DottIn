@@ -15,7 +15,6 @@ namespace DottIn.Domain.TimeKeepings
         public DateOnly WorkDate { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public Geolocation? Location { get; private set; }
-
         private readonly List<TimeEntry> _entries = new();
         public IReadOnlyCollection<TimeEntry> Entries => _entries.AsReadOnly();
 
@@ -23,6 +22,8 @@ namespace DottIn.Domain.TimeKeepings
 
         public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation)
         {
+            Id = Guid.NewGuid();
+
             if (branchId == Guid.Empty) 
                 throw new DomainException("Empresa Invalida.");
 

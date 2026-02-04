@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Features\Branches\Commands\" />
+    <Folder Include="Features\Branches\DTOs\" />
+    <Folder Include="Features\Branches\Events\" />
+    <Folder Include="Features\Branches\Validators\" />
+    <Folder Include="Features\Branches\Queries\" />
+    <Folder Include="Features\Employees\Commands\" />
+    <Folder Include="Features\Employees\DTOs\" />
+    <Folder Include="Features\Employees\Events\" />
+    <Folder Include="Features\Employees\Queries\" />
+    <Folder Include="Features\Employees\Validators\" />
+    <Folder Include="Features\TimeKeepings\Events\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DottIn.Domain\DottIn.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

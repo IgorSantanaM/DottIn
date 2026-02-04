@@ -19,9 +19,9 @@ namespace DottIn.Infra.Data.Repositories
             _dbSet = _context.Set<TEntity>();
         }
 
-        public async Task AddAsync(TEntity entity)
+        public async Task AddAsync(TEntity entity, CancellationToken token = default)
         {
-            await _dbSet.AddAsync(entity);
+            await _dbSet.AddAsync(entity, token);
         }
 
         public Task DeleteAsync(TEntity entity)
@@ -31,9 +31,9 @@ namespace DottIn.Infra.Data.Repositories
             return Task.CompletedTask;
         }
 
-        public async Task<TEntity?> GetByIdAsync(TId id)
+        public async Task<TEntity?> GetByIdAsync(TId id, CancellationToken token = default)
         {
-            return await _dbSet.FindAsync(id).AsTask();
+            return await _dbSet.FindAsync(id, token).AsTask();
         }
 
         public async Task UpdateAsync(TEntity entity)

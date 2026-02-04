@@ -9,21 +9,27 @@ namespace DottIn.Infra.Data.Repositories
         public async Task<IEnumerable<Branch>> GetActiveBranchesAsync(CancellationToken token = default)
             => await context.Branches
                 .AsNoTracking()
-                .Where(b => b.IsActive).ToListAsync(token);
+                .Where(b => b.IsActive)
+                .ToListAsync(token);
 
         public async Task<Branch?> GetByDocumentAsync(string document, CancellationToken token = default)
-            => await context.Branches
+        {
+            var sanitizedDocument = new string(document.Where(char.IsDigit).ToArray());
+            return await context.Branches
                 .AsNoTracking()
-                .FirstOrDefaultAsync(b => EF.Functions.ILike(b.Document.Value, $"%{document}%"), token);
+                .FirstOrDefaultAsync(b => b.Document.Value == sanitizedDocument, token);
+        }
 
         public async Task<IEnumerable<Branch>> GetByOwnerIdAsync(string ownerId, CancellationToken token = default)
             => await context.Branches
                 .AsNoTracking()
-                .Where(b => b.OwnerId == ownerId).ToListAsync(token);
+                .Where(b => b.OwnerId == ownerId)
+                .ToListAsync(token);
 
         public async Task<IEnumerable<Branch>?> GetHeadquartersAsync(CancellationToken token = default)
-        => await context.Branches
+            => await context.Branches
                 .AsNoTracking()
-                .Where(b => b.IsHeadquarters).ToListAsync(token); // TODO: Get depending on the branch / HeadquarterId prop or something like that
+                .Where(b => b.IsHeadquarters)
+                .ToListAsync(token);
     }
 }
