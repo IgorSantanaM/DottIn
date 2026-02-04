@@ -15,7 +15,6 @@ namespace DottIn.Domain.TimeKeepings
         public DateOnly WorkDate { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public Geolocation? Location { get; private set; }
-
         private readonly List<TimeEntry> _entries = new();
         public IReadOnlyCollection<TimeEntry> Entries => _entries.AsReadOnly();
 

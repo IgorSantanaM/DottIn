@@ -2,7 +2,7 @@
 
 namespace DottIn.Domain.TimeKeepings
 {
-    public class TimeEntry : ValueObject
+    public class TimeEntry : ValueObject // TODO: Have each GEOLOCATION PER ENTRY?
     {
         public DateTime Timestamp { get; private set; }
         public TimeKeepingType Type { get; private set; }

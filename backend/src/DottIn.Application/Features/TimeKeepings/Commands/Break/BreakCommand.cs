@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using DottIn.Application.Features.TimeKeepings.DTOs;
+using MediatR;
 
-namespace DottIn.Application.Features.TimeKeepings.Commands.Break
-{
-    public record BreakCommand
-    {
-    }
-}
+namespace DottIn.Application.Features.TimeKeepings.Commands.Break;
+
+public record BreakCommand(Guid EmployeeId, Guid BranchId, GeolocationDto GeolocationDto) : IRequest<Unit>;
