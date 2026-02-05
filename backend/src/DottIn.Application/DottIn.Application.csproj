@@ -12,7 +12,6 @@
     <Folder Include="Features\Branches\Events\" />
     <Folder Include="Features\Branches\Validators\" />
     <Folder Include="Features\Branches\Queries\" />
-    <Folder Include="Features\Employees\Commands\" />
     <Folder Include="Features\Employees\DTOs\" />
     <Folder Include="Features\Employees\Events\" />
     <Folder Include="Features\Employees\Queries\" />
