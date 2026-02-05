@@ -7,7 +7,6 @@ public record CreateEmployeeCommand(
     string Name,
     DocumentDTO Document,
     Stream ImageStream,
-    string ImageFileName,
     string ImageContentType,
     Guid BranchId,
     TimeOnly StartWorkTime,
