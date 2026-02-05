@@ -11,11 +11,16 @@ using MediatR;
 
 namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
 {
-    public class CreateEmployeeCommandHandler(IEmployeeRepository employeeRepository, IBranchRepository branchRepository, IValidator<CreateEmployeeCommand> validator, IPublishEndpoint publishEndpoint, IUnitOfWork unitOfWork) : IRequestHandler<CreateEmployeeCommand, Guid>
+    public class CreateEmployeeCommandHandler(IEmployeeRepository employeeRepository,
+                    IBranchRepository branchRepository,
+                    IValidator<CreateEmployeeCommand> validator,
+                    IPublishEndpoint publishEndpoint, 
+                    IUnitOfWork unitOfWork)
+                    : IRequestHandler<CreateEmployeeCommand, Guid>
     {
         public async Task<Guid> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
         {
-            await validator.ValidateAndThrowAsync(request, cancellationToken);  
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
 
             var branch = await branchRepository.GetByIdAsync(request.BranchId);
 
@@ -29,18 +34,18 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
 
             var employee = new Employee(request.Name,
                                 document,
-                                request.BranchId, 
+                                request.BranchId,
                                 request.StartWorkTime,
                                 request.EndWorkTime,
-                                request.IntervalStart, 
+                                request.IntervalStart,
                                 request.IntervalEnd);
 
             await employeeRepository.AddAsync(employee);
 
             var imageName = employee.Name + employee.Id;
-            var employteeImageAdded = new EmployeeImageAdded(employee.Id, 
-                                request.ImageStream, 
-                                imageName, 
+            var employteeImageAdded = new EmployeeImageAdded(employee.Id,
+                                request.ImageStream,
+                                imageName,
                                 request.ImageContentType);
 
             await publishEndpoint.Publish(employteeImageAdded, cancellationToken);

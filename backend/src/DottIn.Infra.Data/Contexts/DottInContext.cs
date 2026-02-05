@@ -1,7 +1,7 @@
 ﻿using DottIn.Domain.Branches;
-using DottIn.Domain.Core.Models;
 using DottIn.Domain.Employees;
 using DottIn.Domain.TimeKeepings;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace DottIn.Infra.Data.Contexts
@@ -14,12 +14,16 @@ namespace DottIn.Infra.Data.Contexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Ignore<Event<Guid>>();
+            modelBuilder.Ignore<Domain.Core.Models.Event<Guid>>();
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DottInContext).Assembly);
 
+            modelBuilder.AddInboxStateEntity();
+            modelBuilder.AddOutboxMessageEntity();
+            modelBuilder.AddOutboxStateEntity();
+
             base.OnModelCreating(modelBuilder);
         }
-        
+
     }
 }
