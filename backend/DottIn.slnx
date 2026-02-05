@@ -11,6 +11,11 @@
   <Folder Name="/4.Infra/4-1.Data/">
     <Project Path="src/DottIn.Infra.Data/DottIn.Infra.Data.csproj" />
   </Folder>
-  <Folder Name="/4.Infra/4-2.Services/" />
-  <Folder Name="/4.Infra/4-3.CrossCutting/" />
+  <Folder Name="/4.Infra/4-2.Services/">
+    <Project Path="src/DottIn.Infra.Services/DottIn.Infra.Services.csproj" Id="f8cc5e9d-d23e-4054-91ff-28013393c01b" />
+  </Folder>
+  <Folder Name="/4.Infra/4-3.Messaging/">
+    <Project Path="src/DottIn.Infra.Messaging/DottIn.Infra.Messaging.csproj" Id="108d42e1-2d2d-427f-9059-8efec3f91c11" />
+  </Folder>
+  <Folder Name="/4.Infra/4-4.CrossCutting/" />
 </Solution>

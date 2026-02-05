@@ -34,7 +34,6 @@ namespace DottIn.Infra.Data.Mappings
                 .IsUnique();
 
             builder.Property(e => e.ImageUrl)
-                .IsRequired()
                 .HasMaxLength(500);
 
             builder.Property(e => e.BranchId)

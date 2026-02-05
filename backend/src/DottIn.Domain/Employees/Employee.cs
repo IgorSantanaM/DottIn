@@ -8,7 +8,7 @@ namespace DottIn.Domain.Employees
     {
         public string Name { get; private set; }
         public Document CPF { get; private set; }
-        public string ImageUrl { get; private set; }
+        public string? ImageUrl { get; private set; }
         public Guid BranchId { get; private set; }
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
@@ -24,13 +24,14 @@ namespace DottIn.Domain.Employees
         public Employee(
             string name,
             Document cpf,
-            string imageUrl,
             Guid branchId,
             TimeOnly startWorkTime,
             TimeOnly endWorkTime,
             TimeOnly intervalStart,
             TimeOnly intervalEnd)
         {
+
+            Id = Guid.NewGuid();
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("O nome não pode ser vazio.");
 
@@ -40,9 +41,6 @@ namespace DottIn.Domain.Employees
             if (cpf.Type != DocumentType.CPF)
                 throw new DomainException("Funcionário deve ser registrado com um CPF.");
 
-            if (string.IsNullOrWhiteSpace(imageUrl))
-                throw new DomainException("A Imagem deve ser inserida.");
-
             if (branchId == Guid.Empty)
                 throw new DomainException("O funcionário tem que ser vinculado à uma empresa.");
 
@@ -50,10 +48,17 @@ namespace DottIn.Domain.Employees
 
             Name = name;
             CPF = cpf;
-            ImageUrl = imageUrl;
             BranchId = branchId;
             IsActive = true;
             CreatedAt = DateTime.UtcNow;
+        }
+
+        public void AddImage(string imageUrl)
+        {
+            if(string.IsNullOrEmpty(imageUrl))
+                throw new DomainException("A Imagem deve ser inserida.");
+
+            ImageUrl = imageUrl;
         }
 
         public void UpdateProfile(string name, string imageUrl)

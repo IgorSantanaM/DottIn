@@ -6,6 +6,7 @@ namespace DottIn.Infra.Data.Repositories
 {
     public class EmployeeRepository(DottInContext context) : Repository<Employee, Guid>(context), IEmployeeRepository
     {
+
         public async Task<IEnumerable<Employee>> GetActiveEmployeesAsync(Guid branchId, CancellationToken token = default)
             => await context.Employees
                 .AsNoTracking()
@@ -24,6 +25,19 @@ namespace DottIn.Infra.Data.Repositories
             return await context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.CPF.Value == sanitizedCpf, token);
+        }
+        public async Task<bool> AddEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default)
+        {
+            var employee = await context.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
+
+            if (employee is null)
+                return false;
+
+            employee.AddImage(imageUrl);
+
+            await UpdateAsync(employee);
+
+            return true;
         }
     }
 }
