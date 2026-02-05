@@ -39,5 +39,21 @@ namespace DottIn.Infra.Data.Repositories
 
             return true;
         }
+
+        public async Task<bool> UpdateEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default)
+        {
+            var employee = await context.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
+
+            if (employee is null)
+                return false;
+
+            employee.RemoveImage();
+
+            employee.AddImage(imageUrl);
+
+            await UpdateAsync(employee);
+
+            return true;
+        }
     }
 }

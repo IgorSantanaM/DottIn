@@ -61,11 +61,14 @@ namespace DottIn.Domain.Employees
             ImageUrl = imageUrl;
         }
 
-        public void UpdateProfile(string name, string imageUrl)
+
+        public void RemoveImage()
+            => ImageUrl = null;    
+
+        public void UpdateProfile(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new DomainException("Nome inválido");
             Name = name;
-            ImageUrl = imageUrl;
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -144,5 +147,6 @@ namespace DottIn.Domain.Employees
             else
                 return (TimeSpan.FromHours(24) - referenceStart.ToTimeSpan() + target.ToTimeSpan()).TotalMinutes;
         }
+
     }
 }
