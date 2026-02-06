@@ -112,8 +112,7 @@ namespace DottIn.Infra.Data.Mappings
                 .IsRequired();
 
             builder.Property(b => b.OwnerId)
-                .IsRequired(false)
-                .HasMaxLength(100);
+                .IsRequired();
 
             builder.Property(b => b.StartWorkTime)
                 .IsRequired()

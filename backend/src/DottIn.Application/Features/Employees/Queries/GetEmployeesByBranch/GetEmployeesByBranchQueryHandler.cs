@@ -28,7 +28,7 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeesByBranch
             var employeesSummaryDto = employees.Select(e => 
             new EmployeeSummaryDto(e.Id,
                         e.Name,
-                        new DocumentDTO(e.CPF.Value, e.CPF.Type),
+                        new DocumentDto(e.CPF.Value, e.CPF.Type),
                         e.ImageUrl,
                         branch.Name,
                         e.StartWorkTime,

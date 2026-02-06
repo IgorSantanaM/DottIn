@@ -27,7 +27,7 @@ namespace DottIn.Domain.Branches
         public bool AllowOvernightShifts { get; private set; }
         public bool IsActive { get; private set; }
         public bool IsHeadquarters { get; private set; }
-        public string? OwnerId { get; private set; }
+        public Guid OwnerId { get; private set; }
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
         public DateTime CreatedAt { get; private set; }
@@ -43,18 +43,20 @@ namespace DottIn.Domain.Branches
             string timeZoneId,
             TimeOnly startWorkTime,
             TimeOnly endWorkTime,
+            Guid ownerId,
             string? email = null,
             string? phoneNumber = null,
-            string? ownerId = null,
             bool isHeadquarters = false,
             int allowedRadiusMeters = 100,
             int toleranceMinutes = 10)
         {
+
+            Id = Guid.NewGuid();
             if (string.IsNullOrWhiteSpace(name))
-                throw new DomainException("O Nome da filial é obrigatório.");
+                throw new DomainException("O Nome da Empresa é obrigatório.");
 
             if (document.Type != DocumentType.CNPJ)
-                throw new DomainException("Uma filial deve ser registrada com um CNPJ.");
+                throw new DomainException("Uma Empresa deve ser registrada com um CNPJ.");
 
             if (string.IsNullOrWhiteSpace(email) && string.IsNullOrWhiteSpace(phoneNumber))
                 throw new DomainException("Informe ao menos um contato (E-mail ou Telefone).");
@@ -143,9 +145,9 @@ namespace DottIn.Domain.Branches
             UpdatedAt = DateTime.UtcNow;
         }
 
-        public void SetOwner(string ownerId)
+        public void SetOwner(Guid ownerId)
         {
-            if (string.IsNullOrWhiteSpace(ownerId))
+            if (Guid.Empty == ownerId)
                 throw new DomainException("Por favor, informe qual será o dono.");
 
             OwnerId = ownerId;

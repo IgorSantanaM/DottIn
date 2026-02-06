@@ -2,5 +2,5 @@
 
 namespace DottIn.Application.Shared.DTOS;
 
-public record DocumentDTO(string Value, DocumentType Type);
+public record DocumentDto(string Value, DocumentType Type);
 

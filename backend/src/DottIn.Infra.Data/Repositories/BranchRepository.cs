@@ -20,7 +20,7 @@ namespace DottIn.Infra.Data.Repositories
                 .FirstOrDefaultAsync(b => b.Document.Value == sanitizedDocument, token);
         }
 
-        public async Task<IEnumerable<Branch>> GetByOwnerIdAsync(string ownerId, CancellationToken token = default)
+        public async Task<IEnumerable<Branch>> GetByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
             => await context.Branches
                 .AsNoTracking()
                 .Where(b => b.OwnerId == ownerId)

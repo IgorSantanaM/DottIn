@@ -4,7 +4,7 @@ namespace DottIn.Application.Features.Employees.DTOs;
 
 public record EmployeeSummaryDto(Guid EmployeeId, 
                     string Name, 
-                    DocumentDTO Document, 
+                    DocumentDto Document, 
                     string? ImageUrl, 
                     string BranchName, 
                     TimeOnly StartWorkTime, 
