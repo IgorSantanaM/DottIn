@@ -99,8 +99,6 @@ namespace DottIn.Domain.Branches
 
             UpdatedAt = DateTime.UtcNow;
         }
-
-
         public bool IsWithinRange(double userLat, double userLon)
         {
             if (userLat < MinLatitude || userLat > MaxLatitude ||

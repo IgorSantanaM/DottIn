@@ -1,3 +1,3 @@
-﻿namespace DottIn.Application.Features.TimeKeepings.DTOs;
+﻿namespace DottIn.Application.Shared.DTOS;
 
 public record GeolocationDto(double Latitude, double Longitude);

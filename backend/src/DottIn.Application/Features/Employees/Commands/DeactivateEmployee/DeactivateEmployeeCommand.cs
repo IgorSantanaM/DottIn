@@ -2,4 +2,4 @@
 
 namespace DottIn.Application.Features.Employees.Commands.DeactivateEmployee;
 
-public record DeactivateEmployeeCommand(Guid EmployeeId, Guid BranchId) : IRequest<bool>;
+public record DeactivateEmployeeCommand(Guid EmployeeId, Guid BranchId) : IRequest<Unit>;

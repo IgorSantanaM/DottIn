@@ -15,9 +15,9 @@ namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
     public class DeactivateEmployeeCommandHandler(IEmployeeRepository employeeRepository,
         IBranchRepository branchRepository,
         IUnitOfWork unitOfWork,
-        IValidator<DeactivateEmployeeCommand> validator) : IRequestHandler<DeactivateEmployeeCommand, bool>
+        IValidator<DeactivateEmployeeCommand> validator) : IRequestHandler<DeactivateEmployeeCommand, Unit>
     {
-        public async Task<bool> Handle(DeactivateEmployeeCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(DeactivateEmployeeCommand request, CancellationToken cancellationToken)
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);  
             var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
@@ -34,7 +34,7 @@ namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
             if (!employee.IsActive)
-                return true;
+                return Unit.Value;
 
             employee.Deactivate();
 
@@ -42,7 +42,7 @@ namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return true;
+            return Unit.Value;
         }
     }
 }

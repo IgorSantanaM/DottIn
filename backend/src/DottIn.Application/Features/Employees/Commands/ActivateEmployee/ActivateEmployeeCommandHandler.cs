@@ -14,9 +14,9 @@ namespace DottIn.Application.Features.Employees.Commands.ActivateEmployee
     public class ActivateEmployeeCommandHandler(IBranchRepository branchRepository,
                             IEmployeeRepository employeeRepository,
                             IUnitOfWork unitOfWork,
-                            IValidator<ActivateEmployeeCommand> validator) : IRequestHandler<ActivateEmployeeCommand, bool>
+                            IValidator<ActivateEmployeeCommand> validator) : IRequestHandler<ActivateEmployeeCommand, Unit>
     {
-        public async Task<bool> Handle(ActivateEmployeeCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(ActivateEmployeeCommand request, CancellationToken cancellationToken)
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
 
@@ -34,14 +34,14 @@ namespace DottIn.Application.Features.Employees.Commands.ActivateEmployee
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
             if (employee.IsActive)
-                return true;
+                return Unit.Value;
 
             employee.Activate();
 
             await employeeRepository.UpdateAsync(employee);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return true;
+            return Unit.Value;
         }
     }
 }
