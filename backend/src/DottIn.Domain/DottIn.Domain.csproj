@@ -10,8 +10,4 @@
     <ProjectReference Include="..\DottIn.Domain.Core\DottIn.Domain.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="HolidayCalendars\" />
-  </ItemGroup>
-
 </Project>

@@ -8,6 +8,9 @@
 
   <ItemGroup>
     <Folder Include="Features\Branches\Events\" />
+    <Folder Include="Features\HolidayCalendars\DTOs\" />
+    <Folder Include="Features\HolidayCalendars\Validators\" />
+    <Folder Include="Features\HolidayCalendars\Queries\" />
   </ItemGroup>
 
   <ItemGroup>
