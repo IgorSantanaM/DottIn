@@ -30,7 +30,7 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeeByCPF
 
             var employeeSummaryDto = new EmployeeSummaryDto(employee.Id,
                         employee.Name,
-                        new DocumentDTO(employee.CPF.Value, employee.CPF.Type),
+                        new DocumentDto(employee.CPF.Value, employee.CPF.Type),
                         employee.ImageUrl,
                         branch.Name,
                         employee.StartWorkTime,

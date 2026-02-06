@@ -5,7 +5,7 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee;
 
 public record CreateEmployeeCommand(
     string Name,
-    DocumentDTO Document,
+    DocumentDto Document,
     Stream ImageStream,
     string ImageContentType,
     Guid BranchId,

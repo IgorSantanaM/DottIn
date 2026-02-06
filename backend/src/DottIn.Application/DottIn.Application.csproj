@@ -7,14 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Features\Branches\Commands\CreateBranch\" />
-    <Folder Include="Features\Branches\Commands\SetComplianceRule\" />
-    <Folder Include="Features\Branches\Commands\SetOwner\" />
-    <Folder Include="Features\Branches\Commands\UpdateSchedule\" />
-    <Folder Include="Features\Branches\Commands\UpdateConfig\" />
     <Folder Include="Features\Branches\Events\" />
-    <Folder Include="Features\Branches\Validators\" />
-    <Folder Include="Features\Branches\Queries\" />
   </ItemGroup>
 
   <ItemGroup>
