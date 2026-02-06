@@ -15,9 +15,9 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateProfile
                         IEmployeeRepository employeeRepository,
                         IUnitOfWork unitOfWork,
                         IValidator<UpdateProfileCommand> validator)
-                        : IRequestHandler<UpdateProfileCommand, bool>
+                        : IRequestHandler<UpdateProfileCommand, Unit>
     {
-        public async Task<bool> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
 
@@ -35,7 +35,7 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateProfile
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
             if (employee.IsActive)
-                return true;
+                return Unit.Value;
 
             employee.UpdateProfile(request.Name);
 
@@ -50,7 +50,7 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateProfile
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return true;
+            return Unit.Value;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using DottIn.Domain.TimeKeepings;
+﻿using DottIn.Application.Shared.DTOS;
+using DottIn.Domain.TimeKeepings;
 
 namespace DottIn.Application.Features.TimeKeepings.DTOs;
 

@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.TimeKeepings.DTOs;
+﻿using DottIn.Application.Shared.DTOS;
 using MediatR;
 
 namespace DottIn.Application.Features.TimeKeepings.Commands.Break;
