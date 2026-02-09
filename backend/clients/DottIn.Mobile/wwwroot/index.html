@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563EB" />
+    <title>DottIn</title>
+    <base href="/" />
+    
+    <!-- MudBlazor -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    
+    <!-- App Styles -->
+    <link href="css/app.css" rel="stylesheet" />
+</head>
+<body>
+    <div id="app">
+        <div class="splash-loading">
+            <div class="splash-logo">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="#2563EB">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z" />
+                </svg>
+            </div>
+            <div class="splash-spinner"></div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ocorreu um erro. <a href="" class="reload">Recarregar</a>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        Blazor.start().catch(function(error) {
+            console.error(error);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+
+<Router AppAssembly="@typeof(Routes).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <div class="not-found">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" />
+                <MudText Typo="Typo.h5">Página não encontrada</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
+                    Voltar ao início
+                </MudButton>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

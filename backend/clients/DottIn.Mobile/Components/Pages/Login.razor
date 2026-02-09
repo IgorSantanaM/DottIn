@@ -1,0 +1,331 @@
+@page "/login"
+@inject IAuthApi AuthApi
+@inject ISecureStorageService SecureStorage
+@inject AppState AppState
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<div class="login-container">
+    @* Logo *@
+    <div class="logo-section">
+        <div class="logo">
+            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Large" Color="Color.Primary" />
+        </div>
+        <MudText Typo="Typo.h4" Class="brand-name">DottIn</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Controle de Ponto Inteligente</MudText>
+    </div>
+
+    @* Login Form *@
+    <MudCard Class="login-card" Elevation="0">
+        <MudCardContent>
+            @if (_step == LoginStep.Company)
+            {
+                <div class="step-content">
+                    <MudText Typo="Typo.h6" Class="mb-4">Qual é sua empresa?</MudText>
+                    
+                    <MudTextField @bind-Value="_companyCode"
+                                  Label="Código da Empresa"
+                                  Placeholder="ex: acme-corp"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Business"
+                                  FullWidth="true"
+                                  Class="mb-4" />
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="@(string.IsNullOrWhiteSpace(_companyCode) || _isLoading)"
+                               OnClick="ValidateCompany">
+                        @if (_isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Continuar
+                    </MudButton>
+                </div>
+            }
+            else if (_step == LoginStep.Credentials)
+            {
+                <div class="step-content">
+                    <div class="company-badge mb-4">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small">@_companyCode</MudChip>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => _step = LoginStep.Company)" />
+                    </div>
+
+                    <MudText Typo="Typo.h6" Class="mb-4">Entre com suas credenciais</MudText>
+
+                    <MudTextField @bind-Value="_cpf"
+                                  Label="CPF"
+                                  Placeholder="000.000.000-00"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Badge"
+                                  InputType="InputType.Text"
+                                  Mask="@(new PatternMask("000.000.000-00"))"
+                                  FullWidth="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_password"
+                                  Label="Senha"
+                                  Placeholder="••••••••"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Lock"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  FullWidth="true"
+                                  Class="mb-4">
+                        <AdornmentContent>
+                            <MudIconButton Icon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                           OnClick="@(() => _showPassword = !_showPassword)"
+                                           Edge="Edge.End" />
+                        </AdornmentContent>
+                    </MudTextField>
+
+                    <div class="remember-me mb-4">
+                        <MudCheckBox @bind-Value="_rememberMe" Color="Color.Primary" Dense="true">
+                            <MudText Typo="Typo.body2">Manter conectado</MudText>
+                        </MudCheckBox>
+                    </div>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="@(!IsFormValid() || _isLoading)"
+                               OnClick="LoginAsync">
+                        @if (_isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Entrar
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Secondary"
+                               FullWidth="true"
+                               Class="mt-2"
+                               OnClick="@(() => _step = LoginStep.Pin)">
+                        Entrar com PIN
+                    </MudButton>
+                </div>
+            }
+            else if (_step == LoginStep.Pin)
+            {
+                <div class="step-content pin-step">
+                    <div class="company-badge mb-4">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small">@_companyCode</MudChip>
+                    </div>
+
+                    <MudText Typo="Typo.h6" Class="mb-2">Digite seu PIN</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        CPF: @MaskCpf(_cpf)
+                    </MudText>
+
+                    <div class="pin-display mb-4">
+                        @for (int i = 0; i < 6; i++)
+                        {
+                            var filled = i < _pin.Length;
+                            <div class="pin-dot @(filled ? "filled" : "")"></div>
+                        }
+                    </div>
+
+                    <div class="pin-keyboard">
+                        @for (int i = 1; i <= 9; i++)
+                        {
+                            var digit = i.ToString();
+                            <MudButton Variant="Variant.Outlined"
+                                       Class="pin-key"
+                                       OnClick="@(() => AddPinDigit(digit))">@digit</MudButton>
+                        }
+                        <MudButton Variant="Variant.Text"
+                                   Class="pin-key"
+                                   OnClick="UseBiometric">
+                            <MudIcon Icon="@Icons.Material.Filled.Fingerprint" />
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Class="pin-key"
+                                   OnClick="@(() => AddPinDigit("0"))">0</MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Class="pin-key"
+                                   OnClick="RemovePinDigit">
+                            <MudIcon Icon="@Icons.Material.Filled.Backspace" />
+                        </MudButton>
+                    </div>
+
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Secondary"
+                               FullWidth="true"
+                               Class="mt-4"
+                               OnClick="@(() => _step = LoginStep.Credentials)">
+                        Entrar com senha
+                    </MudButton>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    @* Footer *@
+    <div class="login-footer">
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Versão 1.0.0 • © 2025 DottIn
+        </MudText>
+    </div>
+</div>
+
+@code {
+    private LoginStep _step = LoginStep.Company;
+    private string _companyCode = "";
+    private string _cpf = "";
+    private string _password = "";
+    private string _pin = "";
+    private bool _showPassword = false;
+    private bool _rememberMe = true;
+    private bool _isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already logged in
+        var token = await SecureStorage.GetAsync("access_token");
+        if (!string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/");
+        }
+
+        // Check saved company code
+        var savedCompany = await SecureStorage.GetAsync("company_code");
+        if (!string.IsNullOrEmpty(savedCompany))
+        {
+            _companyCode = savedCompany;
+            _step = LoginStep.Credentials;
+        }
+
+        // Check saved CPF
+        var savedCpf = await SecureStorage.GetAsync("saved_cpf");
+        if (!string.IsNullOrEmpty(savedCpf))
+        {
+            _cpf = savedCpf;
+            _step = LoginStep.Pin;
+        }
+    }
+
+    private async Task ValidateCompany()
+    {
+        _isLoading = true;
+        try
+        {
+            // TODO: Validate company exists via API
+            await Task.Delay(500); // Simulated
+
+            await SecureStorage.SetAsync("company_code", _companyCode);
+            _step = LoginStep.Credentials;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Empresa não encontrada", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var request = new LoginRequest(_cpf.Replace(".", "").Replace("-", ""), _password, _companyCode);
+            var response = await AuthApi.LoginAsync(request);
+
+            await SecureStorage.SetAsync("access_token", response.AccessToken);
+            await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
+            
+            if (_rememberMe)
+            {
+                await SecureStorage.SetAsync("saved_cpf", _cpf);
+            }
+
+            AppState.SetAuthenticated(response.Employee, response.BranchId);
+
+            Snackbar.Add("Login realizado com sucesso!", Severity.Success);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("CPF ou senha incorretos", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoginWithPin()
+    {
+        _isLoading = true;
+        try
+        {
+            var request = new PinLoginRequest(_cpf.Replace(".", "").Replace("-", ""), _pin, _companyCode);
+            var response = await AuthApi.LoginWithPinAsync(request);
+
+            await SecureStorage.SetAsync("access_token", response.AccessToken);
+            await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
+
+            AppState.SetAuthenticated(response.Employee, response.BranchId);
+
+            HapticFeedback.Perform(HapticFeedbackType.Click);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("PIN incorreto", Severity.Error);
+            _pin = "";
+            HapticFeedback.Perform(HapticFeedbackType.LongPress);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void AddPinDigit(string digit)
+    {
+        if (_pin.Length < 6)
+        {
+            _pin += digit;
+            HapticFeedback.Perform(HapticFeedbackType.Click);
+
+            if (_pin.Length == 6)
+            {
+                _ = LoginWithPin();
+            }
+        }
+    }
+
+    private void RemovePinDigit()
+    {
+        if (_pin.Length > 0)
+        {
+            _pin = _pin[..^1];
+            HapticFeedback.Perform(HapticFeedbackType.Click);
+        }
+    }
+
+    private async Task UseBiometric()
+    {
+        // TODO: Implement biometric authentication
+        Snackbar.Add("Biometria em desenvolvimento", Severity.Info);
+    }
+
+    private bool IsFormValid() => 
+        !string.IsNullOrWhiteSpace(_cpf) && 
+        _cpf.Replace(".", "").Replace("-", "").Length == 11 &&
+        !string.IsNullOrWhiteSpace(_password);
+
+    private string MaskCpf(string cpf) => 
+        cpf.Length >= 11 ? $"***.***.{cpf.Substring(7, 3)}-**" : cpf;
+
+    private enum LoginStep { Company, Credentials, Pin }
+}

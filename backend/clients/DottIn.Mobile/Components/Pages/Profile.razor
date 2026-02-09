@@ -1,0 +1,224 @@
+@page "/profile"
+@inject AppState AppState
+@inject ISecureStorageService SecureStorage
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<div class="profile-container">
+    @* Profile Header *@
+    <div class="profile-header">
+        <MudAvatar Size="Size.Large" Color="Color.Primary" Class="profile-avatar">
+            @if (!string.IsNullOrEmpty(AppState.Employee?.ImageUrl))
+            {
+                <MudImage Src="@AppState.Employee.ImageUrl" Alt="Profile" />
+            }
+            else
+            {
+                @AppState.Employee?.Initials
+            }
+        </MudAvatar>
+        <MudText Typo="Typo.h5" Class="font-bold">@AppState.Employee?.Name</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@FormatCpf(AppState.Employee?.Cpf ?? "")</MudText>
+    </div>
+
+    @* Settings Sections *@
+    <MudCard Class="settings-card">
+        <MudCardContent>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">SEGURANÇA</MudText>
+
+            <MudList T="string" Dense="true">
+                <MudListItem Icon="@Icons.Material.Filled.Pin" OnClick="ChangePin">
+                    <MudText>Alterar PIN</MudText>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Fingerprint" OnClick="ToggleBiometric">
+                    <div class="list-item-content">
+                        <MudText>Biometria</MudText>
+                        <MudSwitch T="bool" @bind-Value="_biometricEnabled" Color="Color.Primary" />
+                    </div>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Password" OnClick="ChangePassword">
+                    <MudText>Alterar Senha</MudText>
+                </MudListItem>
+            </MudList>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="settings-card">
+        <MudCardContent>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">PREFERÊNCIAS</MudText>
+
+            <MudList T="string" Dense="true">
+                <MudListItem Icon="@(_darkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)">
+                    <div class="list-item-content">
+                        <MudText>Modo Escuro</MudText>
+                        <MudSwitch T="bool" @bind-Value="_darkMode" Color="Color.Primary" />
+                    </div>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Notifications">
+                    <div class="list-item-content">
+                        <MudText>Notificações</MudText>
+                        <MudSwitch T="bool" @bind-Value="_notificationsEnabled" Color="Color.Primary" />
+                    </div>
+                </MudListItem>
+            </MudList>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="settings-card">
+        <MudCardContent>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">SOBRE</MudText>
+
+            <MudList T="string" Dense="true">
+                <MudListItem Icon="@Icons.Material.Filled.Info">
+                    <div class="list-item-content">
+                        <MudText>Versão</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">1.0.0</MudText>
+                    </div>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Description" OnClick="OpenTerms">
+                    <MudText>Termos de Uso</MudText>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.PrivacyTip" OnClick="OpenPrivacy">
+                    <MudText>Política de Privacidade</MudText>
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Help" OnClick="OpenSupport">
+                    <MudText>Suporte</MudText>
+                </MudListItem>
+            </MudList>
+        </MudCardContent>
+    </MudCard>
+
+    @* Logout Button *@
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Error"
+               FullWidth="true"
+               StartIcon="@Icons.Material.Filled.Logout"
+               Class="logout-button"
+               OnClick="Logout">
+        Sair da Conta
+    </MudButton>
+
+    <div class="footer-info">
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            © 2025 DottIn - Todos os direitos reservados
+        </MudText>
+    </div>
+</div>
+
+<style>
+    .profile-container {
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .profile-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 24px 0;
+    }
+
+    .profile-avatar {
+        width: 96px !important;
+        height: 96px !important;
+        font-size: 32px !important;
+    }
+
+    .settings-card {
+        border-radius: 16px !important;
+    }
+
+    .list-item-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .logout-button {
+        margin-top: 8px;
+        border-radius: 12px !important;
+    }
+
+    .footer-info {
+        text-align: center;
+        padding: 24px 0;
+    }
+</style>
+
+@code {
+    private bool _biometricEnabled = false;
+    private bool _darkMode = false;
+    private bool _notificationsEnabled = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var biometric = await SecureStorage.GetAsync("biometric_enabled");
+        _biometricEnabled = biometric == "true";
+
+        var darkMode = await SecureStorage.GetAsync("dark_mode");
+        _darkMode = darkMode == "true";
+
+        var notifications = await SecureStorage.GetAsync("notifications_enabled");
+        _notificationsEnabled = notifications != "false";
+    }
+
+    private async Task ChangePin()
+    {
+        // TODO: Implement PIN change dialog
+        Snackbar.Add("Funcionalidade em desenvolvimento", Severity.Info);
+    }
+
+    private async Task ToggleBiometric()
+    {
+        await SecureStorage.SetAsync("biometric_enabled", _biometricEnabled.ToString().ToLower());
+        Snackbar.Add(_biometricEnabled ? "Biometria ativada" : "Biometria desativada", Severity.Success);
+    }
+
+    private async Task ChangePassword()
+    {
+        // TODO: Implement password change
+        Snackbar.Add("Funcionalidade em desenvolvimento", Severity.Info);
+    }
+
+    private void OpenTerms()
+    {
+        // TODO: Open terms URL
+    }
+
+    private void OpenPrivacy()
+    {
+        // TODO: Open privacy URL
+    }
+
+    private void OpenSupport()
+    {
+        // TODO: Open support URL or email
+    }
+
+    private async Task Logout()
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Sair",
+            "Tem certeza que deseja sair da sua conta?",
+            yesText: "Sair",
+            cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await SecureStorage.ClearAllAsync();
+            AppState.Logout();
+            Navigation.NavigateTo("/login", true);
+        }
+    }
+
+    private string FormatCpf(string cpf)
+    {
+        if (cpf.Length != 11) return cpf;
+        return $"{cpf.Substring(0, 3)}.{cpf.Substring(3, 3)}.{cpf.Substring(6, 3)}-{cpf.Substring(9, 2)}";
+    }
+}
