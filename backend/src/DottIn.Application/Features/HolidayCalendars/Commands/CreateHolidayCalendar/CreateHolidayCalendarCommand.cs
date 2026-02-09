@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar
-{
-    internal class CreateHolidayCalendarCommand
-    {
-    }
-}
+namespace DottIn.Application.Features.HolidayCalendars.Commands.AddHolidays;
+
+public record CreateHolidayCalendarCommand(Guid BranchId, 
+                string Name,
+                string CountryCode, 
+                int Year, 
+                string? RegionCode, 
+                string? Description) : IRequest<Guid>;

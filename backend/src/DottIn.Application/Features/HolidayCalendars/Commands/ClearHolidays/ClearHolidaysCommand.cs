@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays
-{
-    internal class ClearHolidaysCommand
-    {
-    }
-}
+namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays;
+
+public record ClearHolidaysCommand(Guid HolidayCalendarId, Guid BranchId) : IRequest<Unit>;
