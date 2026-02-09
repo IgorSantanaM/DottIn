@@ -6,15 +6,14 @@ using DottIn.Domain.HolidayCalendars;
 using FluentValidation;
 using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays
+namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar
 {
-    public class ClearHolidaysCommandHandler(IHolidayCalendarRepository holidayCalendarRepository,
-        IBranchRepository branchRepository,
-        IValidator<ClearHolidaysCommand> validator, 
-        IUnitOfWork unitOfWork) 
-        : IRequestHandler<ClearHolidaysCommand, Unit>
+    public class AddHolidayCommandHandler(IBranchRepository branchRepository,
+        IHolidayCalendarRepository holidayCalendarRepository,
+        IValidator<AddHolidayCommand> validator,
+        IUnitOfWork unitOfWork) : IRequestHandler<AddHolidayCommand, Unit>
     {
-        public async Task<Unit> Handle(ClearHolidaysCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(AddHolidayCommand request, CancellationToken cancellationToken)
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
 
@@ -34,12 +33,13 @@ namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays
             if (!branch.IsActive)
                 throw new DomainException("A empreas não esta ativa.");
 
-            holidayCalendar.ClearHolidays();
+            holidayCalendar.AddHoliday(request.Date, request.Name, request.Type, request.IsOptional);
 
             await holidayCalendarRepository.UpdateAsync(holidayCalendar);
-            await unitOfWork.SaveChangesAsync();
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
-        } 
+        }
     }
 }
