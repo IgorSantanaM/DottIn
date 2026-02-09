@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DottIn.Domain.Core.Models
+﻿namespace DottIn.Domain.Core.Models
 {
     public abstract class ValueObject
     {
@@ -14,7 +10,7 @@ namespace DottIn.Domain.Core.Models
                 return false;
             }
             var other = (ValueObject)obj;
-            return this.GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
+            return GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
         }
 
         public override int GetHashCode()

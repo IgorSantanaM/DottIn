@@ -8,10 +8,10 @@ using MediatR;
 
 namespace DottIn.Application.Features.Employees.Commands.UpdateSchedule
 {
-    public class UpdateScheduleCommandHandler(IBranchRepository branchRepository, 
-        IEmployeeRepository employeeRepository, 
+    public class UpdateScheduleCommandHandler(IBranchRepository branchRepository,
+        IEmployeeRepository employeeRepository,
         IUnitOfWork unitOfWork,
-        IValidator<UpdateScheduleCommand> validator) 
+        IValidator<UpdateScheduleCommand> validator)
         : IRequestHandler<UpdateScheduleCommand, bool>
     {
         public async Task<bool> Handle(UpdateScheduleCommand request, CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateSchedule
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return true;    
+            return true;
         }
     }
 }

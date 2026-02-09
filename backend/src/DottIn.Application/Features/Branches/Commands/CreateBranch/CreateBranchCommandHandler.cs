@@ -34,21 +34,21 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
                 request.Address.Number,
                 request.Address.City,
                 request.Address.State,
-                request.Address.ZipCode, 
+                request.Address.ZipCode,
                 request.Address.Complement);
 
-            var branch = new Branch(request.Name, 
-                            document, 
-                            geolocation, 
-                            address, 
-                            request.TimeZoneId, 
-                            request.StartWorkTime, 
+            var branch = new Branch(request.Name,
+                            document,
+                            geolocation,
+                            address,
+                            request.TimeZoneId,
+                            request.StartWorkTime,
                             request.EndWorkTime,
-                            request.OwnerId, 
+                            request.OwnerId,
                             request.Email,
                             request.PhoneNumber,
-                            request.IsHeadQuarters, 
-                            request.AllowedRadiusMeters, 
+                            request.IsHeadQuarters,
+                            request.AllowedRadiusMeters,
                             request.ToleranceMinutes);
 
             await branchRepository.AddAsync(branch, cancellationToken);

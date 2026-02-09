@@ -1,6 +1,6 @@
-﻿using DottIn.Domain.Core.Data;
+﻿using DottIn.Application.Features.Employees.Events;
+using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
-using DottIn.Domain.Employees.Events;
 using DottIn.Domain.Storage;
 using MassTransit;
 using Microsoft.Extensions.Logging;

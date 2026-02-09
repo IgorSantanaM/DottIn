@@ -5,15 +5,12 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using FluentValidation;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DottIn.Application.Features.Branches.Queries.GetByBranchId
+namespace DottIn.Application.Features.Branches.Queries.GetBranchById
 {
     public class GetBranchByIdQueryHandler(IBranchRepository branchRepository,
-        IEmployeeRepository employeeRepository, 
-        IValidator<GetBranchByIdQuery> validator) 
+        IEmployeeRepository employeeRepository,
+        IValidator<GetBranchByIdQuery> validator)
         : IRequestHandler<GetBranchByIdQuery, BranchDetailsDto>
     {
         public async Task<BranchDetailsDto> Handle(GetBranchByIdQuery request, CancellationToken cancellationToken)

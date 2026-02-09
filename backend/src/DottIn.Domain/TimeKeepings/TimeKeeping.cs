@@ -1,9 +1,6 @@
-﻿using DottIn.Domain.Core.Exceptions;
+﻿using DottIn.Domain.Branches;
+using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
-using DottIn.Domain.ValueObjects;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Domain.TimeKeepings
 {
@@ -24,7 +21,7 @@ namespace DottIn.Domain.TimeKeepings
         {
             Id = Guid.NewGuid();
 
-            if (branchId == Guid.Empty) 
+            if (branchId == Guid.Empty)
                 throw new DomainException("Empresa Invalida.");
 
             if (employeeId == Guid.Empty)

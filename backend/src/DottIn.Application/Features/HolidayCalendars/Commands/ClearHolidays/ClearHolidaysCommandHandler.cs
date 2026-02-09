@@ -10,8 +10,8 @@ namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays
 {
     public class ClearHolidaysCommandHandler(IHolidayCalendarRepository holidayCalendarRepository,
         IBranchRepository branchRepository,
-        IValidator<ClearHolidaysCommand> validator, 
-        IUnitOfWork unitOfWork) 
+        IValidator<ClearHolidaysCommand> validator,
+        IUnitOfWork unitOfWork)
         : IRequestHandler<ClearHolidaysCommand, Unit>
     {
         public async Task<Unit> Handle(ClearHolidaysCommand request, CancellationToken cancellationToken)
@@ -40,6 +40,6 @@ namespace DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays
             await unitOfWork.SaveChangesAsync();
 
             return Unit.Value;
-        } 
+        }
     }
 }

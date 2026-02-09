@@ -7,13 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Features\Branches\Events\" />
-    <Folder Include="Features\HolidayCalendars\DTOs\" />
-    <Folder Include="Features\HolidayCalendars\Validators\" />
-    <Folder Include="Features\HolidayCalendars\Queries\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="MassTransit" Version="9.0.0" />
     <PackageReference Include="MediatR" Version="14.0.0" />

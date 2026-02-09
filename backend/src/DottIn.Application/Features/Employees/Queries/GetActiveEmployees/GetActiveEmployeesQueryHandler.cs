@@ -4,11 +4,7 @@ using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
-using MassTransit;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Employees.Queries.GetActiveEmployees
 {

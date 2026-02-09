@@ -55,7 +55,7 @@ namespace DottIn.Domain.Employees
 
         public void AddImage(string imageUrl)
         {
-            if(string.IsNullOrEmpty(imageUrl))
+            if (string.IsNullOrEmpty(imageUrl))
                 throw new DomainException("A Imagem deve ser inserida.");
 
             ImageUrl = imageUrl;
@@ -63,7 +63,7 @@ namespace DottIn.Domain.Employees
 
 
         public void RemoveImage()
-            => ImageUrl = null;    
+            => ImageUrl = null;
 
         public void UpdateProfile(string name)
         {

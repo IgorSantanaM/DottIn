@@ -6,7 +6,7 @@ using DottIn.Domain.HolidayCalendars;
 using FluentValidation;
 using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar
+namespace DottIn.Application.Features.HolidayCalendars.Commands.AddHoliday
 {
     public class AddHolidayCommandHandler(IBranchRepository branchRepository,
         IHolidayCalendarRepository holidayCalendarRepository,
@@ -25,15 +25,15 @@ namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCal
             if (!holidayCalendar.IsActive)
                 throw new DomainException("O calendário não esta ativo.");
 
-            var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
+                var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
 
-            if (branch is null)
-                throw NotFoundException.ForEntity(nameof(Branch), request.BranchId);
+                if (branch is null)
+                    throw NotFoundException.ForEntity(nameof(Branch), request.BranchId);
 
-            if (!branch.IsActive)
-                throw new DomainException("A empreas não esta ativa.");
+                if (!branch.IsActive)
+                    throw new DomainException("A empreas não esta ativa.");
 
-            holidayCalendar.AddHoliday(request.Date, request.Name, request.Type, request.IsOptional);
+            holidayCalendar.AddHolidays(request.Holidays);
 
             await holidayCalendarRepository.UpdateAsync(holidayCalendar);
 

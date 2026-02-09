@@ -6,7 +6,7 @@ using DottIn.Domain.HolidayCalendars;
 using FluentValidation;
 using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.AddHolidays
+namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar
 {
     public class CreateHolidayCalendarCommandHandler(IHolidayCalendarRepository holidayCalendarRepository,
         IBranchRepository branchRepository,

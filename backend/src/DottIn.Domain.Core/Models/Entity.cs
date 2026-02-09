@@ -16,7 +16,7 @@
             return Id!.Equals(compareTo.Id);
         }
         public void ClearDomainEvents()
-            => _domainEvents.Clear();   
+            => _domainEvents.Clear();
 
         public static bool operator ==(Entity<TId> entityA, Entity<TId> entityB)
         {

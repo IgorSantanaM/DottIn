@@ -1,6 +1,5 @@
 ﻿using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
-using System.Text.RegularExpressions;
 
 namespace DottIn.Domain.ValueObjects
 {
@@ -45,7 +44,7 @@ namespace DottIn.Domain.ValueObjects
             Street = street;
             Number = number;
             City = city;
-            State = state.ToUpper(); 
+            State = state.ToUpper();
             Complement = complement;
         }
 

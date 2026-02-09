@@ -1,7 +1,7 @@
 ﻿using DottIn.Application.Features.TimeKeepings.DTOs;
 using MediatR;
 
-namespace DottIn.Application.Features.TimeKeepings.Queries.GetAllTimeKeepings;
+namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod;
 
 public record GetTimeKeepingByPeriodQuery(Guid EmployeeId,
                                     DateOnly StartDate,

@@ -6,7 +6,6 @@ using DottIn.Domain.Employees;
 using DottIn.Domain.TimeKeepings;
 using FluentValidation;
 using MediatR;
-using Microsoft.IdentityModel.Tokens.Experimental;
 
 namespace DottIn.Application.Features.TimeKeepings.Commands.Break
 {
@@ -52,7 +51,7 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
             if (existingTimeKeeping.Status == TimeKeepingStatus.NotStarted)
                 throw new DomainException("Clock-in não foi realizado. Faça o clock-in primeiro.");
 
-            if(existingTimeKeeping.Status == TimeKeepingStatus.OnBreak)
+            if (existingTimeKeeping.Status == TimeKeepingStatus.OnBreak)
             {
                 existingTimeKeeping.EndBreak(DateTime.UtcNow);
             }
@@ -64,7 +63,7 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
             await timeKeepingRepository.UpdateAsync(existingTimeKeeping);
             await unitOfWork.SaveChangesAsync();
 
-            return Unit.Value;  
+            return Unit.Value;
         }
     }
 }

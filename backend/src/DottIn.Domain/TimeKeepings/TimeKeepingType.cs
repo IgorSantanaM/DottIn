@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DottIn.Domain.TimeKeepings
+﻿namespace DottIn.Domain.TimeKeepings
 {
     public enum TimeKeepingType
     {

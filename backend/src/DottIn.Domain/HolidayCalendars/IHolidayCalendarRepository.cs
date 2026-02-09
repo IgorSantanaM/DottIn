@@ -4,45 +4,42 @@ namespace DottIn.Domain.HolidayCalendars
 {
     public interface IHolidayCalendarRepository : IRepository<HolidayCalendar, Guid>
     {
-        Task<HolidayCalendar?> GetByBranchAndYearAsync(
+        Task<HolidayCalendar?> GetByYearAsync(
             Guid branchId,
             int year,
             CancellationToken token = default);
 
-        Task<IEnumerable<HolidayCalendar>> GetByBranchAsync(
+        Task<IEnumerable<HolidayCalendar>> GetAllAsync(
             Guid branchId,
             CancellationToken token = default);
 
-        Task<IEnumerable<HolidayCalendar>> GetActiveByBranchAsync(
+        Task<IEnumerable<HolidayCalendar>> GetActiveAsync(
             Guid branchId,
             CancellationToken token = default);
 
         Task<HolidayCalendar?> GetByCountryAndYearAsync(
+            Guid branchId,
             string countryCode,
             int year,
             string? regionCode = null,
             CancellationToken token = default);
 
-        Task<IEnumerable<HolidayCalendar>> GetByYearAsync(
-            int year,
-            CancellationToken token = default);
-
-        Task<bool> IsHolidayForBranchAsync(
+        Task<bool> IsHolidayAsync(
             Guid branchId,
             DateOnly date,
             CancellationToken token = default);
 
-        Task<bool> IsMandatoryHolidayForBranchAsync(
+        Task<bool> IsMandatoryHolidayAsync(
             Guid branchId,
             DateOnly date,
             CancellationToken token = default);
 
-        Task<Holiday?> GetHolidayByBranchAndDateAsync(
+        Task<Holiday?> GetHolidayByDateAsync(
             Guid branchId,
             DateOnly date,
             CancellationToken token = default);
 
-        Task<IEnumerable<Holiday>> GetHolidaysInRangeForBranchAsync(
+        Task<IEnumerable<Holiday>> GetHolidaysInRangeAsync(
             Guid branchId,
             DateOnly startDate,
             DateOnly endDate,

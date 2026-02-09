@@ -1,10 +1,10 @@
 ﻿using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.AddHolidays;
+namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar;
 
-public record CreateHolidayCalendarCommand(Guid BranchId, 
+public record CreateHolidayCalendarCommand(Guid BranchId,
                 string Name,
-                string CountryCode, 
-                int Year, 
-                string? RegionCode, 
+                string CountryCode,
+                int Year,
+                string? RegionCode,
                 string? Description) : IRequest<Guid>;
