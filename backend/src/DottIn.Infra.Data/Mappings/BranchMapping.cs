@@ -26,11 +26,10 @@ namespace DottIn.Infra.Data.Mappings
 
                 doc.Property(d => d.Type)
                     .IsRequired()
+                    .HasConversion<string>()
+                    .HasMaxLength(10)
                     .HasColumnName("DocumentType");
             });
-
-            builder.HasIndex("Document")
-                .IsUnique();
 
             builder.HasIndex(b => b.IsActive);
 

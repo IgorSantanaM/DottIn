@@ -1,8 +1,10 @@
-﻿using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
+﻿using DottIn.Application.Features.Branches.Queries.GetBranchByOwner;
+using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
 using DottIn.Application.Features.TimeKeepings.Validators;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
+using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.Storage;
 using DottIn.Domain.TimeKeepings;
 using DottIn.Infra.Data.Contexts;
@@ -28,7 +30,11 @@ namespace DottIn.Infra.CrossCutting.IoC
                 cfg.RegisterServicesFromAssembly(typeof(ClockInCommand).Assembly);
             });
 
-            services.AddValidatorsFromAssembly(typeof(ClockInCommandValidator).Assembly);
+            services.AddValidatorsFromAssemblies(
+            [
+                typeof(ClockInCommandValidator).Assembly,
+                typeof(GetBranchByOwnerQuery).Assembly
+            ]);
 
             return services;
         }
@@ -59,6 +65,7 @@ namespace DottIn.Infra.CrossCutting.IoC
             services.AddScoped<IBranchRepository, BranchRepository>();
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             services.AddScoped<ITimeKeepingRepository, TimeKeepingRepository>();
+            services.AddScoped<IHolidayCalendarRepository, HolidayCalendarRepository>();
 
             return services;
         }

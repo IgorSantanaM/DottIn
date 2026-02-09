@@ -27,11 +27,11 @@ namespace DottIn.Infra.Data.Mappings
 
                 cpf.Property(c => c.Type)
                     .IsRequired()
+                    .HasConversion<string>()
+                    .HasMaxLength(10)
                     .HasColumnName("DocumentType");
             });
 
-            builder.HasIndex("CPF")
-                .IsUnique();
 
             builder.Property(e => e.ImageUrl)
                 .HasMaxLength(500);
