@@ -2,8 +2,8 @@
 
 namespace DottIn.Domain.Core.Data
 {
-    public interface IRepository<TEntity, in TId> 
-        where TEntity : IAggregateRoot 
+    public interface IRepository<TEntity, in TId>
+        where TEntity : IAggregateRoot
         where TId : notnull
     {
         Task AddAsync(TEntity entity, CancellationToken token = default);

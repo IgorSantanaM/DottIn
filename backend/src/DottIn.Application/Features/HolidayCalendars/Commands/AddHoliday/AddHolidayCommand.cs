@@ -1,12 +1,9 @@
 ﻿using DottIn.Domain.HolidayCalendars;
 using MediatR;
 
-namespace DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar;
+namespace DottIn.Application.Features.HolidayCalendars.Commands.AddHoliday;
 
 public record AddHolidayCommand(Guid HolidayCalendarId,
         Guid BranchId,
-        DateOnly Date,
-        string Name,
-        HolidayType Type,
-        bool IsOptional) : IRequest<Unit>;
+        IEnumerable<(DateOnly Date, string Name, HolidayType Type, bool IsOptional)> Holidays) : IRequest<Unit>;
 

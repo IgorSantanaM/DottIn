@@ -1,19 +1,15 @@
 ﻿using DottIn.Application.Exceptions;
-using DottIn.Application.Features.Branches.Commands.ActivateBranch;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
 using FluentValidation;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Branches.Commands.UpdateConfig
 {
-    public class UpdateConfigCommandHandler(IValidator<UpdateConfigCommand> validator, 
+    public class UpdateConfigCommandHandler(IValidator<UpdateConfigCommand> validator,
         IBranchRepository branchRepository,
-        IUnitOfWork unitOfWork) 
+        IUnitOfWork unitOfWork)
         : IRequestHandler<UpdateConfigCommand, Unit>
     {
         public async Task<Unit> Handle(UpdateConfigCommand request, CancellationToken cancellationToken)

@@ -32,7 +32,7 @@ namespace DottIn.Application.Features.Employees.Validators
                 RuleFor(x => x.ImageContentType)
                     .NotEmpty()
                     .WithMessage("O tipo da imagem deve ser informado quando uma imagem é enviada.")
-                    .Must(contentType => !string.IsNullOrEmpty(contentType) && 
+                    .Must(contentType => !string.IsNullOrEmpty(contentType) &&
                                          AllowedImageTypes.Contains(contentType.ToLowerInvariant()))
                     .WithMessage("Tipo de imagem inválido. Apenas JPEG e PNG são permitidos.");
             });

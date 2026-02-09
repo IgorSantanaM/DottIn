@@ -1,6 +1,6 @@
 ﻿using DottIn.Domain.Core.Models;
 
-namespace DottIn.Domain.Employees.Events;
+namespace DottIn.Application.Features.Employees.Events;
 
 public record EmployeeImageAdded(Guid EmployeeId,
                 Stream ImageStream,

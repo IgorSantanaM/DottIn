@@ -4,9 +4,6 @@ using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Branches.Queries.GetBranchHeadquarters
 {

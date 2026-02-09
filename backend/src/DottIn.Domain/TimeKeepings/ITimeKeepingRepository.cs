@@ -13,7 +13,7 @@ namespace DottIn.Domain.TimeKeepings
         Task<IEnumerable<TimeKeeping>> GetByEmployeeAndPeriodAsync(
             Guid employeeId,
             DateOnly startDate,
-            DateOnly? endDate, 
+            DateOnly? endDate,
             CancellationToken token = default);
 
         Task<IEnumerable<TimeKeeping>> GetByBranchAndDateAsync(Guid branchId, DateOnly workDate, CancellationToken token = default);

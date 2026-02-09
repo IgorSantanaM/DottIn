@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/1.Presentation/" />
+  <Folder Name="/1.Presentation/">
+    <Project Path="src/DottIn.Presentation.WebApi/DottIn.Presentation.WebApi.csproj" Id="02e38e15-cdc4-4d4a-b942-b8f4f7d15320" />
+  </Folder>
   <Folder Name="/2.Application/">
     <Project Path="src/DottIn.Application/DottIn.Application.csproj" Id="b4e6ad0a-72b9-4adc-ab43-a6d58912695d" />
   </Folder>

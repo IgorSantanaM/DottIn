@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.Branches.Commands.SetComplianceRule;
+﻿using DottIn.Application.Features.Branches.Commands.SetComplianceRules;
 using FluentValidation;
 
 namespace DottIn.Application.Features.Branches.Validators

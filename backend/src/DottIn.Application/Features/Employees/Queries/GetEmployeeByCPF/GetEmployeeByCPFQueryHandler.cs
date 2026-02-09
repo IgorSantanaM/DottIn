@@ -5,9 +5,6 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Employees.Queries.GetEmployeeByCPF
 {

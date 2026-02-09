@@ -1,5 +1,4 @@
 ﻿using DottIn.Application.Exceptions;
-using DottIn.Application.Features.Branches.Commands.SetComplianceRule;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
@@ -31,7 +30,7 @@ namespace DottIn.Application.Features.Branches.Commands.SetComplianceRules
 
             await branchRepository.UpdateAsync(branch);
 
-            await unitOfWork.SaveChangesAsync(cancellationToken);   
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
 

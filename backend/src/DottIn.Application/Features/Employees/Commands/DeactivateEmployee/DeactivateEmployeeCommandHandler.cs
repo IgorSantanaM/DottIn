@@ -1,16 +1,12 @@
 ﻿using DottIn.Application.Exceptions;
-using DottIn.Application.Features.Employees.Commands.DeactivateEmployee;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
 using FluentValidation;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
+namespace DottIn.Application.Features.Employees.Commands.DeactivateEmployee
 {
     public class DeactivateEmployeeCommandHandler(IEmployeeRepository employeeRepository,
         IBranchRepository branchRepository,
@@ -19,7 +15,7 @@ namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
     {
         public async Task<Unit> Handle(DeactivateEmployeeCommand request, CancellationToken cancellationToken)
         {
-            await validator.ValidateAndThrowAsync(request, cancellationToken);  
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
             var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
 
             if (branch is null)
@@ -30,7 +26,7 @@ namespace DottIn.Application.Features.Employees.Commands.DeleteEmployee
 
             var employee = await employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
 
-            if(employee is null)
+            if (employee is null)
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
             if (!employee.IsActive)

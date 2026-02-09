@@ -5,9 +5,6 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Employees.Queries.GetEmployeesByBranch
 {
@@ -25,7 +22,7 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeesByBranch
 
             var employees = await employeeRepository.GetByBranchIdAsync(request.BranchId, cancellationToken);
 
-            var employeesSummaryDto = employees.Select(e => 
+            var employeesSummaryDto = employees.Select(e =>
             new EmployeeSummaryDto(e.Id,
                         e.Name,
                         new DocumentDto(e.CPF.Value, e.CPF.Type),
@@ -33,7 +30,7 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeesByBranch
                         branch.Name,
                         e.StartWorkTime,
                         e.EndWorkTime,
-                        e.IntervalStart, 
+                        e.IntervalStart,
                         e.IntervalEnd,
                         e.IsActive,
                         e.AllowOvernightShifts));

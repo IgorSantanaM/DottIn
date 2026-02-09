@@ -1,9 +1,9 @@
 ﻿using DottIn.Application.Exceptions;
+using DottIn.Application.Features.Employees.Events;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
-using DottIn.Domain.Employees.Events;
 using DottIn.Domain.ValueObjects;
 using FluentValidation;
 using MassTransit;
@@ -14,7 +14,7 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
     public class CreateEmployeeCommandHandler(IEmployeeRepository employeeRepository,
                     IBranchRepository branchRepository,
                     IValidator<CreateEmployeeCommand> validator,
-                    IPublishEndpoint publishEndpoint, 
+                    IPublishEndpoint publishEndpoint,
                     IUnitOfWork unitOfWork)
                     : IRequestHandler<CreateEmployeeCommand, Guid>
     {

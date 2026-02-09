@@ -21,7 +21,7 @@ namespace DottIn.Domain.HolidayCalendars
 
         public bool IsMandatory => !IsOptional;
 
-        public bool IsWeekend => Date.DayOfWeek == DayOfWeek.Saturday || 
+        public bool IsWeekend => Date.DayOfWeek == DayOfWeek.Saturday ||
                                   Date.DayOfWeek == DayOfWeek.Sunday;
 
         protected override IEnumerable<object> GetEqualityComponents()

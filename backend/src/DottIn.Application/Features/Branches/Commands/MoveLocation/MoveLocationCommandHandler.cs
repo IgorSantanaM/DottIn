@@ -29,7 +29,7 @@ namespace DottIn.Application.Features.Branches.Commands.MoveLocation
                 request.NewAddress.Number,
                 request.NewAddress.City,
                 request.NewAddress.State,
-                request.NewAddress.ZipCode, 
+                request.NewAddress.ZipCode,
                 request.NewAddress.Complement);
 
             var geolocation = new Geolocation(request.NewGeolocation.Latitude, request.NewGeolocation.Longitude);

@@ -1,7 +1,7 @@
 ﻿using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
 
-namespace DottIn.Domain.ValueObjects
+namespace DottIn.Domain.Branches
 {
     public class Geolocation : ValueObject
     {

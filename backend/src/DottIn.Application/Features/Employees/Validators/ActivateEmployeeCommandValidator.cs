@@ -1,8 +1,5 @@
 ﻿using DottIn.Application.Features.Employees.Commands.ActivateEmployee;
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Employees.Validators
 {

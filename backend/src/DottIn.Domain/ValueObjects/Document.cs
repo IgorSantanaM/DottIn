@@ -1,6 +1,5 @@
 ﻿using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
-using System.Linq;
 
 namespace DottIn.Domain.ValueObjects
 {
@@ -49,7 +48,7 @@ namespace DottIn.Domain.ValueObjects
             int sum = 0;
 
             for (int i = 0; i < 9; i++)
-                sum += (tempCpf[i] - '0') * multiplier1[i]; 
+                sum += (tempCpf[i] - '0') * multiplier1[i];
 
             int remainder = sum % 11;
             remainder = remainder < 2 ? 0 : 11 - remainder;
@@ -59,7 +58,7 @@ namespace DottIn.Domain.ValueObjects
             sum = 0;
 
             for (int i = 0; i < 10; i++)
-                sum += (tempCpf[i] - '0') * multiplier2[i]; 
+                sum += (tempCpf[i] - '0') * multiplier2[i];
 
             remainder = sum % 11;
             remainder = remainder < 2 ? 0 : 11 - remainder;
@@ -80,7 +79,7 @@ namespace DottIn.Domain.ValueObjects
             int sum = 0;
 
             for (int i = 0; i < 12; i++)
-                sum += (tempCnpj[i] - '0') * multiplier1[i]; 
+                sum += (tempCnpj[i] - '0') * multiplier1[i];
 
             int remainder = (sum % 11);
             remainder = remainder < 2 ? 0 : 11 - remainder;
@@ -90,7 +89,7 @@ namespace DottIn.Domain.ValueObjects
             sum = 0;
 
             for (int i = 0; i < 13; i++)
-                sum += (tempCnpj[i] - '0') * multiplier2[i]; 
+                sum += (tempCnpj[i] - '0') * multiplier2[i];
 
             remainder = (sum % 11);
             remainder = remainder < 2 ? 0 : 11 - remainder;

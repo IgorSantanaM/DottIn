@@ -7,8 +7,8 @@ using MediatR;
 namespace DottIn.Application.Features.Branches.Commands.ActivateBranch
 {
     public class ActivateBranchCommandHandler(IBranchRepository branchRepository,
-        IValidator<ActivateBranchCommand> validator, 
-        IUnitOfWork unitOfWork) 
+        IValidator<ActivateBranchCommand> validator,
+        IUnitOfWork unitOfWork)
         : IRequestHandler<ActivateBranchCommand, Unit>
     {
         public async Task<Unit> Handle(ActivateBranchCommand request, CancellationToken cancellationToken)

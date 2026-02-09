@@ -21,14 +21,14 @@ namespace DottIn.Application.Features.Branches.Queries.GetBranchByOwner
 
             var employee = await employeeRepository.GetByIdAsync(request.OwnerId, cancellationToken);
 
-            if(employee is null)
+            if (employee is null)
                 throw NotFoundException.ForEntity(nameof(Employee), request.OwnerId);
 
             string ownerName = employee.Name;
-            
-            var result = new List<BranchSummaryDto>();  
 
-            foreach(var branch in branches)
+            var result = new List<BranchSummaryDto>();
+
+            foreach (var branch in branches)
             {
                 var dto = new BranchSummaryDto(
                         branch.Name,

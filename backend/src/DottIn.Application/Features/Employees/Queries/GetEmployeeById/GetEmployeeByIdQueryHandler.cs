@@ -5,14 +5,11 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DottIn.Application.Features.Employees.Queries.GetEmployeeById
 {
-    public class GetEmployeeByIdQueryHandler(IBranchRepository branchRepository, 
-        IEmployeeRepository employeeRepository) 
+    public class GetEmployeeByIdQueryHandler(IBranchRepository branchRepository,
+        IEmployeeRepository employeeRepository)
         : IRequestHandler<GetEmployeeByIdQuery, EmployeeSummaryDto>
     {
         public async Task<EmployeeSummaryDto> Handle(GetEmployeeByIdQuery request, CancellationToken cancellationToken)
