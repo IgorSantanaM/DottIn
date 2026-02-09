@@ -77,8 +77,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status500InternalServerError)
                 .DisableAntiforgery();
 
-            group.MapPut("/{employeeId:guid}/schedule", HandleUpdateScheduleAsync)
-                .WithName(nameof(HandleUpdateScheduleAsync))
+            group.MapPut("/{employeeId:guid}/schedule", HandleUpdateEmployeeScheduleAsync)
+                .WithName(nameof(HandleUpdateEmployeeScheduleAsync))
                 .WithSummary("Update employee schedule")
                 .WithDescription("Updates the work schedule and break times of an employee.")
                 .Produces(StatusCodes.Status204NoContent)
@@ -210,7 +210,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.NoContent();
         }
 
-        private static async Task<IResult> HandleUpdateScheduleAsync(
+        private static async Task<IResult> HandleUpdateEmployeeScheduleAsync(
             [FromRoute] Guid branchId,
             [FromRoute] Guid employeeId,
             [FromBody] UpdateEmployeeScheduleRequest request,
