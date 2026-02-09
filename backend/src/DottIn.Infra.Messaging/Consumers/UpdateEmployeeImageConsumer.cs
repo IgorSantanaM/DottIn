@@ -23,64 +23,59 @@ namespace DottIn.Infra.Messaging.Consumers
                 return;
             }
 
-            try
+            var employee = await employeeRepository.GetByIdAsync(message.EmployeeId);
+
+            if (employee is null)
             {
-                var employee = await employeeRepository.GetByIdAsync(message.EmployeeId);
+                logger.LogWarning("Employee {EmployeeId} not found", message.EmployeeId);
+                return;
+            }
 
-                if (employee is null)
+            var oldImageUrl = employee.ImageUrl;
+
+            using var imageStream = new MemoryStream(message.ImageData);
+
+            var newImageUrl = await fileStorageService.UploadAsync(
+                imageStream,
+                message.ImageName,
+                message.ImageContentType,
+                context.CancellationToken);
+
+            await employeeRepository.UpdateEmployeeImageAsync(
+                message.EmployeeId,
+                newImageUrl,
+                context.CancellationToken);
+
+            await unitOfWork.SaveChangesAsync(context.CancellationToken);
+
+            logger.LogInformation(
+                "Updated image for employee {EmployeeId}. New URL: {ImageUrl}",
+                message.EmployeeId,
+                newImageUrl);
+
+            if (!string.IsNullOrEmpty(oldImageUrl))
+            {
+                try
                 {
-                    logger.LogWarning("Employee {EmployeeId} not found", message.EmployeeId);
-                    return;
-                }
+                    var oldImageExists = await fileStorageService.ExistsAsync(
+                        oldImageUrl,
+                        context.CancellationToken);
 
-                var oldImageUrl = employee.ImageUrl;
-
-                var newImageUrl = await fileStorageService.UploadAsync(
-                    message.ImageStream,
-                    message.ImageName,
-                    message.ImageContentType,
-                    context.CancellationToken);
-
-                await employeeRepository.UpdateEmployeeImageAsync(
-                    message.EmployeeId,
-                    newImageUrl,
-                    context.CancellationToken);
-
-                await unitOfWork.SaveChangesAsync(context.CancellationToken);
-
-                logger.LogInformation(
-                    "Updated image for employee {EmployeeId}. New URL: {ImageUrl}",
-                    message.EmployeeId,
-                    newImageUrl);
-
-                if (!string.IsNullOrEmpty(oldImageUrl))
-                {
-                    try
+                    if (oldImageExists)
                     {
-                        var oldImageExists = await fileStorageService.ExistsAsync(
-                            oldImageUrl,
-                            context.CancellationToken);
-
-                        if (oldImageExists)
-                        {
-                            await fileStorageService.DeleteAsync(oldImageUrl, context.CancellationToken);
-                            logger.LogInformation(
-                                "Deleted old image for employee {EmployeeId}",
-                                message.EmployeeId);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(
-                            ex,
-                            "Failed to delete old image for employee {EmployeeId}",
+                        await fileStorageService.DeleteAsync(oldImageUrl, context.CancellationToken);
+                        logger.LogInformation(
+                            "Deleted old image for employee {EmployeeId}",
                             message.EmployeeId);
                     }
                 }
-            }
-            finally
-            {
-                await message.ImageStream.DisposeAsync();
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Failed to delete old image for employee {EmployeeId}",
+                        message.EmployeeId);
+                }
             }
         }
     }

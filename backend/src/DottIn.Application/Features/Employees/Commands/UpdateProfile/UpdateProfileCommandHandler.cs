@@ -34,8 +34,8 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateProfile
             if (employee is null)
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
-            if (employee.IsActive)
-                return Unit.Value;
+            if (!employee.IsActive)
+                throw new DomainException("O funcionário não está ativo.");
 
             employee.UpdateProfile(request.Name);
 
@@ -43,8 +43,20 @@ namespace DottIn.Application.Features.Employees.Commands.UpdateProfile
 
             if (request.EmployeeImage is not null && !string.IsNullOrEmpty(request.ImageContentType))
             {
-                var imageName = employee.Name + request.EmployeeId;
-                var employeeImageUpdated = new EmployeeImageUpdated(request.EmployeeId, request.EmployeeImage, imageName, request.ImageContentType);
+                byte[] imageData;
+                using (var memoryStream = new MemoryStream())
+                {
+                    await request.EmployeeImage.CopyToAsync(memoryStream, cancellationToken);
+                    imageData = memoryStream.ToArray();
+                }
+
+                var imageName = $"{employee.Id}_{employee.Name.Replace(" ", "_")}";
+                var employeeImageUpdated = new EmployeeImageUpdated(
+                    request.EmployeeId,
+                    imageData,
+                    imageName,
+                    request.ImageContentType!);
+
                 await publishEndpoint.Publish(employeeImageUpdated, cancellationToken);
             }
 

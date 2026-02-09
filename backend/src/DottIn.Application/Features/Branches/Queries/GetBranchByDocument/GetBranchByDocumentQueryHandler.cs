@@ -22,12 +22,9 @@ namespace DottIn.Application.Features.Branches.Queries.GetBranchByDocument
             if (branch is null)
                 throw NotFoundException.ForEntity(nameof(Branch), request.Document);
 
-            var employee = await employeeRepository.GetByIdAsync(branch.OwnerId, cancellationToken);
+            var employee = await employeeRepository.GetByIdAsync((Guid)branch.OwnerId!, cancellationToken);
 
-            if (employee is null)
-                throw NotFoundException.ForEntity(nameof(Employee), branch.OwnerId);
-
-            string ownerName = employee.Name;
+            string ownerName = employee is null ? string.Empty : employee.Name ;
 
             var result = new BranchDetailsDto(
                     branch.Name,

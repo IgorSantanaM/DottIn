@@ -111,7 +111,7 @@ namespace DottIn.Infra.Data.Mappings
                 .IsRequired();
 
             builder.Property(b => b.OwnerId)
-                .IsRequired();
+                .IsRequired(false);
 
             builder.Property(b => b.StartWorkTime)
                 .IsRequired()

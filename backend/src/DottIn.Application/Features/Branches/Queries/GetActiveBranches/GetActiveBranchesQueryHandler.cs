@@ -22,9 +22,9 @@ namespace DottIn.Application.Features.Branches.Queries.GetActiveBranches
             {
                 var ownerName = string.Empty;
 
-                if (branch.OwnerId != Guid.Empty)
+                if (branch.OwnerId != Guid.Empty && branch.OwnerId is not null) 
                 {
-                    var owner = await employeeRepository.GetByIdAsync(branch.OwnerId);
+                    var owner = await employeeRepository.GetByIdAsync((Guid)branch.OwnerId);
                     ownerName = owner?.Name ?? string.Empty;
                 }
 

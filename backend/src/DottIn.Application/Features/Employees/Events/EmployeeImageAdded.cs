@@ -2,7 +2,8 @@
 
 namespace DottIn.Application.Features.Employees.Events;
 
-public record EmployeeImageAdded(Guid EmployeeId,
-                Stream ImageStream,
-                string ImageName,
-                string ImageContentType) : Event<Guid>(EmployeeId);
+public record EmployeeImageAdded(
+    Guid EmployeeId,
+    byte[] ImageData,
+    string ImageName,
+    string ImageContentType) : Event<Guid>(EmployeeId);
