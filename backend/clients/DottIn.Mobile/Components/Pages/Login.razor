@@ -1,3 +1,4 @@
+@page "/"
 @page "/login"
 @inject IAuthApi AuthApi
 @inject ISecureStorageService SecureStorage
@@ -186,27 +187,32 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if already logged in
-        var token = await SecureStorage.GetAsync("access_token");
-        if (!string.IsNullOrEmpty(token))
+        try
         {
-            Navigation.NavigateTo("/");
-        }
+            var token = await SecureStorage.GetAsync("access_token");
+            if (!string.IsNullOrEmpty(token) && AppState.IsAuthenticated)
+            {
+                Navigation.NavigateTo("/dashboard", replace: true);
+                return;
+            }
 
-        // Check saved company code
-        var savedCompany = await SecureStorage.GetAsync("company_code");
-        if (!string.IsNullOrEmpty(savedCompany))
-        {
-            _companyCode = savedCompany;
-            _step = LoginStep.Credentials;
-        }
+            var savedCompany = await SecureStorage.GetAsync("company_code");
+            if (!string.IsNullOrEmpty(savedCompany))
+            {
+                _companyCode = savedCompany;
+                _step = LoginStep.Credentials;
+            }
 
-        // Check saved CPF
-        var savedCpf = await SecureStorage.GetAsync("saved_cpf");
-        if (!string.IsNullOrEmpty(savedCpf))
+            var savedCpf = await SecureStorage.GetAsync("saved_cpf");
+            if (!string.IsNullOrEmpty(savedCpf))
+            {
+                _cpf = savedCpf;
+                _step = LoginStep.Pin;
+            }
+        }
+        catch
         {
-            _cpf = savedCpf;
-            _step = LoginStep.Pin;
+            // Continue rendering the login form even if there's an error
         }
     }
 
@@ -250,7 +256,7 @@
             AppState.SetAuthenticated(response.Employee, response.BranchId);
 
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo("/dashboard", replace: true);
         }
         catch (Exception ex)
         {

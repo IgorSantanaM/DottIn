@@ -7,11 +7,8 @@
     <title>DottIn</title>
     <base href="/" />
     
-    <!-- MudBlazor CSS -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     
-    <!-- App Styles -->
     <link href="css/app.css" rel="stylesheet" />
     
     <style>
@@ -56,11 +53,24 @@
     </div>
 
     <div id="blazor-error-ui">
-        Ocorreu um erro ao carregar o aplicativo. <a href="" class="reload">Recarregar</a>
+        Ocorreu um erro ao carregar o aplicativo.
+        <a href="" class="reload">Recarregar</a>
     </div>
 
-    <!-- Blazor WebView ONLY - MAUI handles initialization automatically -->
-    <script src="_framework/blazor.webview.js"></script>
-    <!-- MudBlazor JS loaded after Blazor initializes via Blazor's script loading mechanism -->
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        (function() {
+            function start() {
+                if (window.external && typeof window.external.receiveMessage === 'function') {
+                    Blazor.start();
+                } else {
+                    setTimeout(start, 50);
+                }
+            }
+            setTimeout(start, 100);
+        })();
+    </script>
 </body>
 </html>

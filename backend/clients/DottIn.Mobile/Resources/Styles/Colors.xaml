@@ -4,17 +4,14 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
     
-    <!-- Primary Colors -->
     <Color x:Key="Primary">#2563EB</Color>
     <Color x:Key="PrimaryDark">#1D4ED8</Color>
     <Color x:Key="PrimaryLight">#3B82F6</Color>
     
-    <!-- Status Colors -->
     <Color x:Key="Success">#10B981</Color>
     <Color x:Key="Warning">#F59E0B</Color>
     <Color x:Key="Danger">#EF4444</Color>
     
-    <!-- Neutral Colors -->
     <Color x:Key="BackgroundLight">#F8FAFC</Color>
     <Color x:Key="BackgroundDark">#0F172A</Color>
     <Color x:Key="SurfaceLight">#FFFFFF</Color>
@@ -22,7 +19,6 @@
     <Color x:Key="TextPrimary">#1E293B</Color>
     <Color x:Key="TextSecondary">#64748B</Color>
     
-    <!-- Semantic Colors -->
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
     <Color x:Key="Gray100">#F1F5F9</Color>
