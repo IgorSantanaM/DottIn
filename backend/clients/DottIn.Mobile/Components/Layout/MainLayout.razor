@@ -1,11 +1,10 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
-@using Microsoft.JSInterop
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AppState AppState
 @inject NavigationManager Navigation
 @inject IConnectivityService ConnectivityService
-@inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
@@ -95,46 +94,15 @@
         }
     };
 
-    private bool _mudBlazorLoaded = false;
-
     protected override void OnInitialized()
     {
-        try
-        {
-            _isOnline = ConnectivityService?.IsConnected ?? true;
-            
-            if (ConnectivityService != null)
-                ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
-            
-            if (AppState != null)
-                AppState.OnChange += StateHasChanged;
-        }
-        catch
-        {
-            // Fail silently on initialization errors to allow app to load
-        }
-    }
+        _isOnline = ConnectivityService?.IsConnected ?? true;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_mudBlazorLoaded)
-        {
-            try
-            {
-                // Load MudBlazor JS after Blazor has started
-                await JSRuntime.InvokeVoidAsync("eval", 
-                    "if (!window.mudBlazorLoaded) { " +
-                    "var script = document.createElement('script'); " +
-                    "script.src = '_content/MudBlazor/MudBlazor.min.js'; " +
-                    "document.body.appendChild(script); " +
-                    "window.mudBlazorLoaded = true; }");
-                _mudBlazorLoaded = true;
-            }
-            catch
-            {
-                // Ignore JS errors
-            }
-        }
+        if (ConnectivityService != null)
+            ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+
+        if (AppState != null)
+            AppState.OnChange += StateHasChanged;
     }
 
     private void OnConnectivityChanged(bool isConnected)

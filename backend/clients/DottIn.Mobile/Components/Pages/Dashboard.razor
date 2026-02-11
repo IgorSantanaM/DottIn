@@ -1,4 +1,4 @@
-@page "/"
+@page "/dashboard"
 @inject AppState AppState
 @inject ITimeKeepingApi TimeKeepingApi
 @inject ILocationService LocationService
@@ -6,14 +6,6 @@
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 
-@if (!AppState.IsAuthenticated)
-{
-    <div class="loading-redirect">
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-    </div>
-}
-else
-{
 <div class="dashboard-container">
     @* Header *@
     <div class="dashboard-header">
@@ -119,7 +111,6 @@ else
         </MudText>
     </div>
 </div>
-}
 
 @code {
 private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
@@ -132,12 +123,17 @@ private System.Timers.Timer? _timer;
 
 protected override async Task OnInitializedAsync()
 {
+    System.Diagnostics.Debug.WriteLine("=== Dashboard.OnInitializedAsync ===");
+    
     // Redirect to login if not authenticated
     if (!AppState.IsAuthenticated)
     {
-        Navigation.NavigateTo("/login");
+        System.Diagnostics.Debug.WriteLine("Not authenticated, redirecting to login");
+        Navigation.NavigateTo("/login", replace: true);
         return;
     }
+    
+    System.Diagnostics.Debug.WriteLine("User is authenticated, loading dashboard");
 
     try
     {
@@ -152,9 +148,9 @@ protected override async Task OnInitializedAsync()
         await CheckGpsStatus();
         await LoadTodaySummary();
     }
-    catch
+    catch (Exception ex)
     {
-        // Fail gracefully if initialization fails
+        System.Diagnostics.Debug.WriteLine($"Dashboard initialization error: {ex.Message}");
         _todaySummary = new TodaySummary();
     }
 }

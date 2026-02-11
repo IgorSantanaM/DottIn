@@ -17,6 +17,9 @@
 
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+  
+  <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+  <AndroidFastDeploymentType>None</AndroidFastDeploymentType>
 </PropertyGroup>
 
   <ItemGroup>
@@ -42,7 +45,7 @@
     <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
     <PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0-preview.4.25258.110" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

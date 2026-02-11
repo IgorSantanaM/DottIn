@@ -1,0 +1,28 @@
+@namespace DottIn.Mobile.Components
+@using Microsoft.AspNetCore.Components.Web
+
+<CascadingValue Value="this">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<Exception>? ErrorContent { get; set; }
+
+    private Exception? currentException;
+
+    protected override void OnParametersSet()
+    {
+        currentException = null;
+    }
+
+    public void HandleException(Exception exception)
+    {
+        currentException = exception;
+        System.Diagnostics.Debug.WriteLine($"ErrorBoundary caught: {exception}");
+        StateHasChanged();
+    }
+}

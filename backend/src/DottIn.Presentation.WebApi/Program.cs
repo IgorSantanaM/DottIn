@@ -48,7 +48,7 @@ using (var scope = app.Services.CreateScope())
 
     await dbContext.Database.MigrateAsync();
 }
-
+app.MapGet("/", () => "DottIn API is RUNNING!");
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseHttpsRedirection();

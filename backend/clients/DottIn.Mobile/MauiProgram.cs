@@ -1,6 +1,7 @@
 using CommunityToolkit.Maui;
 using DottIn.Mobile.Services;
 using DottIn.Mobile.Services.Interfaces;
+using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
 using Refit;
@@ -21,12 +22,18 @@ public static class MauiProgram
                 fonts.AddFont("Inter-Medium.ttf", "InterMedium");
                 fonts.AddFont("Inter-SemiBold.ttf", "InterSemiBold");
                 fonts.AddFont("Inter-Bold.ttf", "InterBold");
+            })
+            .ConfigureMauiHandlers(handlers =>
+            {
+#if ANDROID
+                // Use custom handler to fix BlazorWebView JavaScript bridge race condition
+                handlers.AddHandler<BlazorWebView, DottIn.Mobile.Platforms.Android.CustomBlazorWebViewHandler>();
+#endif
             });
 
         builder.Services.AddMauiBlazorWebView();
 
 #if DEBUG
-        builder.Services.AddBlazorWebViewDeveloperTools();
         builder.Logging.AddDebug();
 #endif
 
@@ -40,32 +47,26 @@ public static class MauiProgram
 
         // Configuration
         var apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5000"  // Android emulator
-            : "http://localhost:5000"; // iOS simulator
+            ? "http://10.0.2.2:5101"  // Android emulator
+            : "http://localhost:5101"; // iOS simulator
 
         // Register Services
         builder.Services.AddSingleton<ISecureStorageService, SecureStorageService>();
         builder.Services.AddSingleton<ILocationService, LocationService>();
         builder.Services.AddSingleton<IConnectivityService, ConnectivityService>();
         builder.Services.AddSingleton<ILocalDatabaseService, LocalDatabaseService>();
-
+        
         // State Management
         builder.Services.AddSingleton<AppState>();
 
-        // HTTP Client with JWT
-        builder.Services.AddHttpClient("DottInApi", client =>
-        {
-            client.BaseAddress = new Uri(apiBaseUrl);
-            client.DefaultRequestHeaders.Add("Accept", "application/json");
-        })
-        .AddHttpMessageHandler<AuthorizationHandler>();
-
+        // Register AuthorizationHandler BEFORE HttpClient
         builder.Services.AddTransient<AuthorizationHandler>();
 
-        // Refit API Clients
+        // Register IAuthApi WITHOUT message handler (avoid circular dependency)
         builder.Services.AddRefitClient<IAuthApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl));
 
+        // Register authenticated APIs WITH message handler
         builder.Services.AddRefitClient<ITimeKeepingApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
             .AddHttpMessageHandler<AuthorizationHandler>();
