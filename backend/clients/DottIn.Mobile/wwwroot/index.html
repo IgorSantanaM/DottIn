@@ -7,12 +7,41 @@
     <title>DottIn</title>
     <base href="/" />
     
-    <!-- MudBlazor -->
+    <!-- MudBlazor CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     
     <!-- App Styles -->
     <link href="css/app.css" rel="stylesheet" />
+    
+    <style>
+        .splash-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #F8FAFC;
+        }
+        .splash-logo { margin-bottom: 24px; }
+        .splash-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #E2E8F0;
+            border-top-color: #2563EB;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #blazor-error-ui {
+            background: #FEE2E2;
+            color: #DC2626;
+            padding: 16px;
+            text-align: center;
+            display: none;
+        }
+        #blazor-error-ui.visible { display: block; }
+    </style>
 </head>
 <body>
     <div id="app">
@@ -27,15 +56,11 @@
     </div>
 
     <div id="blazor-error-ui">
-        Ocorreu um erro. <a href="" class="reload">Recarregar</a>
+        Ocorreu um erro ao carregar o aplicativo. <a href="" class="reload">Recarregar</a>
     </div>
 
-    <script src="_framework/blazor.webview.js" autostart="false"></script>
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script>
-        Blazor.start().catch(function(error) {
-            console.error(error);
-        });
-    </script>
+    <!-- Blazor WebView ONLY - MAUI handles initialization automatically -->
+    <script src="_framework/blazor.webview.js"></script>
+    <!-- MudBlazor JS loaded after Blazor initializes via Blazor's script loading mechanism -->
 </body>
 </html>
