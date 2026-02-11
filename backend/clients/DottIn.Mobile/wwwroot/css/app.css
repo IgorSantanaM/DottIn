@@ -1,0 +1,439 @@
+/* ===================================
+   DottIn Mobile - Main Styles
+   =================================== */
+
+:root {
+    --primary: #2563EB;
+    --primary-dark: #1D4ED8;
+    --primary-light: #3B82F6;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --background: #F8FAFC;
+    --surface: #FFFFFF;
+    --text-primary: #1E293B;
+    --text-secondary: #64748B;
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+.dark-mode {
+    --background: #0F172A;
+    --surface: #1E293B;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--background);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===================================
+   Splash Screen
+   =================================== */
+.splash-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 24px;
+}
+
+.splash-logo {
+    animation: pulse 2s infinite;
+}
+
+.splash-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #E2E8F0;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ===================================
+   App Container
+   =================================== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 80px;
+}
+
+/* ===================================
+   Offline Banner
+   =================================== */
+.offline-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--warning);
+    color: #1E293B;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ===================================
+   Bottom Navigation
+   =================================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    padding-bottom: calc(8px + var(--safe-area-bottom));
+    background: var(--surface);
+    border-top: 1px solid rgba(0,0,0,0.1);
+    z-index: 100;
+}
+
+.bottom-nav .mud-nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.bottom-nav .mud-nav-link.active {
+    color: var(--primary);
+}
+
+/* ===================================
+   Dashboard
+   =================================== */
+.dashboard-container {
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.greeting {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.clock-display {
+    text-align: center;
+    padding: 16px 0;
+}
+
+.clock-time {
+    font-size: 48px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -2px;
+}
+
+/* Status Card */
+.status-card {
+    border-radius: 16px !important;
+    overflow: hidden;
+}
+
+.status-working {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: white !important;
+}
+
+.status-break {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+    color: white !important;
+}
+
+.status-idle {
+    background: var(--surface) !important;
+    border: 2px dashed #CBD5E1;
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px;
+}
+
+.status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Action Button */
+.action-button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 0;
+}
+
+.main-action-button {
+    width: 120px !important;
+    height: 120px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s ease !important;
+}
+
+.main-action-button:active {
+    transform: scale(0.95);
+}
+
+.main-action-button.processing {
+    animation: pulse 1.5s infinite;
+}
+
+.action-label {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Break Button */
+.break-button {
+    width: 100%;
+    border-radius: 12px !important;
+}
+
+/* Summary Card */
+.summary-card {
+    border-radius: 16px !important;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* GPS Status */
+.gps-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.gps-status.enabled {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.gps-status.disabled {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+/* ===================================
+   Login Page
+   =================================== */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 24px;
+    background: linear-gradient(180deg, var(--background) 0%, #E0E7FF 100%);
+}
+
+.logo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 40px;
+    padding-top: 40px;
+}
+
+.logo {
+    width: 80px;
+    height: 80px;
+    background: white;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.2);
+}
+
+.brand-name {
+    font-weight: 700 !important;
+    color: var(--primary);
+}
+
+.login-card {
+    flex: 1;
+    border-radius: 24px !important;
+    background: var(--surface) !important;
+}
+
+.step-content {
+    padding: 8px;
+}
+
+.company-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+}
+
+/* PIN Entry */
+.pin-step {
+    text-align: center;
+}
+
+.pin-display {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #E2E8F0;
+    transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+    background: var(--primary);
+    transform: scale(1.1);
+}
+
+.pin-keyboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.pin-key {
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 50% !important;
+    font-size: 24px !important;
+    font-weight: 600 !important;
+}
+
+.login-footer {
+    text-align: center;
+    padding: 24px 0;
+}
+
+/* ===================================
+   Utilities
+   =================================== */
+.font-bold { font-weight: 700 !important; }
+.font-semibold { font-weight: 600 !important; }
+.mb-2 { margin-bottom: 8px !important; }
+.mb-3 { margin-bottom: 12px !important; }
+.mb-4 { margin-bottom: 16px !important; }
+.mt-2 { margin-top: 8px !important; }
+.mt-4 { margin-top: 16px !important; }
+.mr-2 { margin-right: 8px !important; }
+
+/* ===================================
+   Error UI
+   =================================== */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    background: var(--danger);
+    color: white;
+    text-align: center;
+    z-index: 9999;
+}
+
+#blazor-error-ui .reload {
+    color: white;
+    font-weight: 600;
+}
+
+.blazor-error-boundary {
+    background: rgba(239, 68, 68, 0.1);
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.blazor-error-boundary::after {
+    content: "Ocorreu um erro";
+}
+
+/* ===================================
+   Not Found
+   =================================== */
+.not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+    text-align: center;
+    padding: 24px;
+}

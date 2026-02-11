@@ -13,7 +13,7 @@ public record CreateBranchCommand(string Name,
                 TimeOnly EndWorkTime,
                 string Email,
                 string PhoneNumber,
-                Guid OwnerId,
+                Guid? OwnerId,
                 bool IsHeadQuarters,
                 int AllowedRadiusMeters,
                 int ToleranceMinutes)

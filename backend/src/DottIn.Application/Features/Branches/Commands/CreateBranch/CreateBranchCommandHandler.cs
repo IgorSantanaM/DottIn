@@ -18,14 +18,16 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
 
+            if (request.OwnerId.HasValue && request.OwnerId.Value != Guid.Empty)
+            {
+                var employee = await employeeRepository.GetByIdAsync(request.OwnerId.Value, cancellationToken);
 
-            var employee = await employeeRepository.GetByIdAsync(request.OwnerId, cancellationToken);
+                if (employee is null)
+                    throw NotFoundException.ForEntity(nameof(Employee), request.OwnerId.Value);
 
-            if (employee is null)
-                throw NotFoundException.ForEntity(nameof(Employee), request.OwnerId);
-
-            if (!employee.IsActive)
-                throw new DomainException("O Funcionário não esta ativo.");
+                if (!employee.IsActive)
+                    throw new DomainException("O funcionário não está ativo.");
+            }
 
             var document = new Document(request.Document.Value);
             var geolocation = new Geolocation(request.Geolocation.Latitude, request.Geolocation.Longitude);
@@ -44,7 +46,7 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
                             request.TimeZoneId,
                             request.StartWorkTime,
                             request.EndWorkTime,
-                            request.OwnerId,
+                            request.OwnerId ?? Guid.Empty,
                             request.Email,
                             request.PhoneNumber,
                             request.IsHeadQuarters,

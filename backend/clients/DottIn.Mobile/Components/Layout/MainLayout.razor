@@ -1,0 +1,115 @@
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Routing
+@inherits LayoutComponentBase
+@inject AppState AppState
+@inject NavigationManager Navigation
+@inject IConnectivityService ConnectivityService
+
+<MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="app-container @(_isDarkMode ? "dark-mode" : "light-mode")">
+    @* Offline Banner *@
+    @if (!_isOnline)
+    {
+        <div class="offline-banner">
+            <MudIcon Icon="@Icons.Material.Filled.WifiOff" Size="Size.Small" />
+            <span>Modo offline - dados serão sincronizados quando conectado</span>
+        </div>
+    }
+
+    @* Main Content *@
+    <main class="main-content">
+        @Body
+    </main>
+
+    @* Bottom Navigation (only when logged in) *@
+    @if (AppState.IsAuthenticated)
+    {
+        <MudPaper Class="bottom-nav" Elevation="8">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Schedule">
+                Ponto
+            </MudNavLink>
+            <MudNavLink Href="/history" Icon="@Icons.Material.Filled.History">
+                Histórico
+            </MudNavLink>
+            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">
+                Perfil
+            </MudNavLink>
+        </MudPaper>
+    }
+</div>
+
+@code {
+    private bool _isDarkMode = false;
+    private bool _isOnline = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#2563EB",
+            PrimaryDarken = "#1D4ED8",
+            PrimaryLighten = "#3B82F6",
+            Secondary = "#64748B",
+            Success = "#10B981",
+            Warning = "#F59E0B",
+            Error = "#EF4444",
+            Background = "#F8FAFC",
+            Surface = "#FFFFFF",
+            TextPrimary = "#1E293B",
+            TextSecondary = "#64748B",
+            AppbarBackground = "#2563EB",
+            AppbarText = "#FFFFFF",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#3B82F6",
+            PrimaryDarken = "#2563EB",
+            PrimaryLighten = "#60A5FA",
+            Secondary = "#94A3B8",
+            Success = "#34D399",
+            Warning = "#FBBF24",
+            Error = "#F87171",
+            Background = "#0F172A",
+            Surface = "#1E293B",
+            TextPrimary = "#F1F5F9",
+            TextSecondary = "#94A3B8",
+            AppbarBackground = "#1E293B",
+            AppbarText = "#F1F5F9",
+        },
+        Typography = new Typography
+        {
+            Default = new MudBlazor.Default
+            {
+                FontFamily = new[] { "Inter", "Roboto", "sans-serif" }
+            }
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "12px"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isOnline = ConnectivityService.IsConnected;
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+        
+        AppState.OnChange += StateHasChanged;
+    }
+
+    private void OnConnectivityChanged(bool isConnected)
+    {
+        _isOnline = isConnected;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+        AppState.OnChange -= StateHasChanged;
+    }
+}

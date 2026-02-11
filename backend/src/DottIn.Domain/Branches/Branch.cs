@@ -27,7 +27,7 @@ namespace DottIn.Domain.Branches
         public bool AllowOvernightShifts { get; private set; }
         public bool IsActive { get; private set; }
         public bool IsHeadquarters { get; private set; }
-        public Guid OwnerId { get; private set; }
+        public Guid? OwnerId { get; private set; }
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
         public DateTime CreatedAt { get; private set; }
@@ -43,7 +43,7 @@ namespace DottIn.Domain.Branches
             string timeZoneId,
             TimeOnly startWorkTime,
             TimeOnly endWorkTime,
-            Guid ownerId,
+            Guid? ownerId,
             string? email = null,
             string? phoneNumber = null,
             bool isHeadquarters = false,

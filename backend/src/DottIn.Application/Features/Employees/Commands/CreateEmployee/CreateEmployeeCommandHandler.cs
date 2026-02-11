@@ -42,13 +42,22 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
 
             await employeeRepository.AddAsync(employee);
 
-            var imageName = employee.Name + employee.Id;
-            var employteeImageAdded = new EmployeeImageAdded(employee.Id,
-                                request.ImageStream,
-                                imageName,
-                                request.ImageContentType);
+            byte[] imageData;
+            using (var memoryStream = new MemoryStream())
+            {
+                await request.ImageStream.CopyToAsync(memoryStream, cancellationToken);
+                imageData = memoryStream.ToArray();
+            }
 
-            await publishEndpoint.Publish(employteeImageAdded, cancellationToken);
+            var imageName = $"{employee.Id}_{employee.Name.Replace(" ", "_")}";
+            var employeeImageAdded = new EmployeeImageAdded(
+                employee.Id,
+                imageData,
+                imageName,
+                request.ImageContentType);
+
+            await publishEndpoint.Publish(employeeImageAdded, cancellationToken);
+
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 

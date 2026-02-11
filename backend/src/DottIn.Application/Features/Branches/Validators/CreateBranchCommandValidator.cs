@@ -129,10 +129,6 @@ namespace DottIn.Application.Features.Branches.Validators
                 .Matches(@"^[\d\s\-\(\)\+]+$")
                 .WithMessage("Telefone contém caracteres inválidos.");
 
-            RuleFor(x => x.OwnerId)
-                .NotEmpty()
-                .WithMessage("O proprietário deve ser informado.");
-
             RuleFor(x => x.AllowedRadiusMeters)
                 .GreaterThan(0)
                 .WithMessage("O raio permitido deve ser maior que zero.")
@@ -164,11 +160,9 @@ namespace DottIn.Application.Features.Branches.Validators
             if (digitsOnly.Length != 14)
                 return false;
 
-            // Check for repeated digits
             if (digitsOnly.Distinct().Count() == 1)
                 return false;
 
-            // Validate checksum digits
             int[] multiplier1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
             int[] multiplier2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
 
