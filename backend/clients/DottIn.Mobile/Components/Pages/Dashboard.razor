@@ -4,12 +4,21 @@
 @inject ILocationService LocationService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject NavigationManager Navigation
 
+@if (!AppState.IsAuthenticated)
+{
+    <div class="loading-redirect">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else
+{
 <div class="dashboard-container">
     @* Header *@
     <div class="dashboard-header">
         <div class="greeting">
-            <MudText Typo="Typo.h5" Class="font-bold">Olá, @AppState.Employee?.FirstName! ??</MudText>
+            <MudText Typo="Typo.h5" Class="font-bold">Olá, @(AppState.Employee?.FirstName ?? "Usuário")!</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
         </div>
         <MudAvatar Size="Size.Large" Color="Color.Primary">
@@ -95,7 +104,7 @@
                     <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
                     <div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@_todaySummary?.TotalBreak.ToString(@"hh\:mm") ?? "00:00"</MudText>
+                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.TotalBreak.ToString(@"hh\:mm") ?? "00:00")</MudText>
                     </div>
                 </div>
             </div>
@@ -110,17 +119,27 @@
         </MudText>
     </div>
 </div>
+}
 
 @code {
-    private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
-    private string _currentDate = DateTime.Now.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("pt-BR"));
-    private ClockStatus _currentStatus = ClockStatus.NotClocked;
-    private bool _isProcessing = false;
-    private bool _gpsEnabled = false;
-    private TodaySummary? _todaySummary;
-    private System.Timers.Timer? _timer;
+private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
+private string _currentDate = DateTime.Now.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("pt-BR"));
+private ClockStatus _currentStatus = ClockStatus.NotClocked;
+private bool _isProcessing = false;
+private bool _gpsEnabled = false;
+private TodaySummary? _todaySummary;
+private System.Timers.Timer? _timer;
 
-    protected override async Task OnInitializedAsync()
+protected override async Task OnInitializedAsync()
+{
+    // Redirect to login if not authenticated
+    if (!AppState.IsAuthenticated)
+    {
+        Navigation.NavigateTo("/login");
+        return;
+    }
+
+    try
     {
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (s, e) =>
@@ -133,6 +152,12 @@
         await CheckGpsStatus();
         await LoadTodaySummary();
     }
+    catch
+    {
+        // Fail gracefully if initialization fails
+        _todaySummary = new TodaySummary();
+    }
+}
 
     private async Task CheckGpsStatus()
     {

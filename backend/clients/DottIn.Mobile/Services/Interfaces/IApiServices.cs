@@ -7,7 +7,7 @@ public interface IAuthApi
     [Post("/api/auth/login")]
     Task<LoginResponse> LoginAsync([Body] LoginRequest request);
 
-    [Postss("/api/auth/login/pin")]
+    [Post("/api/auth/login/pin")]
     Task<LoginResponse> LoginWithPinAsync([Body] PinLoginRequest request);
 
     [Post("/api/auth/refresh")]
