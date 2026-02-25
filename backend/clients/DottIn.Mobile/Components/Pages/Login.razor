@@ -22,10 +22,10 @@
             @if (_step == LoginStep.Company)
             {
                 <div class="step-content">
-                    <MudText Typo="Typo.h6" Class="mb-4">Qual é sua empresa?</MudText>
+                    <MudText Typo="Typo.h6" Class="mb-4">Qual Ã© sua empresa?</MudText>
                     
                     <MudTextField @bind-Value="_companyCode"
-                                  Label="Código da Empresa"
+                                  Label="CÃ³digo da Empresa"
                                   Placeholder="ex: acme-corp"
                                   Variant="Variant.Outlined"
                                   Adornment="Adornment.Start"
@@ -70,7 +70,7 @@
 
                     <MudTextField @bind-Value="_password"
                                   Label="Senha"
-                                  Placeholder="••••••••"
+                                  Placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
                                   Variant="Variant.Outlined"
                                   Adornment="Adornment.Start"
                                   AdornmentIcon="@Icons.Material.Filled.Lock"
@@ -170,7 +170,7 @@
     @* Footer *@
     <div class="login-footer">
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Versão 1.0.0 • © 2025 DottIn
+            Versï¿½o 1.0.0 ï¿½ ï¿½ 2025 DottIn
         </MudText>
     </div>
 </div>
@@ -212,7 +212,7 @@
         }
         catch
         {
-            // Continue rendering the login form even if there's an error
+            
         }
     }
 
@@ -221,15 +221,14 @@
         _isLoading = true;
         try
         {
-            // TODO: Validate company exists via API
-            await Task.Delay(500); // Simulated
+            await Task.Delay(500);
 
             await SecureStorage.SetAsync("company_code", _companyCode);
             _step = LoginStep.Credentials;
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Empresa não encontrada", Severity.Error);
+            Snackbar.Add("Empresa nÃ£o encontrada", Severity.Error);
         }
         finally
         {

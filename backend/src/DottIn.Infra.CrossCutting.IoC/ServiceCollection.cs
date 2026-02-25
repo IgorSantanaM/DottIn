@@ -12,6 +12,7 @@ using DottIn.Infra.Data.Interceptors;
 using DottIn.Infra.Data.Repositories;
 using DottIn.Infra.Data.UoW;
 using DottIn.Infra.Messaging.Consumers;
+using DottIn.Infra.Services.Auth;
 using DottIn.Infra.Services.Storage;
 using FluentValidation;
 using MassTransit;
@@ -61,6 +62,7 @@ namespace DottIn.Infra.CrossCutting.IoC
             });
 
             services.AddScoped<IFileStorageService>(fs => new FileStorageService(configuration["AzureBlob:ConnectionString"]!, configuration["AzureBlob:ContainerName"]!));
+            services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBranchRepository, BranchRepository>();
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();

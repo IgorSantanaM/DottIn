@@ -17,6 +17,13 @@ namespace DottIn.Infra.Data.Mappings
                 .IsRequired()
                 .HasMaxLength(150);
 
+            builder.Property(b => b.CompanyCode)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            builder.HasIndex(b => b.CompanyCode)
+                .IsUnique();
+
             builder.ComplexProperty(b => b.Document, doc =>
             {
                 doc.Property(d => d.Value)

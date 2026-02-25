@@ -8,5 +8,6 @@ namespace DottIn.Domain.Branches
         Task<IEnumerable<Branch>> GetByOwnerIdAsync(Guid ownerId, CancellationToken token = default);
         Task<IEnumerable<Branch>> GetActiveBranchesAsync(CancellationToken token = default);
         Task<IEnumerable<Branch>?> GetHeadquartersAsync(CancellationToken token = default);
+        Task<Branch?> GetByCodeAsync(string companyCode, CancellationToken token = default);
     }
 }

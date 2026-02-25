@@ -15,6 +15,7 @@ namespace DottIn.Domain.Branches
         #endregion
 
         public string Name { get; private set; }
+        public string CompanyCode { get; private set; }
         public Document Document { get; private set; }
         public string? Email { get; private set; }
         public string? PhoneNumber { get; private set; }
@@ -48,7 +49,8 @@ namespace DottIn.Domain.Branches
             string? phoneNumber = null,
             bool isHeadquarters = false,
             int allowedRadiusMeters = 100,
-            int toleranceMinutes = 10)
+            int toleranceMinutes = 10,
+            string? companyCode = null)
         {
 
             Id = Guid.NewGuid();
@@ -68,10 +70,10 @@ namespace DottIn.Domain.Branches
 
             if (toleranceMinutes < 5)
                 throw new DomainException("A tolerância em minutos não deve ser menor do que 5 minutos.");
-
             SetScheduleInternal(startWorkTime, endWorkTime);
 
             Name = name;
+            CompanyCode = GenerateCompanyCode(name, companyCode);
             Document = document;
             Location = geolocation;
             Address = address;
@@ -208,6 +210,21 @@ namespace DottIn.Domain.Branches
         private static double ToRadians(double degrees)
         {
             return degrees * Math.PI / 180.0;
+        }
+
+        private static string GenerateCompanyCode(string name, string? customCode)
+        {
+            if (!string.IsNullOrWhiteSpace(customCode))
+                return customCode.ToLowerInvariant().Replace(" ", "-");
+
+            var baseCode = new string(name.ToLowerInvariant()
+                .Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c))
+                .ToArray())
+                .Replace(" ", "-");
+            
+            var randomSuffix = Guid.NewGuid().ToString().Substring(0, 4);
+
+            return $"{baseCode}-{randomSuffix}";
         }
     }
 }
