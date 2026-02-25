@@ -36,6 +36,14 @@ namespace DottIn.Infra.Data.Mappings
             builder.Property(e => e.ImageUrl)
                 .HasMaxLength(500);
 
+            builder.Property(e => e.PasswordHash)
+                .IsRequired(false)
+                .HasMaxLength(255);
+
+            builder.Property(e => e.PinHash)
+                .IsRequired(false)
+                .HasMaxLength(255);
+
             builder.Property(e => e.BranchId)
                 .IsRequired();
 

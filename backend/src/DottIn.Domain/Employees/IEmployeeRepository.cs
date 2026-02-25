@@ -6,6 +6,7 @@ namespace DottIn.Domain.Employees
     {
         Task<bool> AddEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default);
         Task<bool> UpdateEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default);
+        Task<Employee?> GetByCPFAsync(Guid branchId, string cpf, CancellationToken token = default);
         Task<Employee?> GetByCPFAsync(string cpf, CancellationToken token = default);
         Task<IEnumerable<Employee>> GetByBranchIdAsync(Guid branchId, CancellationToken token = default);
         Task<IEnumerable<Employee>> GetActiveEmployeesAsync(Guid branchId, CancellationToken token = default);

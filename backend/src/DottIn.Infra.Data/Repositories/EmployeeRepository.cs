@@ -26,6 +26,14 @@ namespace DottIn.Infra.Data.Repositories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.CPF.Value == sanitizedCpf, token);
         }
+
+        public async Task<Employee?> GetByCPFAsync(Guid branchId, string cpf, CancellationToken token = default)
+        {
+            var sanitizedCpf = new string(cpf.Where(char.IsDigit).ToArray());
+            return await context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.BranchId == branchId && e.CPF.Value == sanitizedCpf, token);
+        }
         public async Task<bool> AddEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default)
         {
             var employee = await context.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);

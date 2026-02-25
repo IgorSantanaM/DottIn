@@ -10,6 +10,8 @@ namespace DottIn.Domain.Employees
         public Document CPF { get; private set; }
         public string? ImageUrl { get; private set; }
         public Guid BranchId { get; private set; }
+        public string? PasswordHash { get; private set; }
+        public string? PinHash { get; private set; }
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
         public TimeOnly IntervalStart { get; private set; }
@@ -90,6 +92,34 @@ namespace DottIn.Domain.Employees
             if (!IsActive) return;
             IsActive = false;
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password)) throw new DomainException("Senha inválida.");
+            PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword(password);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public bool VerifyPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(PasswordHash) || string.IsNullOrWhiteSpace(password)) return false;
+            return BCrypt.Net.BCrypt.EnhancedVerify(password, PasswordHash);
+        }
+
+        public void SetPin(string pin)
+        {
+            if (string.IsNullOrWhiteSpace(pin) || pin.Length != 6 || !pin.All(char.IsDigit)) 
+                throw new DomainException("PIN deve conter 6 dígitos numéricos.");
+            
+            PinHash = BCrypt.Net.BCrypt.EnhancedHashPassword(pin);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public bool VerifyPin(string pin)
+        {
+            if (string.IsNullOrWhiteSpace(PinHash) || string.IsNullOrWhiteSpace(pin)) return false;
+            return BCrypt.Net.BCrypt.EnhancedVerify(pin, PinHash);
         }
 
         private void SetScheduleInternal(TimeOnly start, TimeOnly end, TimeOnly intStart, TimeOnly intEnd)
