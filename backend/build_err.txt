@@ -1,0 +1,7 @@
+c:\Users\1434\works\pessoal\Projects\DottIn\backend\src\DottIn.Presentation.WebApi\Endpoints\AuthEndpoints.cs(118,38): error CS1501: No overload for method 'UpdateAsync' takes 2 arguments [c:\Users\1434\works\pessoal\Projects\DottIn\backend\src\DottIn.Presentation.WebApi\DottIn.Presentation.WebApi.csproj]
+
+Build FAILED.
+    49 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:07.48
