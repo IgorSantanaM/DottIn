@@ -12,6 +12,7 @@ namespace DottIn.Domain.Employees
         public Guid BranchId { get; private set; }
         public string? PasswordHash { get; private set; }
         public string? PinHash { get; private set; }
+        public string? FingerprintHash { get; private set; }
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
         public TimeOnly IntervalStart { get; private set; }
@@ -120,6 +121,21 @@ namespace DottIn.Domain.Employees
         {
             if (string.IsNullOrWhiteSpace(PinHash) || string.IsNullOrWhiteSpace(pin)) return false;
             return BCrypt.Net.BCrypt.EnhancedVerify(pin, PinHash);
+        }
+
+        public void SetFingerprint(string fingerprintToken)
+        {
+            if (string.IsNullOrWhiteSpace(fingerprintToken)) 
+                throw new DomainException("Token de biometria inválido.");
+            
+            FingerprintHash = BCrypt.Net.BCrypt.EnhancedHashPassword(fingerprintToken);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public bool VerifyFingerprint(string fingerprintToken)
+        {
+            if (string.IsNullOrWhiteSpace(FingerprintHash) || string.IsNullOrWhiteSpace(fingerprintToken)) return false;
+            return BCrypt.Net.BCrypt.EnhancedVerify(fingerprintToken, FingerprintHash);
         }
 
         private void SetScheduleInternal(TimeOnly start, TimeOnly end, TimeOnly intStart, TimeOnly intEnd)
