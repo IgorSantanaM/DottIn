@@ -4,7 +4,8 @@ using AndroidWebView = Android.Webkit.WebView;
 namespace DottIn.Mobile.Platforms.Android;
 
 /// <summary>
-/// Custom BlazorWebViewHandler that fixes the JavaScript bridge race condition in .NET 10 MAUI.
+/// Custom BlazorWebViewHandler that ensures JavaScript is enabled on the Android WebView.
+/// Blazor startup is handled via the polling script in index.html with autostart="false".
 /// </summary>
 public class CustomBlazorWebViewHandler : BlazorWebViewHandler
 {

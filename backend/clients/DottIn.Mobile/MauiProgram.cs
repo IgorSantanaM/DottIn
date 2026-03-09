@@ -1,6 +1,4 @@
 using CommunityToolkit.Maui;
-using DottIn.Mobile.Services;
-using DottIn.Mobile.Services.Interfaces;
 using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
@@ -26,7 +24,6 @@ public static class MauiProgram
             .ConfigureMauiHandlers(handlers =>
             {
 #if ANDROID
-                // Use custom handler to fix BlazorWebView JavaScript bridge race condition
                 handlers.AddHandler<BlazorWebView, DottIn.Mobile.Platforms.Android.CustomBlazorWebViewHandler>();
 #endif
             });
@@ -37,7 +34,6 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        // MudBlazor
         builder.Services.AddMudServices(config =>
         {
             config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomCenter;
@@ -45,28 +41,22 @@ public static class MauiProgram
             config.SnackbarConfiguration.VisibleStateDuration = 3000;
         });
 
-        // Configuration
         var apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5101"  // Android emulator
-            : "http://localhost:5101"; // iOS simulator
+            ? "http://10.0.2.2:5101"
+            : "http://localhost:5101";
 
-        // Register Services
         builder.Services.AddSingleton<ISecureStorageService, SecureStorageService>();
         builder.Services.AddSingleton<ILocationService, LocationService>();
         builder.Services.AddSingleton<IConnectivityService, ConnectivityService>();
         builder.Services.AddSingleton<ILocalDatabaseService, LocalDatabaseService>();
-        
-        // State Management
+
         builder.Services.AddSingleton<AppState>();
 
-        // Register AuthorizationHandler BEFORE HttpClient
         builder.Services.AddTransient<AuthorizationHandler>();
 
-        // Register IAuthApi WITHOUT message handler (avoid circular dependency)
         builder.Services.AddRefitClient<IAuthApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl));
 
-        // Register authenticated APIs WITH message handler
         builder.Services.AddRefitClient<ITimeKeepingApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
             .AddHttpMessageHandler<AuthorizationHandler>();

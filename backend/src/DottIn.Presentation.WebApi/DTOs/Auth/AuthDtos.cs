@@ -15,5 +15,6 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
     public record EmployeeInfoDto(
         Guid Id,
         string Name,
+        string Cpf,
         string? ImageUrl);
 }

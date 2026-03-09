@@ -89,14 +89,14 @@
                     <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" Size="Size.Small" />
                     <div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhado</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@_todaySummary?.TotalWorked.ToString(@"hh\:mm") ?? "00:00"</MudText>
+                        <MudText Typo="Typo.body1" Class="font-semibold">@_todaySummary?.TotalWorked.ToString(@"hh\:mm")</MudText>
                     </div>
                 </div>
                 <div class="summary-item">
                     <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
                     <div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.TotalBreak.ToString(@"hh\:mm") ?? "00:00")</MudText>
+                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.TotalBreak.ToString(@"hh\:mm"))</MudText>
                     </div>
                 </div>
             </div>

@@ -23,6 +23,8 @@
     <Project Path="src/DottIn.Infra.CrossCutting.IoC/DottIn.Infra.CrossCutting.IoC.csproj" Id="6a6c84f0-178c-42cb-ad67-3b2320b84d83" />
   </Folder>
   <Folder Name="/clients/">
-    <Project Path="clients/DottIn.Mobile/DottIn.Mobile.csproj" />
+    <Project Path="clients/DottIn.Mobile/DottIn.Mobile.csproj">
+      <Deploy Solution="Debug|*" />
+    </Project>
   </Folder>
 </Solution>

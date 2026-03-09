@@ -61,15 +61,20 @@
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
     <script>
-        (function() {
-            function start() {
-                if (window.external && typeof window.external.receiveMessage === 'function') {
-                    Blazor.start();
-                } else {
-                    setTimeout(start, 50);
-                }
+        (function () {
+            var started = false;
+            function tryStart() {
+                if (started) return;
+                try {
+                    if (window.external && typeof window.external.receiveMessage === 'function') {
+                        started = true;
+                        Blazor.start().catch(function () { });
+                        return;
+                    }
+                } catch (e) { }
+                setTimeout(tryStart, 50);
             }
-            setTimeout(start, 100);
+            setTimeout(tryStart, 100);
         })();
     </script>
 </body>

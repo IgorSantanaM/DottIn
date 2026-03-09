@@ -41,7 +41,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithName(nameof(HandleGetTimeKeepingByPeriodAsync))
                 .WithSummary("Get employee time keeping history")
                 .WithDescription("Returns time keeping records for an employee within a date range.")
-                .Produces<IEnumerable<TimeKeepingSummaryDto>>(StatusCodes.Status200OK)
+                .Produces<IEnumerable<TimeKeepingRecordDto>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             group.MapPost("/clock-in", HandleClockInAsync)
