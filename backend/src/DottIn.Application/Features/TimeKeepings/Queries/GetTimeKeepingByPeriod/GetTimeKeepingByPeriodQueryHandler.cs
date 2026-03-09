@@ -11,9 +11,9 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
     public class GetTimeKeepingByPeriodQueryHandler(ITimeKeepingRepository timeKeepingRepository,
         IEmployeeRepository employeeRepository,
         IBranchRepository branchRepository)
-        : IRequestHandler<GetTimeKeepingByPeriodQuery, IEnumerable<TimeKeepingSummaryDto>>
+        : IRequestHandler<GetTimeKeepingByPeriodQuery, IEnumerable<TimeKeepingRecordDto>>
     {
-        public async Task<IEnumerable<TimeKeepingSummaryDto>> Handle(GetTimeKeepingByPeriodQuery request, CancellationToken cancellationToken)
+        public async Task<IEnumerable<TimeKeepingRecordDto>> Handle(GetTimeKeepingByPeriodQuery request, CancellationToken cancellationToken)
         {
             var employee = await employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
 
@@ -34,9 +34,41 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
             var timeKeepings = await timeKeepingRepository
                 .GetByEmployeeAndPeriodAsync(request.EmployeeId, request.StartDate, request.EndDate);
 
-            var timeKeepingsSummary = timeKeepings.Select(tk => new TimeKeepingSummaryDto(tk.Status, tk.CreatedAt, tk.Entries.Count));
+            var records = timeKeepings.Select(tk =>
+            {
+                var clockIn = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
+                var clockOut = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockOut)?.Timestamp;
 
-            return timeKeepingsSummary;
+                var totalWorked = clockIn.HasValue && clockOut.HasValue && clockOut > clockIn
+                    ? clockOut.Value - clockIn.Value
+                    : TimeSpan.Zero;
+
+                var breaks = tk.Entries
+                    .Where(e => e.Type == TimeKeepingType.BreakStart || e.Type == TimeKeepingType.BreakEnd)
+                    .OrderBy(e => e.Timestamp)
+                    .ToList();
+
+                var totalBreak = TimeSpan.Zero;
+                for (int i = 0; i < breaks.Count - 1; i += 2)
+                {
+                    if (breaks[i].Type == TimeKeepingType.BreakStart && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
+                        totalBreak += breaks[i + 1].Timestamp - breaks[i].Timestamp;
+                }
+
+                if (totalWorked > TimeSpan.Zero)
+                    totalWorked -= totalBreak;
+
+                return new TimeKeepingRecordDto(
+                    tk.Id,
+                    tk.WorkDate,
+                    clockIn,
+                    clockOut,
+                    totalWorked,
+                    totalBreak,
+                    tk.Status.ToString());
+            });
+
+            return records;
         }
     }
 }

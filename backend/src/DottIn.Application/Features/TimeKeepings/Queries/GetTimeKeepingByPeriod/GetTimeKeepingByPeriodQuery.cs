@@ -6,4 +6,4 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
 public record GetTimeKeepingByPeriodQuery(Guid EmployeeId,
                                     DateOnly StartDate,
                                     DateOnly? EndDate)
-                                    : IRequest<IEnumerable<TimeKeepingSummaryDto>>; // TODO: Pagination
+                                    : IRequest<IEnumerable<TimeKeepingRecordDto>>; // TODO: Pagination
