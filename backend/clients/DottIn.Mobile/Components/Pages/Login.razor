@@ -107,6 +107,7 @@
                                Color="Color.Secondary"
                                FullWidth="true"
                                Class="mt-2"
+                               Disabled="@(string.IsNullOrWhiteSpace(_cpf) || _cpf.Replace(".", "").Replace("-", "").Length < 11)"
                                OnClick="@(() => _step = LoginStep.Pin)">
                         Entrar com PIN
                     </MudButton>
@@ -223,6 +224,7 @@
         {
             await Task.Delay(500);
 
+            _companyCode = _companyCode.Trim().ToUpperInvariant();
             await SecureStorage.SetAsync("company_code", _companyCode);
             _step = LoginStep.Credentials;
         }
@@ -257,9 +259,17 @@
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
             Navigation.NavigateTo("/dashboard", replace: true);
         }
-        catch (Exception ex)
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             Snackbar.Add("CPF ou senha incorretos", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Erro de conexão. Verifique sua internet.", Severity.Error);
         }
         finally
         {
@@ -280,14 +290,26 @@
 
             AppState.SetAuthenticated(response.Employee, response.BranchId);
 
-            HapticFeedback.Perform(HapticFeedbackType.Click);
-            Navigation.NavigateTo("/");
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
+            Navigation.NavigateTo("/dashboard", replace: true);
         }
-        catch (Exception ex)
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
+            _pin = "";
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             Snackbar.Add("PIN incorreto", Severity.Error);
             _pin = "";
-            HapticFeedback.Perform(HapticFeedbackType.LongPress);
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Erro de conexão. Verifique sua internet.", Severity.Error);
+            _pin = "";
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
         }
         finally
         {
@@ -300,7 +322,7 @@
         if (_pin.Length < 6)
         {
             _pin += digit;
-            HapticFeedback.Perform(HapticFeedbackType.Click);
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
 
             if (_pin.Length == 6)
             {
@@ -314,7 +336,7 @@
         if (_pin.Length > 0)
         {
             _pin = _pin[..^1];
-            HapticFeedback.Perform(HapticFeedbackType.Click);
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
         }
     }
 

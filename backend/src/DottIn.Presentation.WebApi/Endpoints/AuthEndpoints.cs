@@ -163,7 +163,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 AccessToken: token,
                 RefreshToken: "dummy-refresh-token",
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
-                Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.ImageUrl),
+                Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
                 BranchId: branch.Id
             );
 
