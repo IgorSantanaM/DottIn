@@ -10,7 +10,8 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         string RefreshToken,
         DateTime ExpiresAt,
         EmployeeInfoDto Employee,
-        Guid BranchId);
+        Guid BranchId,
+        bool IsOwner);
 
     public record EmployeeInfoDto(
         Guid Id,

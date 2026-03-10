@@ -159,12 +159,15 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 jwtSettings["Audience"]!, 
                 expirationMinutes);
 
+            var isOwner = branch.OwnerId.HasValue && branch.OwnerId.Value == employee.Id;
+
             var response = new LoginResponse(
                 AccessToken: token,
                 RefreshToken: "dummy-refresh-token",
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
-                BranchId: branch.Id
+                BranchId: branch.Id,
+                IsOwner: isOwner
             );
 
             return Results.Ok(response);

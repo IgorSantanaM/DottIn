@@ -34,8 +34,17 @@ public interface ITimeKeepingApi
         [Query] DateOnly startDate,
         [Query] DateOnly? endDate = null);
 
+    [Get("/api/timekeeping/{timeKeepingId}")]
+    Task<TimeKeepingDetails> GetByIdAsync(Guid timeKeepingId);
+
     [Get("/api/timekeeping/branch/{branchId}/current")]
     Task<IEnumerable<TimeKeepingSummary>> GetCurrentAsync(Guid branchId);
+
+    [Get("/api/timekeeping/branch/{branchId}/history")]
+    Task<IEnumerable<BranchTimeKeepingRecord>> GetBranchHistoryAsync(
+        Guid branchId,
+        [Query] DateOnly startDate,
+        [Query] DateOnly? endDate = null);
 }
 
 public interface IEmployeeApi
@@ -58,13 +67,25 @@ public record LoginResponse(
     string RefreshToken,
     DateTime ExpiresAt,
     EmployeeInfo Employee,
-    Guid BranchId);
+    Guid BranchId,
+    bool IsOwner);
 
 public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
 public record ClockInResponse(Guid TimeKeepingId);
 
 public record TimeKeepingRecord(
     Guid Id,
+    DateOnly WorkDate,
+    DateTime? ClockIn,
+    DateTime? ClockOut,
+    TimeSpan TotalWorked,
+    TimeSpan TotalBreak,
+    string Status);
+
+public record BranchTimeKeepingRecord(
+    Guid Id,
+    Guid EmployeeId,
+    string EmployeeName,
     DateOnly WorkDate,
     DateTime? ClockIn,
     DateTime? ClockOut,
@@ -86,3 +107,16 @@ public record EmployeeDetails(
     TimeOnly StartWork,
     TimeOnly EndWork,
     bool IsActive);
+
+public record TimeKeepingDetails(
+    string EmployeeName,
+    string BranchName,
+    string Status,
+    DateOnly WorkDate,
+    DateTime CreatedAt,
+    GeolocationInfo? GeolocationDto,
+    IEnumerable<TimeEntryInfo> EntriesDto);
+
+public record GeolocationInfo(double Latitude, double Longitude);
+
+public record TimeEntryInfo(DateTime Timestamp, string Type);

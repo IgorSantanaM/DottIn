@@ -1,0 +1,133 @@
+@using MudBlazor
+@using DottIn.Mobile.Services
+@using DottIn.Mobile.Services.Interfaces
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <MudAvatar Color="Color.Primary" Size="Size.Medium">@Employee.Initials</MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6">@Employee.Name</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor()">@GetStatusLabel()</MudChip>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @* Today's Summary *@
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="mb-4 mt-2">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Success" Size="Size.Small" />
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Entrada</MudText>
+                    <MudText Typo="Typo.body2" Class="font-semibold">@(TodayRecord?.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" Size="Size.Small" />
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhado</MudText>
+                    <MudText Typo="Typo.body2" Class="font-semibold">@(TodayRecord?.TotalWorked.ToString(@"hh\:mm") ?? "00:00")</MudText>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
+                    <MudText Typo="Typo.body2" Class="font-semibold">@(TodayRecord?.TotalBreak.ToString(@"hh\:mm") ?? "00:00")</MudText>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Size="Size.Small" />
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Saída</MudText>
+                    <MudText Typo="Typo.body2" Class="font-semibold">@(TodayRecord?.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                </div>
+            </div>
+        </div>
+
+        <MudDivider Class="mb-4" />
+
+        @* Action Buttons *@
+        @switch (EmployeeStatus)
+        {
+            case "NotStarted":
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Login" Class="mb-2"
+                           Disabled="@_isProcessing" OnClick="@(() => SelectAction(KioskAction.ClockIn))">
+                    Registrar Entrada
+                </MudButton>
+                break;
+
+            case "Working":
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Coffee" Class="mb-2"
+                           Disabled="@_isProcessing" OnClick="@(() => SelectAction(KioskAction.StartBreak))">
+                    Iniciar Intervalo
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Logout" Class="mb-2"
+                           Disabled="@_isProcessing" OnClick="@(() => SelectAction(KioskAction.ClockOut))">
+                    Registrar Saída
+                </MudButton>
+                break;
+
+            case "OnBreak":
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.PlayArrow" Class="mb-2"
+                           Disabled="@_isProcessing" OnClick="@(() => SelectAction(KioskAction.EndBreak))">
+                    Retomar Trabalho
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Logout" Class="mb-2"
+                           Disabled="@_isProcessing" OnClick="@(() => SelectAction(KioskAction.ClockOut))">
+                    Registrar Saída
+                </MudButton>
+                break;
+
+            case "Finished":
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    @Employee.FirstName já finalizou a jornada hoje.
+                </MudAlert>
+                break;
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public EmployeeInfo Employee { get; set; } = default!;
+    [Parameter] public string EmployeeStatus { get; set; } = "NotStarted";
+    [Parameter] public TimeKeepingRecord? TodayRecord { get; set; }
+
+    private bool _isProcessing = false;
+
+    private void SelectAction(KioskAction action)
+    {
+        MudDialog.Close(DialogResult.Ok(action));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private Color GetStatusColor() => EmployeeStatus switch
+    {
+        "Working" => Color.Info,
+        "OnBreak" => Color.Warning,
+        "Finished" => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetStatusLabel() => EmployeeStatus switch
+    {
+        "Working" => "Trabalhando",
+        "OnBreak" => "Em Intervalo",
+        "Finished" => "Finalizado",
+        _ => "Não Iniciado"
+    };
+
+    public enum KioskAction { ClockIn, ClockOut, StartBreak, EndBreak }
+}

@@ -5,6 +5,7 @@ using DottIn.Application.Features.TimeKeepings.DTOs;
 using DottIn.Application.Features.TimeKeepings.Queries.GetCurrentTimeKeeping;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod;
+using DottIn.Application.Features.TimeKeepings.Queries.GetBranchTimeKeepingByPeriod;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Presentation.WebApi.DTOs.TimeKeepings;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
@@ -42,6 +43,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithSummary("Get employee time keeping history")
                 .WithDescription("Returns time keeping records for an employee within a date range.")
                 .Produces<IEnumerable<TimeKeepingRecordDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            group.MapGet("/branch/{branchId:guid}/history", HandleGetBranchTimeKeepingByPeriodAsync)
+                .WithName(nameof(HandleGetBranchTimeKeepingByPeriodAsync))
+                .WithSummary("Get branch time keeping history")
+                .WithDescription("Returns time keeping records for all employees in a branch within a date range.")
+                .Produces<IEnumerable<BranchTimeKeepingRecordDto>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             group.MapPost("/clock-in", HandleClockInAsync)
@@ -105,6 +113,18 @@ namespace DottIn.Presentation.WebApi.Endpoints
             CancellationToken cancellationToken)
         {
             var query = new GetTimeKeepingByPeriodQuery(employeeId, startDate, endDate);
+            var records = await mediator.Send(query, cancellationToken);
+            return Results.Ok(records);
+        }
+
+        private static async Task<IResult> HandleGetBranchTimeKeepingByPeriodAsync(
+            [FromRoute] Guid branchId,
+            [FromQuery] DateOnly startDate,
+            [FromQuery] DateOnly? endDate,
+            [FromServices] IMediator mediator,
+            CancellationToken cancellationToken)
+        {
+            var query = new GetBranchTimeKeepingByPeriodQuery(branchId, startDate, endDate);
             var records = await mediator.Send(query, cancellationToken);
             return Results.Ok(records);
         }
