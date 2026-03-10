@@ -1,0 +1,205 @@
+@using MudBlazor
+@using DottIn.Mobile.Services.Interfaces
+
+@inject IAuthApi AuthApi
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Badge" />
+            <MudText Typo="Typo.h6">Identificação do Funcionário</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+            @* Password Tab *@
+            <MudTabPanel Text="Senha" Icon="@Icons.Material.Filled.Lock">
+                <div class="pa-4">
+                    <MudTextField @bind-Value="_cpf"
+                                  Label="CPF"
+                                  Placeholder="12345678900"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Number"
+                                  MaxLength="11"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Badge"
+                                  FullWidth="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_password"
+                                  Label="Senha"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Lock"
+                                  FullWidth="true"
+                                  Class="mb-4" />
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="@(!IsPasswordFormValid() || _isLoading)"
+                               OnClick="LoginWithPassword">
+                        @if (_isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Identificar
+                    </MudButton>
+                </div>
+            </MudTabPanel>
+
+            @* PIN Tab *@
+            <MudTabPanel Text="PIN" Icon="@Icons.Material.Filled.Pin">
+                <div class="pa-4">
+                    <MudTextField @bind-Value="_cpf"
+                                  Label="CPF"
+                                  Placeholder="12345678900"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Number"
+                                  MaxLength="11"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Badge"
+                                  FullWidth="true"
+                                  Class="mb-4" />
+
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2" Align="Align.Center">Digite o PIN</MudText>
+                    <div style="display: flex; justify-content: center; gap: 8px;" class="mb-4">
+                        @for (int i = 0; i < 6; i++)
+                        {
+                            var filled = i < _pin.Length;
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: @(filled ? "var(--mud-palette-primary)" : "var(--mud-palette-lines-default)");"></div>
+                        }
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 240px; margin: 0 auto;">
+                        @for (int i = 1; i <= 9; i++)
+                        {
+                            var digit = i.ToString();
+                            <MudButton Variant="Variant.Outlined" OnClick="@(() => AddPinDigit(digit))">@digit</MudButton>
+                        }
+                        <div></div>
+                        <MudButton Variant="Variant.Outlined" OnClick="@(() => AddPinDigit("0"))">0</MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="RemovePinDigit">
+                            <MudIcon Icon="@Icons.Material.Filled.Backspace" />
+                        </MudButton>
+                    </div>
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string CompanyCode { get; set; } = "";
+
+    private string _cpf = "";
+    private string _password = "";
+    private string _pin = "";
+    private bool _isLoading = false;
+    private string? _errorMessage = null;
+
+    private bool IsPasswordFormValid() =>
+        !string.IsNullOrWhiteSpace(_cpf) &&
+        _cpf.Trim().Length == 11 &&
+        !string.IsNullOrWhiteSpace(_password);
+
+    private async Task LoginWithPassword()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var request = new LoginRequest(_cpf.Trim(), _password, CompanyCode);
+            var response = await AuthApi.LoginAsync(request);
+            MudDialog.Close(DialogResult.Ok(response.Employee));
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _errorMessage = "CPF ou senha incorretos";
+            _password = "";
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _errorMessage = "Funcionário não encontrado";
+            _cpf = "";
+            _password = "";
+        }
+        catch
+        {
+            _errorMessage = "Erro de conexão";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoginWithPin()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var request = new PinLoginRequest(_cpf.Trim(), _pin, CompanyCode);
+            var response = await AuthApi.LoginWithPinAsync(request);
+            MudDialog.Close(DialogResult.Ok(response.Employee));
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _errorMessage = "PIN incorreto";
+            _pin = "";
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _errorMessage = "Funcionário não encontrado";
+            _pin = "";
+        }
+        catch
+        {
+            _errorMessage = "Erro de conexão";
+            _pin = "";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void AddPinDigit(string digit)
+    {
+        if (_pin.Length < 6)
+        {
+            _pin += digit;
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
+            if (_pin.Length == 6 && !string.IsNullOrWhiteSpace(_cpf) && _cpf.Trim().Length == 11)
+                _ = LoginWithPin();
+        }
+    }
+
+    private void RemovePinDigit()
+    {
+        if (_pin.Length > 0)
+        {
+            _pin = _pin[..^1];
+            _errorMessage = null;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

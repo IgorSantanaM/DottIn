@@ -38,9 +38,11 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
             {
                 var clockIn = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
                 var clockOut = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockOut)?.Timestamp;
+                var now = DateTime.UtcNow;
+                var effectiveEnd = clockOut ?? (clockIn.HasValue ? now : (DateTime?)null);
 
-                var totalWorked = clockIn.HasValue && clockOut.HasValue && clockOut > clockIn
-                    ? clockOut.Value - clockIn.Value
+                var totalWorked = clockIn.HasValue && effectiveEnd.HasValue && effectiveEnd > clockIn
+                    ? effectiveEnd.Value - clockIn.Value
                     : TimeSpan.Zero;
 
                 var breaks = tk.Entries
@@ -49,10 +51,17 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
                     .ToList();
 
                 var totalBreak = TimeSpan.Zero;
-                for (int i = 0; i < breaks.Count - 1; i += 2)
+                for (int i = 0; i < breaks.Count; i++)
                 {
-                    if (breaks[i].Type == TimeKeepingType.BreakStart && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
-                        totalBreak += breaks[i + 1].Timestamp - breaks[i].Timestamp;
+                    if (breaks[i].Type == TimeKeepingType.BreakStart)
+                    {
+                        var breakEnd = (i + 1 < breaks.Count && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
+                            ? breaks[i + 1].Timestamp
+                            : now;
+                        totalBreak += breakEnd - breaks[i].Timestamp;
+                        if (i + 1 < breaks.Count && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
+                            i++;
+                    }
                 }
 
                 if (totalWorked > TimeSpan.Zero)

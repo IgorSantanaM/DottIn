@@ -5,16 +5,32 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
+@inject ISecureStorageService SecureStorage
 
 <div class="dashboard-container">
     @* Header *@
     <div class="dashboard-header">
         <div class="greeting">
-            <MudText Typo="Typo.h5" Class="font-bold">Olá, @(AppState.Employee?.FirstName ?? "Usuário")!</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
+            @if (AppState.IsOwner)
+            {
+                <MudText Typo="Typo.h5" Class="font-bold">Modo Empresa</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h5" Class="font-bold">Olá, @(AppState.Employee?.FirstName ?? "Usuário")!</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
+            }
         </div>
-        <MudAvatar Size="Size.Large" Color="Color.Primary">
-            @AppState.Employee?.Initials
+        <MudAvatar Size="Size.Large" Color="@(AppState.IsOwner ? Color.Warning : Color.Primary)">
+            @if (AppState.IsOwner)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Business" />
+            }
+            else
+            {
+                @AppState.Employee?.Initials
+            }
         </MudAvatar>
     </div>
 
@@ -23,85 +39,116 @@
         <MudText Typo="Typo.h2" Class="clock-time">@_currentTime</MudText>
     </div>
 
-    @* Status Card *@
-    <MudCard Class="@($"status-card {GetStatusClass()}")">
-        <MudCardContent>
-            <div class="status-content">
-                <MudIcon Icon="@GetStatusIcon()" Size="Size.Large" />
-                <div class="status-info">
-                    <MudText Typo="Typo.h6">@GetStatusText()</MudText>
-                    <MudText Typo="Typo.body2">@GetStatusSubtext()</MudText>
-                </div>
-            </div>
-        </MudCardContent>
-    </MudCard>
-
-    @* Main Action Button *@
-    <div class="action-button-container">
-        <MudFab Color="@GetButtonColor()"
-                Size="Size.Large"
-                StartIcon="@GetButtonIcon()"
-                Class="@($"main-action-button {(_isProcessing ? "processing" : "")}")"
-
-                Disabled="@_isProcessing"
-                OnClick="HandleMainAction">
-            @if (_isProcessing)
-            {
-                <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" />
-            }
-        </MudFab>
-        <MudText Typo="Typo.button" Class="action-label">@GetButtonText()</MudText>
-    </div>
-
-    @* Break Button (when clocked in) *@
-    @if (_currentStatus == ClockStatus.Working || _currentStatus == ClockStatus.OnBreak)
+    @if (AppState.IsOwner)
     {
-        <MudButton Variant="Variant.Outlined"
-                   Color="@(_currentStatus == ClockStatus.OnBreak ? Color.Success : Color.Warning)"
-                   StartIcon="@(_currentStatus == ClockStatus.OnBreak ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Coffee)"
-                   Class="break-button"
-                   OnClick="HandleBreak"
-                   Disabled="@_isProcessing">
-            @(_currentStatus == ClockStatus.OnBreak ? "Retomar Trabalho" : "Iniciar Intervalo")
-        </MudButton>
-    }
+        @* ===== KIOSK MODE ===== *@
+        <MudCard Class="status-card status-idle">
+            <MudCardContent>
+                <div class="status-content">
+                    <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" />
+                    <div class="status-info">
+                        <MudText Typo="Typo.h6">Ponto Compartilhado</MudText>
+                        <MudText Typo="Typo.body2">Identifique o funcionário para registrar</MudText>
+                    </div>
+                </div>
+            </MudCardContent>
+        </MudCard>
 
-    @* Today's Summary *@
-    <MudCard Class="summary-card">
-        <MudCardContent>
-            <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Resumo do Dia</MudText>
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Success" Size="Size.Small" />
-                    <div>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Entrada</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.ClockInTime?.ToString("HH:mm") ?? "--:--")</MudText>
+        <div class="action-button-container">
+            <MudFab Color="Color.Primary"
+                    Size="Size.Large"
+                    StartIcon="@Icons.Material.Filled.PersonAdd"
+                    Class="main-action-button"
+                    Disabled="@_isProcessing"
+                    OnClick="HandleKioskAction" />
+            <MudText Typo="Typo.button" Class="action-label">REGISTRAR PONTO</MudText>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_lastKioskMessage))
+        {
+            <MudAlert Severity="@_lastKioskSeverity" Dense="true" Class="mt-4">
+                @_lastKioskMessage
+            </MudAlert>
+        }
+    }
+    else
+    {
+        @* ===== PERSONAL MODE ===== *@
+        <MudCard Class="@($"status-card {GetStatusClass()}")">
+            <MudCardContent>
+                <div class="status-content">
+                    <MudIcon Icon="@GetStatusIcon()" Size="Size.Large" />
+                    <div class="status-info">
+                        <MudText Typo="Typo.h6">@GetStatusText()</MudText>
+                        <MudText Typo="Typo.body2">@GetStatusSubtext()</MudText>
                     </div>
                 </div>
-                <div class="summary-item">
-                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Size="Size.Small" />
-                    <div>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Saída</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--")</MudText>
+            </MudCardContent>
+        </MudCard>
+
+        <div class="action-button-container">
+            <MudFab Color="@GetButtonColor()"
+                    Size="Size.Large"
+                    StartIcon="@GetButtonIcon()"
+                    Class="@($"main-action-button {(_isProcessing ? "processing" : "")}")"
+                    Disabled="@(_isProcessing || _currentStatus == ClockStatus.Finished)"
+                    OnClick="HandleMainAction">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" />
+                }
+            </MudFab>
+            <MudText Typo="Typo.button" Class="action-label">@GetButtonText()</MudText>
+        </div>
+
+        @if (_currentStatus == ClockStatus.Working || _currentStatus == ClockStatus.OnBreak)
+        {
+            <MudButton Variant="Variant.Outlined"
+                       Color="@(_currentStatus == ClockStatus.OnBreak ? Color.Success : Color.Warning)"
+                       StartIcon="@(_currentStatus == ClockStatus.OnBreak ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Coffee)"
+                       Class="break-button"
+                       OnClick="HandleBreak"
+                       Disabled="@_isProcessing">
+                @(_currentStatus == ClockStatus.OnBreak ? "Retomar Trabalho" : "Iniciar Intervalo")
+            </MudButton>
+        }
+
+        <MudCard Class="summary-card">
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Resumo do Dia</MudText>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Success" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Entrada</MudText>
+                            <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.ClockInTime?.ToString("HH:mm") ?? "--:--")</MudText>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Saída</MudText>
+                            <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--")</MudText>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhado</MudText>
+                            <MudText Typo="Typo.body1" Class="font-semibold">@GetElapsedWorked()</MudText>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
+                            <MudText Typo="Typo.body1" Class="font-semibold">@GetElapsedBreak()</MudText>
+                        </div>
                     </div>
                 </div>
-                <div class="summary-item">
-                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" Size="Size.Small" />
-                    <div>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhado</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@_todaySummary?.TotalWorked.ToString(@"hh\:mm")</MudText>
-                    </div>
-                </div>
-                <div class="summary-item">
-                    <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
-                    <div>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
-                        <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.TotalBreak.ToString(@"hh\:mm"))</MudText>
-                    </div>
-                </div>
-            </div>
-        </MudCardContent>
-    </MudCard>
+            </MudCardContent>
+        </MudCard>
+    }
 
     @* GPS Status *@
     <div class="gps-status @(_gpsEnabled ? "enabled" : "disabled")">
@@ -120,20 +167,16 @@ private bool _isProcessing = false;
 private bool _gpsEnabled = false;
 private TodaySummary? _todaySummary;
 private System.Timers.Timer? _timer;
+private string _lastKioskMessage = "";
+private Severity _lastKioskSeverity = Severity.Success;
 
 protected override async Task OnInitializedAsync()
 {
-    System.Diagnostics.Debug.WriteLine("=== Dashboard.OnInitializedAsync ===");
-    
-    // Redirect to login if not authenticated
     if (!AppState.IsAuthenticated)
     {
-        System.Diagnostics.Debug.WriteLine("Not authenticated, redirecting to login");
         Navigation.NavigateTo("/login", replace: true);
         return;
     }
-    
-    System.Diagnostics.Debug.WriteLine("User is authenticated, loading dashboard");
 
     try
     {
@@ -146,11 +189,12 @@ protected override async Task OnInitializedAsync()
         _timer.Start();
 
         await CheckGpsStatus();
-        await LoadTodaySummary();
+
+        if (!AppState.IsOwner)
+            await LoadTodayState();
     }
-    catch (Exception ex)
+    catch
     {
-        System.Diagnostics.Debug.WriteLine($"Dashboard initialization error: {ex.Message}");
         _todaySummary = new TodaySummary();
     }
 }
@@ -161,16 +205,155 @@ protected override async Task OnInitializedAsync()
         _gpsEnabled = status == PermissionStatus.Granted;
     }
 
-    private async Task LoadTodaySummary()
+    #region Kiosk Mode
+
+    private async Task HandleKioskAction()
     {
+        var companyCode = await SecureStorage.GetAsync("company_code") ?? "";
+
+        var identifyParams = new DialogParameters<KioskIdentificationDialog>
+        {
+            { x => x.CompanyCode, companyCode }
+        };
+
+        var identifyOptions = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var identifyDialog = await DialogService.ShowAsync<KioskIdentificationDialog>("Identificação", identifyParams, identifyOptions);
+        var identifyResult = await identifyDialog.Result;
+
+        if (identifyResult is null || identifyResult.Canceled)
+            return;
+
+        var employee = identifyResult.Data as EmployeeInfo;
+        if (employee is null)
+            return;
+
+        _isProcessing = true;
         try
         {
-            // TODO: Load from API
-            _todaySummary = new TodaySummary();
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var records = await TimeKeepingApi.GetHistoryAsync(employee.Id, today, today);
+            var todayRecord = records.FirstOrDefault();
+            var employeeStatus = todayRecord?.Status ?? "NotStarted";
+
+            _isProcessing = false;
+
+            var actionParams = new DialogParameters<KioskActionDialog>
+            {
+                { x => x.Employee, employee },
+                { x => x.EmployeeStatus, employeeStatus },
+                { x => x.TodayRecord, todayRecord }
+            };
+
+            var actionOptions = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+                CloseOnEscapeKey = true
+            };
+
+            var actionDialog = await DialogService.ShowAsync<KioskActionDialog>(employee.FirstName, actionParams, actionOptions);
+            var actionResult = await actionDialog.Result;
+
+            if (actionResult is null || actionResult.Canceled)
+                return;
+
+            var selectedAction = (KioskActionDialog.KioskAction)actionResult.Data!;
+
+            _isProcessing = true;
+
+            var location = await LocationService.GetCurrentLocationAsync();
+            if (location == null)
+            {
+                Snackbar.Add("Não foi possível obter a localização", Severity.Error);
+                return;
+            }
+
+            switch (selectedAction)
+            {
+                case KioskActionDialog.KioskAction.ClockIn:
+                    await TimeKeepingApi.ClockInAsync(new ClockInRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    _lastKioskMessage = $"Entrada registrada para {employee.Name}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+
+                case KioskActionDialog.KioskAction.ClockOut:
+                    await TimeKeepingApi.ClockOutAsync(new ClockOutRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    _lastKioskMessage = $"Saída registrada para {employee.Name}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+
+                case KioskActionDialog.KioskAction.StartBreak:
+                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    _lastKioskMessage = $"Intervalo iniciado para {employee.Name}";
+                    _lastKioskSeverity = Severity.Info;
+                    break;
+
+                case KioskActionDialog.KioskAction.EndBreak:
+                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    _lastKioskMessage = $"Retorno registrado para {employee.Name}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+            }
+
+            Snackbar.Add(_lastKioskMessage, _lastKioskSeverity);
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Erro ao carregar resumo", Severity.Error);
+            _lastKioskMessage = $"Erro: {ex.Message}";
+            _lastKioskSeverity = Severity.Error;
+            Snackbar.Add(_lastKioskMessage, Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    #endregion
+
+    #region Personal Mode
+
+    private async Task LoadTodayState()
+    {
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var records = await TimeKeepingApi.GetHistoryAsync(AppState.EmployeeId, today, today);
+            var todayRecord = records.FirstOrDefault();
+
+            if (todayRecord is not null)
+            {
+                _currentStatus = todayRecord.Status switch
+                {
+                    "Working" => ClockStatus.Working,
+                    "OnBreak" => ClockStatus.OnBreak,
+                    "Finished" => ClockStatus.Finished,
+                    _ => ClockStatus.NotClocked
+                };
+
+                _todaySummary = new TodaySummary
+                {
+                    ClockInTime = todayRecord.ClockIn,
+                    ClockOutTime = todayRecord.ClockOut,
+                    TotalWorked = todayRecord.TotalWorked,
+                    TotalBreak = todayRecord.TotalBreak
+                };
+            }
+            else
+            {
+                _todaySummary = new TodaySummary();
+            }
+        }
+        catch
+        {
+            _todaySummary = new TodaySummary();
         }
     }
 
@@ -181,7 +364,7 @@ protected override async Task OnInitializedAsync()
         try
         {
             var location = await LocationService.GetCurrentLocationAsync();
-            
+
             if (location == null)
             {
                 Snackbar.Add("Não foi possível obter sua localização", Severity.Error);
@@ -189,15 +372,10 @@ protected override async Task OnInitializedAsync()
             }
 
             if (_currentStatus == ClockStatus.NotClocked)
-            {
                 await ClockIn(location);
-            }
             else
-            {
                 await ClockOut(location);
-            }
 
-            // Haptic feedback
             HapticFeedback.Perform(HapticFeedbackType.LongPress);
         }
         catch (Exception ex)
@@ -212,68 +390,40 @@ protected override async Task OnInitializedAsync()
 
     private async Task ClockIn(Location location)
     {
-        var request = new ClockInRequest(
-            AppState.BranchId,
-            AppState.EmployeeId,
-            location.Latitude,
-            location.Longitude);
-
-        var result = await TimeKeepingApi.ClockInAsync(request);
-        
-        _currentStatus = ClockStatus.Working;
-        _todaySummary = _todaySummary with { ClockInTime = DateTime.Now };
-        
-        Snackbar.Add("Entrada registrada com sucesso! ?", Severity.Success);
+        var request = new ClockInRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
+        await TimeKeepingApi.ClockInAsync(request);
+        await LoadTodayState();
+        Snackbar.Add("Entrada registrada com sucesso!", Severity.Success);
     }
 
     private async Task ClockOut(Location location)
     {
-        var request = new ClockOutRequest(
-            AppState.BranchId,
-            AppState.EmployeeId,
-            location.Latitude,
-            location.Longitude);
-
+        var request = new ClockOutRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
         await TimeKeepingApi.ClockOutAsync(request);
-        
-        _currentStatus = ClockStatus.NotClocked;
-        _todaySummary = _todaySummary with { ClockOutTime = DateTime.Now };
-        
-        Snackbar.Add("Saída registrada com sucesso! ?", Severity.Success);
+        await LoadTodayState();
+        Snackbar.Add("Saída registrada com sucesso!", Severity.Success);
     }
 
     private async Task HandleBreak()
     {
         _isProcessing = true;
-
         try
         {
             var location = await LocationService.GetCurrentLocationAsync();
-            
             if (location == null)
             {
                 Snackbar.Add("Não foi possível obter sua localização", Severity.Error);
                 return;
             }
 
-            var request = new BreakRequest(
-                AppState.BranchId,
-                AppState.EmployeeId,
-                location.Latitude,
-                location.Longitude);
-
+            var request = new BreakRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
             await TimeKeepingApi.BreakAsync(request);
 
-            if (_currentStatus == ClockStatus.Working)
-            {
-                _currentStatus = ClockStatus.OnBreak;
-                Snackbar.Add("Intervalo iniciado ?", Severity.Info);
-            }
-            else
-            {
-                _currentStatus = ClockStatus.Working;
-                Snackbar.Add("Intervalo finalizado ??", Severity.Success);
-            }
+            var previousStatus = _currentStatus;
+            await LoadTodayState();
+
+            Snackbar.Add(previousStatus == ClockStatus.Working ? "Intervalo iniciado" : "Intervalo finalizado",
+                previousStatus == ClockStatus.Working ? Severity.Info : Severity.Success);
 
             HapticFeedback.Perform(HapticFeedbackType.Click);
         }
@@ -287,11 +437,14 @@ protected override async Task OnInitializedAsync()
         }
     }
 
+    #endregion
+
     private Color GetButtonColor() => _currentStatus switch
     {
         ClockStatus.NotClocked => Color.Success,
         ClockStatus.Working => Color.Error,
         ClockStatus.OnBreak => Color.Error,
+        ClockStatus.Finished => Color.Default,
         _ => Color.Primary
     };
 
@@ -300,6 +453,7 @@ protected override async Task OnInitializedAsync()
         ClockStatus.NotClocked => Icons.Material.Filled.Login,
         ClockStatus.Working => Icons.Material.Filled.Logout,
         ClockStatus.OnBreak => Icons.Material.Filled.Logout,
+        ClockStatus.Finished => Icons.Material.Filled.CheckCircle,
         _ => Icons.Material.Filled.Schedule
     };
 
@@ -308,6 +462,7 @@ protected override async Task OnInitializedAsync()
         ClockStatus.NotClocked => "REGISTRAR ENTRADA",
         ClockStatus.Working => "REGISTRAR SAÍDA",
         ClockStatus.OnBreak => "REGISTRAR SAÍDA",
+        ClockStatus.Finished => "JORNADA FINALIZADA",
         _ => "REGISTRAR"
     };
 
@@ -315,6 +470,7 @@ protected override async Task OnInitializedAsync()
     {
         ClockStatus.Working => "status-working",
         ClockStatus.OnBreak => "status-break",
+        ClockStatus.Finished => "status-finished",
         _ => "status-idle"
     };
 
@@ -322,6 +478,7 @@ protected override async Task OnInitializedAsync()
     {
         ClockStatus.Working => Icons.Material.Filled.Work,
         ClockStatus.OnBreak => Icons.Material.Filled.Coffee,
+        ClockStatus.Finished => Icons.Material.Filled.CheckCircle,
         _ => Icons.Material.Filled.Schedule
     };
 
@@ -329,6 +486,7 @@ protected override async Task OnInitializedAsync()
     {
         ClockStatus.Working => "Trabalhando",
         ClockStatus.OnBreak => "Em Intervalo",
+        ClockStatus.Finished => "Jornada Finalizada",
         _ => "Aguardando entrada"
     };
 
@@ -336,6 +494,7 @@ protected override async Task OnInitializedAsync()
     {
         ClockStatus.Working => $"Desde {_todaySummary?.ClockInTime?.ToString("HH:mm") ?? "--:--"}",
         ClockStatus.OnBreak => "Aproveite seu descanso",
+        ClockStatus.Finished => $"Saída às {_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--"}",
         _ => "Toque no botão para registrar"
     };
 
@@ -345,7 +504,29 @@ protected override async Task OnInitializedAsync()
         _timer?.Dispose();
     }
 
-    private enum ClockStatus { NotClocked, Working, OnBreak }
+    private string GetElapsedWorked()
+    {
+        if (_todaySummary is null) return "00:00";
+        if (_currentStatus == ClockStatus.Working && _todaySummary.ClockInTime.HasValue)
+        {
+            var elapsed = DateTime.Now - _todaySummary.ClockInTime.Value - (_todaySummary?.TotalBreak ?? TimeSpan.Zero);
+            if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+            return elapsed.ToString(@"hh\:mm");
+        }
+        if (_currentStatus == ClockStatus.OnBreak && _todaySummary.ClockInTime.HasValue)
+            return _todaySummary.TotalWorked.ToString(@"hh\:mm");
+        return _todaySummary.TotalWorked.ToString(@"hh\:mm");
+    }
+
+    private string GetElapsedBreak()
+    {
+        if (_todaySummary is null) return "00:00";
+        if (_currentStatus == ClockStatus.OnBreak)
+            return _todaySummary.TotalBreak.ToString(@"hh\:mm");
+        return _todaySummary.TotalBreak.ToString(@"hh\:mm");
+    }
+
+    private enum ClockStatus { NotClocked, Working, OnBreak, Finished }
 
     private record TodaySummary
     {

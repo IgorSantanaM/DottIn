@@ -31,6 +31,14 @@ namespace DottIn.Infra.Data.Repositories
                     .Where(tk => tk.BranchId == branchId && tk.WorkDate == workDate)
                     .ToListAsync(token);
 
+        public async Task<IEnumerable<TimeKeeping>> GetByBranchAndPeriodAsync(Guid branchId, DateOnly startDate, DateOnly? endDate, CancellationToken token = default)
+            => await context.TimeKeepings
+                    .AsNoTracking()
+                    .Include(tk => tk.Entries)
+                    .Where(tk => tk.BranchId == branchId && tk.WorkDate >= startDate && (endDate == null || tk.WorkDate <= endDate))
+                    .OrderBy(tk => tk.WorkDate)
+                    .ToListAsync(token);
+
         public async Task<IEnumerable<TimeKeeping>> GetByEmployeeAndPeriodAsync(Guid employeeId, DateOnly startDate, DateOnly? endDate, CancellationToken token = default)
             => await context.TimeKeepings
                     .AsNoTracking()

@@ -59,12 +59,12 @@
 
                     <MudTextField @bind-Value="_cpf"
                                   Label="CPF"
-                                  Placeholder="000.000.000-00"
+                                  Placeholder="12345678900"
                                   Variant="Variant.Outlined"
                                   Adornment="Adornment.Start"
                                   AdornmentIcon="@Icons.Material.Filled.Badge"
-                                  InputType="InputType.Text"
-                                  Mask="@(new PatternMask("000.000.000-00"))"
+                                  InputType="InputType.Number"
+                                  MaxLength="11"
                                   FullWidth="true"
                                   Class="mb-3" />
 
@@ -107,7 +107,7 @@
                                Color="Color.Secondary"
                                FullWidth="true"
                                Class="mt-2"
-                               Disabled="@(string.IsNullOrWhiteSpace(_cpf) || _cpf.Replace(".", "").Replace("-", "").Length < 11)"
+                               Disabled="@(string.IsNullOrWhiteSpace(_cpf) || _cpf.Trim().Length < 11)"
                                OnClick="@(() => _step = LoginStep.Pin)">
                         Entrar com PIN
                     </MudButton>
@@ -243,7 +243,7 @@
         _isLoading = true;
         try
         {
-            var request = new LoginRequest(_cpf.Replace(".", "").Replace("-", ""), _password, _companyCode);
+            var request = new LoginRequest(_cpf.Trim(), _password, _companyCode);
             var response = await AuthApi.LoginAsync(request);
 
             await SecureStorage.SetAsync("access_token", response.AccessToken);
@@ -254,7 +254,7 @@
                 await SecureStorage.SetAsync("saved_cpf", _cpf);
             }
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId);
+            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner);
 
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
             Navigation.NavigateTo("/dashboard", replace: true);
@@ -282,13 +282,13 @@
         _isLoading = true;
         try
         {
-            var request = new PinLoginRequest(_cpf.Replace(".", "").Replace("-", ""), _pin, _companyCode);
+            var request = new PinLoginRequest(_cpf.Trim(), _pin, _companyCode);
             var response = await AuthApi.LoginWithPinAsync(request);
 
             await SecureStorage.SetAsync("access_token", response.AccessToken);
             await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId);
+            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner);
 
             try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
             Navigation.NavigateTo("/dashboard", replace: true);
@@ -348,11 +348,14 @@
 
     private bool IsFormValid() => 
         !string.IsNullOrWhiteSpace(_cpf) && 
-        _cpf.Replace(".", "").Replace("-", "").Length == 11 &&
+        _cpf.Trim().Length == 11 &&
         !string.IsNullOrWhiteSpace(_password);
 
-    private string MaskCpf(string cpf) => 
-        cpf.Length >= 11 ? $"***.***.{cpf.Substring(7, 3)}-**" : cpf;
+    private string MaskCpf(string cpf)
+    {
+        var digits = cpf.Trim();
+        return digits.Length >= 11 ? $"***.***.{digits.Substring(6, 3)}-**" : digits;
+    }
 
     private enum LoginStep { Company, Credentials, Pin }
 }

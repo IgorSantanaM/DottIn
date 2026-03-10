@@ -2,9 +2,12 @@
 @inject AppState AppState
 @inject ITimeKeepingApi TimeKeepingApi
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <div class="history-container">
-    <MudText Typo="Typo.h5" Class="page-title">Histórico de Ponto</MudText>
+    <MudText Typo="Typo.h5" Class="page-title">
+        @(AppState.IsOwner ? "Histórico da Empresa" : "Histórico de Ponto")
+    </MudText>
 
     @* Month Selector *@
     <div class="month-selector">
@@ -18,20 +21,20 @@
         <MudCard Class="mini-card">
             <MudCardContent>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">Total Trabalhado</MudText>
-                <MudText Typo="Typo.h6" Class="font-bold">@_monthSummary.TotalWorked.ToString(@"hh\:mm")</MudText>
+                <MudText Typo="Typo.h6" Class="font-bold">@FormatTotalHours(_monthSummary.TotalWorked)</MudText>
             </MudCardContent>
         </MudCard>
         <MudCard Class="mini-card">
             <MudCardContent>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Dias Trabalhados</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@(AppState.IsOwner ? "Registros" : "Dias Trabalhados")</MudText>
                 <MudText Typo="Typo.h6" Class="font-bold">@_monthSummary.DaysWorked</MudText>
             </MudCardContent>
         </MudCard>
         <MudCard Class="mini-card">
             <MudCardContent>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Horas Extras</MudText>
-                <MudText Typo="Typo.h6" Class="font-bold" Color="@(_monthSummary.Overtime.TotalMinutes > 0 ? Color.Success : Color.Default)">
-                    @_monthSummary.Overtime.ToString(@"hh\:mm")
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@(AppState.IsOwner ? "Funcionários" : "Horas Extras")</MudText>
+                <MudText Typo="Typo.h6" Class="font-bold" Color="@(AppState.IsOwner ? Color.Default : (_monthSummary.Overtime.TotalMinutes > 0 ? Color.Success : Color.Default))">
+                    @(AppState.IsOwner ? _monthSummary.UniqueEmployees.ToString() : _monthSummary.Overtime.ToString(@"hh\:mm"))
                 </MudText>
             </MudCardContent>
         </MudCard>
@@ -44,47 +47,100 @@
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
         </div>
     }
-    else if (!_records.Any())
+    else if (AppState.IsOwner)
     {
-        <div class="empty-state">
-            <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
-            <MudText Typo="Typo.body1" Color="Color.Secondary">Nenhum registro encontrado</MudText>
-        </div>
+        @if (!_branchRecords.Any())
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">Nenhum registro encontrado</MudText>
+            </div>
+        }
+        else
+        {
+            <MudList T="BranchTimeKeepingRecord" Dense="true" Class="records-list">
+                @foreach (var record in _branchRecords.OrderByDescending(r => r.WorkDate).ThenBy(r => r.EmployeeName))
+                {
+                    <MudListItem Class="record-item" OnClick="@(() => ShowDetails(record.Id))">
+                        <div class="record-content">
+                            <div class="record-date">
+                                <MudText Typo="Typo.subtitle2" Class="font-bold">
+                                    @record.WorkDate.ToString("dd")
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @record.WorkDate.ToString("ddd", new System.Globalization.CultureInfo("pt-BR")).ToUpper()
+                                </MudText>
+                            </div>
+                            <div class="record-times" style="flex: 1;">
+                                <MudText Typo="Typo.body2" Class="font-semibold">@record.EmployeeName</MudText>
+                                <div style="display: flex; gap: 12px;">
+                                    <div class="time-entry">
+                                        <MudIcon Icon="@Icons.Material.Filled.Login" Size="Size.Small" Color="Color.Success" />
+                                        <MudText Typo="Typo.caption">@(record.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+                                    </div>
+                                    <div class="time-entry">
+                                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
+                                        <MudText Typo="Typo.caption">@(record.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="record-total">
+                                <MudText Typo="Typo.body2" Class="font-semibold">@record.TotalWorked.ToString(@"hh\:mm")</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
+                        </div>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
     }
     else
     {
-        <MudList T="TimeKeepingRecord" Dense="true" Class="records-list">
-            @foreach (var record in _records.OrderByDescending(r => r.WorkDate))
-            {
-                <MudListItem Class="record-item">
-                    <div class="record-content">
-                        <div class="record-date">
-                            <MudText Typo="Typo.subtitle2" Class="font-bold">
-                                @record.WorkDate.ToString("dd")
-                            </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                @record.WorkDate.ToString("ddd", new System.Globalization.CultureInfo("pt-BR")).ToUpper()
-                            </MudText>
-                        </div>
-                        <div class="record-times">
-                            <div class="time-entry">
-                                <MudIcon Icon="@Icons.Material.Filled.Login" Size="Size.Small" Color="Color.Success" />
-                                <MudText Typo="Typo.body2">@(record.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+        @if (!_records.Any())
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">Nenhum registro encontrado</MudText>
+            </div>
+        }
+        else
+        {
+            <MudList T="TimeKeepingRecord" Dense="true" Class="records-list">
+                @foreach (var record in _records.OrderByDescending(r => r.WorkDate))
+                {
+                    <MudListItem Class="record-item" OnClick="@(() => ShowDetails(record.Id))">
+                        <div class="record-content">
+                            <div class="record-date">
+                                <MudText Typo="Typo.subtitle2" Class="font-bold">
+                                    @record.WorkDate.ToString("dd")
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @record.WorkDate.ToString("ddd", new System.Globalization.CultureInfo("pt-BR")).ToUpper()
+                                </MudText>
                             </div>
-                            <div class="time-entry">
-                                <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
-                                <MudText Typo="Typo.body2">@(record.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                            <div class="record-times">
+                                <div class="time-entry">
+                                    <MudIcon Icon="@Icons.Material.Filled.Login" Size="Size.Small" Color="Color.Success" />
+                                    <MudText Typo="Typo.body2">@(record.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+                                </div>
+                                <div class="time-entry">
+                                    <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
+                                    <MudText Typo="Typo.body2">@(record.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                                </div>
                             </div>
+                            <div class="record-total">
+                                <MudText Typo="Typo.body2" Class="font-semibold">@record.TotalWorked.ToString(@"hh\:mm")</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
                         </div>
-                        <div class="record-total">
-                            <MudText Typo="Typo.body2" Class="font-semibold">@record.TotalWorked.ToString(@"hh\:mm")</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
-                        </div>
-                    </div>
-                </MudListItem>
-                <MudDivider />
-            }
-        </MudList>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
     }
 </div>
 
@@ -177,6 +233,7 @@
 @code {
     private DateTime _selectedMonth = DateTime.Today;
     private List<TimeKeepingRecord> _records = new();
+    private List<BranchTimeKeepingRecord> _branchRecords = new();
     private MonthSummary _monthSummary = new();
     private bool _isLoading = true;
 
@@ -194,22 +251,63 @@
             var startDate = new DateOnly(_selectedMonth.Year, _selectedMonth.Month, 1);
             var endDate = startDate.AddMonths(1).AddDays(-1);
 
-            _records = (await TimeKeepingApi.GetHistoryAsync(AppState.EmployeeId, startDate, endDate)).ToList();
-
-            _monthSummary = new MonthSummary
+            if (AppState.IsOwner)
             {
-                TotalWorked = TimeSpan.FromTicks(_records.Sum(r => r.TotalWorked.Ticks)),
-                DaysWorked = _records.Count(r => r.ClockIn.HasValue),
-                Overtime = TimeSpan.Zero // TODO: Calculate based on schedule
-            };
+                _branchRecords = (await TimeKeepingApi.GetBranchHistoryAsync(AppState.BranchId, startDate, endDate)).ToList();
+
+                _monthSummary = new MonthSummary
+                {
+                    TotalWorked = TimeSpan.FromTicks(_branchRecords.Sum(r => r.TotalWorked.Ticks)),
+                    DaysWorked = _branchRecords.Count,
+                    Overtime = TimeSpan.Zero,
+                    UniqueEmployees = _branchRecords.Select(r => r.EmployeeId).Distinct().Count()
+                };
+            }
+            else
+            {
+                _records = (await TimeKeepingApi.GetHistoryAsync(AppState.EmployeeId, startDate, endDate)).ToList();
+
+                _monthSummary = new MonthSummary
+                {
+                    TotalWorked = TimeSpan.FromTicks(_records.Sum(r => r.TotalWorked.Ticks)),
+                    DaysWorked = _records.Count(r => r.ClockIn.HasValue),
+                    Overtime = TimeSpan.Zero
+                };
+            }
         }
-        catch (Exception ex)
+        catch
         {
             Snackbar.Add("Erro ao carregar histórico", Severity.Error);
         }
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task ShowDetails(Guid timeKeepingId)
+    {
+        try
+        {
+            var details = await TimeKeepingApi.GetByIdAsync(timeKeepingId);
+
+            var parameters = new DialogParameters<TimeKeepingDetailDialog>
+            {
+                { x => x.Details, details }
+            };
+
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+                CloseOnEscapeKey = true
+            };
+
+            await DialogService.ShowAsync<TimeKeepingDetailDialog>("Detalhes do Ponto", parameters, options);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar detalhes", Severity.Error);
         }
     }
 
@@ -230,24 +328,30 @@
 
     private Color GetStatusColor(string status) => status switch
     {
-        "Complete" => Color.Success,
-        "Incomplete" => Color.Warning,
-        "Absent" => Color.Error,
+        "Finished" => Color.Success,
+        "Working" => Color.Info,
+        "OnBreak" => Color.Warning,
+        "NotStarted" => Color.Error,
         _ => Color.Default
     };
 
     private string GetStatusLabel(string status) => status switch
     {
-        "Complete" => "OK",
-        "Incomplete" => "Incompleto",
-        "Absent" => "Ausente",
+        "Finished" => "Finalizado",
+        "Working" => "Trabalhando",
+        "OnBreak" => "Intervalo",
+        "NotStarted" => "Não Iniciado",
         _ => status
     };
+
+    private string FormatTotalHours(TimeSpan ts) =>
+        $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
 
     private record MonthSummary
     {
         public TimeSpan TotalWorked { get; init; }
         public int DaysWorked { get; init; }
         public TimeSpan Overtime { get; init; }
+        public int UniqueEmployees { get; init; }
     }
 }
