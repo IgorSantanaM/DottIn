@@ -2,7 +2,8 @@
 
 namespace DottIn.Application.Features.Branches.DTOs
 {
-    public record BranchSummaryDto(string Name,
+    public record BranchSummaryDto(Guid Id,
+                    string Name,
                     DocumentDto Document,
                     string? Email,
                     string? PhoneNumber,

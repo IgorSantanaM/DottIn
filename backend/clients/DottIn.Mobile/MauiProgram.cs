@@ -65,6 +65,10 @@ public static class MauiProgram
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
             .AddHttpMessageHandler<AuthorizationHandler>();
 
+        builder.Services.AddRefitClient<IBranchApi>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
+            .AddHttpMessageHandler<AuthorizationHandler>();
+
         return builder.Build();
     }
 }

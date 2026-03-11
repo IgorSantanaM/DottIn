@@ -33,6 +33,7 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
             .GetByBranchAndPeriodAsync(request.BranchId, request.StartDate, request.EndDate, cancellationToken);
 
         var now = DateTime.UtcNow;
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
 
         var records = timeKeepings.Select(tk =>
         {
@@ -68,6 +69,13 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
 
             var employeeName = employeeMap.TryGetValue(tk.EmployeeId, out var name) ? name : "Desconhecido";
 
+            var isNocturnal = false;
+            if (clockIn.HasValue)
+            {
+                var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                isNocturnal = localHour >= 22 || localHour < 6;
+            }
+
             return new BranchTimeKeepingRecordDto(
                 tk.Id,
                 tk.EmployeeId,
@@ -77,7 +85,8 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
                 clockOut,
                 totalWorked,
                 totalBreak,
-                tk.Status.ToString());
+                tk.Status.ToString(),
+                isNocturnal);
         });
 
         return records;

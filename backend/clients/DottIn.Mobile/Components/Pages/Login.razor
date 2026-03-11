@@ -1,6 +1,7 @@
 @page "/"
 @page "/login"
 @inject IAuthApi AuthApi
+@inject IBranchApi BranchApi
 @inject ISecureStorageService SecureStorage
 @inject AppState AppState
 @inject NavigationManager Navigation
@@ -254,7 +255,10 @@
                 await SecureStorage.SetAsync("saved_cpf", _cpf);
             }
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner);
+            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
+
+            if (response.IsOwner && response.IsHeadquarters)
+                await LoadOwnerBranches(response.Employee.Id);
 
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
             Navigation.NavigateTo("/dashboard", replace: true);
@@ -288,7 +292,10 @@
             await SecureStorage.SetAsync("access_token", response.AccessToken);
             await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner);
+            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
+
+            if (response.IsOwner && response.IsHeadquarters)
+                await LoadOwnerBranches(response.Employee.Id);
 
             try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
             Navigation.NavigateTo("/dashboard", replace: true);
@@ -342,8 +349,52 @@
 
     private async Task UseBiometric()
     {
-        // TODO: Implement biometric authentication
-        Snackbar.Add("Biometria em desenvolvimento", Severity.Info);
+        _isLoading = true;
+        try
+        {
+            var savedToken = await SecureStorage.GetAsync("fingerprint_token");
+            var savedCpf = await SecureStorage.GetAsync("fingerprint_cpf");
+            var savedCompany = await SecureStorage.GetAsync("fingerprint_company");
+
+            if (string.IsNullOrEmpty(savedToken) || string.IsNullOrEmpty(savedCpf) || string.IsNullOrEmpty(savedCompany))
+            {
+                Snackbar.Add("Biometria não configurada. Configure no perfil.", Severity.Warning);
+                return;
+            }
+
+            var request = new FingerprintLoginRequest(savedCompany, savedCpf, savedToken);
+            var response = await AuthApi.LoginWithFingerprintAsync(request);
+
+            await SecureStorage.SetAsync("access_token", response.AccessToken);
+            await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
+            await SecureStorage.SetAsync("company_code", savedCompany);
+
+            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
+
+            if (response.IsOwner && response.IsHeadquarters)
+                await LoadOwnerBranches(response.Employee.Id);
+
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
+            Navigation.NavigateTo("/dashboard", replace: true);
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Snackbar.Add("Biometria inválida. Reconfigure no perfil.", Severity.Error);
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
+            try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Erro ao autenticar com biometria", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private bool IsFormValid() => 
@@ -355,6 +406,17 @@
     {
         var digits = cpf.Trim();
         return digits.Length >= 11 ? $"***.***.{digits.Substring(6, 3)}-**" : digits;
+    }
+
+    private async Task LoadOwnerBranches(Guid ownerId)
+    {
+        try
+        {
+            var branches = await BranchApi.GetByOwnerAsync(ownerId);
+            AppState.SetAvailableBranches(
+                branches.Where(b => b.IsActive).Select(b => new BranchOption(b.Id, b.Name, b.IsHeadquarters)));
+        }
+        catch { }
     }
 
     private enum LoginStep { Company, Credentials, Pin }

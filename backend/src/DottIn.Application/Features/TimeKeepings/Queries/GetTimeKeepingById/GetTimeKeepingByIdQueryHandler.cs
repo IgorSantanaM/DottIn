@@ -33,13 +33,23 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
 
             GeolocationDto geolocationDto = new(timeKeeping.Location!.Latitude, timeKeeping.Location.Longitude);
 
+            var isNocturnal = false;
+            var clockIn = timeKeeping.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
+            if (clockIn.HasValue)
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
+                var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                isNocturnal = localHour >= 22 || localHour < 6;
+            }
+
             TimeKeepingDetailsDto timeKeepingDetailsDto = new(employee.Name,
                                                         branch.Name,
                                                         timeKeeping.Status,
                                                         timeKeeping.WorkDate,
                                                         timeKeeping.CreatedAt,
                                                         geolocationDto,
-                                                        timeKeeping.Entries.Select(tke => new TimeEntryDto(tke.Timestamp, tke.Type)));
+                                                        timeKeeping.Entries.Select(tke => new TimeEntryDto(tke.Timestamp, tke.Type)),
+                                                        isNocturnal);
 
             return timeKeepingDetailsDto;
         }

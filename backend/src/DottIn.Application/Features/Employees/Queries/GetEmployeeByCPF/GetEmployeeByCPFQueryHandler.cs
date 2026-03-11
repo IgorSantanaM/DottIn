@@ -35,7 +35,8 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeeByCPF
                         employee.IntervalStart,
                         employee.IntervalEnd,
                         employee.IsActive,
-                        employee.AllowOvernightShifts);
+                        employee.AllowOvernightShifts,
+                        !string.IsNullOrEmpty(employee.FingerprintHash));
 
             return employeeSummaryDto;
         }

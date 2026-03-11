@@ -1,4 +1,5 @@
 using DottIn.Domain.Branches;
+using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
 using DottIn.Infra.Services.Auth;
 using DottIn.Presentation.WebApi.DTOs.Auth;
@@ -51,6 +52,46 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
                 .AllowAnonymous();
+
+            group.MapPut("/change-password", HandleChangePasswordAsync)
+                .WithName(nameof(HandleChangePasswordAsync))
+                .WithSummary("Change Password")
+                .WithDescription("Changes employee password after verifying current password.")
+                .Produces(StatusCodes.Status204NoContent)
+                .Produces(StatusCodes.Status401Unauthorized)
+                .Produces(StatusCodes.Status404NotFound)
+                .Produces(StatusCodes.Status400BadRequest)
+                .AllowAnonymous();
+
+            group.MapPut("/change-pin", HandleChangePinAsync)
+                .WithName(nameof(HandleChangePinAsync))
+                .WithSummary("Change PIN")
+                .WithDescription("Changes or sets employee PIN after verifying current password.")
+                .Produces(StatusCodes.Status204NoContent)
+                .Produces(StatusCodes.Status401Unauthorized)
+                .Produces(StatusCodes.Status404NotFound)
+                .Produces(StatusCodes.Status400BadRequest)
+                .AllowAnonymous();
+        }
+
+        private static async Task<Branch?> ValidateEmployeeBelongsToCompanyAsync(
+            Employee employee,
+            Branch companyBranch,
+            IBranchRepository branchRepository,
+            CancellationToken cancellationToken)
+        {
+            if (employee.BranchId == companyBranch.Id)
+                return companyBranch;
+
+            var employeeBranch = await branchRepository.GetByIdAsync(employee.BranchId, cancellationToken);
+            if (employeeBranch == null)
+                return null;
+
+            if (companyBranch.OwnerId.HasValue && employeeBranch.OwnerId.HasValue &&
+                companyBranch.OwnerId.Value == employeeBranch.OwnerId.Value)
+                return employeeBranch;
+
+            return null;
         }
 
         private static async Task<IResult> HandleLoginAsync(
@@ -65,14 +106,18 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(branch.Id, request.Cpf);
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
 
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
-            return GenerateLoginResponse(branch, employee, tokenService, configuration);
+            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
         }
 
         private static async Task<IResult> HandlePinLoginAsync(
@@ -87,35 +132,45 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(branch.Id, request.Cpf);
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
 
             if (!employee.VerifyPin(request.Pin))
                 return Results.Unauthorized();
 
-            return GenerateLoginResponse(branch, employee, tokenService, configuration);
+            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
         }
 
         private static async Task<IResult> HandleRegisterFingerprintAsync(
             [FromBody] RegisterFingerprintRequest request,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] IUnitOfWork unitOfWork,
             CancellationToken cancellationToken)
         {
             var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(branch.Id, request.Cpf);
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
 
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
             employee.SetFingerprint(request.FingerprintToken);
             await employeeRepository.UpdateAsync(employee);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.NoContent();
         }
@@ -132,14 +187,82 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(branch.Id, request.Cpf);
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
 
             if (!employee.VerifyFingerprint(request.FingerprintToken))
                 return Results.Unauthorized();
 
-            return GenerateLoginResponse(branch, employee, tokenService, configuration);
+            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
+        }
+
+        private static async Task<IResult> HandleChangePasswordAsync(
+            [FromBody] ChangePasswordRequest request,
+            [FromServices] IBranchRepository branchRepository,
+            [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] IUnitOfWork unitOfWork,
+            CancellationToken cancellationToken)
+        {
+            var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
+            if (branch == null)
+                return Results.NotFound(new { Message = "Empresa não encontrada" });
+
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            if (employee == null)
+                return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
+
+            if (!employee.VerifyPassword(request.CurrentPassword))
+                return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+                return Results.BadRequest(new { Message = "A nova senha deve ter no mínimo 6 caracteres." });
+
+            if (request.CurrentPassword == request.NewPassword)
+                return Results.BadRequest(new { Message = "A nova senha deve ser diferente da atual." });
+
+            employee.SetPassword(request.NewPassword);
+            await employeeRepository.UpdateAsync(employee);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Results.NoContent();
+        }
+
+        private static async Task<IResult> HandleChangePinAsync(
+            [FromBody] ChangePinRequest request,
+            [FromServices] IBranchRepository branchRepository,
+            [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] IUnitOfWork unitOfWork,
+            CancellationToken cancellationToken)
+        {
+            var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
+            if (branch == null)
+                return Results.NotFound(new { Message = "Empresa não encontrada" });
+
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            if (employee == null)
+                return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
+
+            if (!employee.VerifyPassword(request.CurrentPassword))
+                return Results.Unauthorized();
+
+            employee.SetPin(request.NewPin);
+            await employeeRepository.UpdateAsync(employee);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Results.NoContent();
         }
 
         private static IResult GenerateLoginResponse(
@@ -167,7 +290,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
                 BranchId: branch.Id,
-                IsOwner: isOwner
+                IsOwner: isOwner,
+                IsHeadquarters: branch.IsHeadquarters
             );
 
             return Results.Ok(response);

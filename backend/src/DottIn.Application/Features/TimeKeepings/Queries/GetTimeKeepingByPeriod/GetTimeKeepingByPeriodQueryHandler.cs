@@ -34,6 +34,8 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
             var timeKeepings = await timeKeepingRepository
                 .GetByEmployeeAndPeriodAsync(request.EmployeeId, request.StartDate, request.EndDate);
 
+            var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
+
             var records = timeKeepings.Select(tk =>
             {
                 var clockIn = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
@@ -67,6 +69,13 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
                 if (totalWorked > TimeSpan.Zero)
                     totalWorked -= totalBreak;
 
+                var isNocturnal = false;
+                if (clockIn.HasValue)
+                {
+                    var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                    isNocturnal = localHour >= 22 || localHour < 6;
+                }
+
                 return new TimeKeepingRecordDto(
                     tk.Id,
                     tk.WorkDate,
@@ -74,7 +83,8 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
                     clockOut,
                     totalWorked,
                     totalBreak,
-                    tk.Status.ToString());
+                    tk.Status.ToString(),
+                    isNocturnal);
             });
 
             return records;

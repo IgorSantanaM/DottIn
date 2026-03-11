@@ -9,4 +9,5 @@ public record BranchTimeKeepingRecordDto(
     DateTime? ClockOut,
     TimeSpan TotalWorked,
     TimeSpan TotalBreak,
-    string Status);
+    string Status,
+    bool IsNocturnal);

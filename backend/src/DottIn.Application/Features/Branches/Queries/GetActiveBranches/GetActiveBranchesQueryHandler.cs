@@ -29,6 +29,7 @@ namespace DottIn.Application.Features.Branches.Queries.GetActiveBranches
                 }
 
                 var dto = new BranchSummaryDto(
+                    branch.Id,
                     branch.Name,
                     new DocumentDto(branch.Document.Value, branch.Document.Type),
                     branch.Email,

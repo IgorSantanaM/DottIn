@@ -15,6 +15,13 @@
     --text-secondary: #64748B;
     --safe-area-top: env(safe-area-inset-top);
     --safe-area-bottom: env(safe-area-inset-bottom);
+    --border-color: rgba(0,0,0,0.1);
+    --spinner-border: #E2E8F0;
+    --idle-border: #CBD5E1;
+    --login-gradient-end: #E0E7FF;
+    --logo-bg: #FFFFFF;
+    --pin-dot-empty: #E2E8F0;
+    --card-shadow: 0 8px 32px rgba(37, 99, 235, 0.2);
 }
 
 .dark-mode {
@@ -22,6 +29,13 @@
     --surface: #1E293B;
     --text-primary: #F1F5F9;
     --text-secondary: #94A3B8;
+    --border-color: rgba(255,255,255,0.08);
+    --spinner-border: #334155;
+    --idle-border: #475569;
+    --login-gradient-end: #0F172A;
+    --logo-bg: #1E293B;
+    --pin-dot-empty: #334155;
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -58,7 +72,7 @@ html, body {
 .splash-spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid #E2E8F0;
+    border: 3px solid var(--spinner-border);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -82,6 +96,8 @@ html, body {
     min-height: 100vh;
     padding-top: var(--safe-area-top);
     padding-bottom: var(--safe-area-bottom);
+    background-color: var(--background);
+    color: var(--text-primary);
 }
 
 .main-content {
@@ -118,7 +134,7 @@ html, body {
     padding: 8px 0;
     padding-bottom: calc(8px + var(--safe-area-bottom));
     background: var(--surface);
-    border-top: 1px solid rgba(0,0,0,0.1);
+    border-top: 1px solid var(--border-color);
     z-index: 100;
 }
 
@@ -189,7 +205,7 @@ html, body {
 
 .status-idle {
     background: var(--surface) !important;
-    border: 2px dashed #CBD5E1;
+    border: 2px dashed var(--idle-border);
 }
 
 .status-content {
@@ -287,7 +303,7 @@ html, body {
     display: flex;
     flex-direction: column;
     padding: 40px 24px;
-    background: linear-gradient(180deg, var(--background) 0%, #E0E7FF 100%);
+    background: linear-gradient(180deg, var(--background) 0%, var(--login-gradient-end) 100%);
 }
 
 .logo-section {
@@ -302,12 +318,12 @@ html, body {
 .logo {
     width: 80px;
     height: 80px;
-    background: white;
+    background: var(--logo-bg);
     border-radius: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.2);
+    box-shadow: var(--card-shadow);
 }
 
 .brand-name {
@@ -351,7 +367,7 @@ html, body {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #E2E8F0;
+    background: var(--pin-dot-empty);
     transition: all 0.2s ease;
 }
 

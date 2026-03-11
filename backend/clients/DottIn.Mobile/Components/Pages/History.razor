@@ -86,7 +86,13 @@
                             </div>
                             <div class="record-total">
                                 <MudText Typo="Typo.body2" Class="font-semibold">@record.TotalWorked.ToString(@"hh\:mm")</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                                    @if (record.IsNocturnal)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Color="Color.Dark" />
+                                    }
+                                </div>
                             </div>
                             <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
                         </div>
@@ -132,7 +138,13 @@
                             </div>
                             <div class="record-total">
                                 <MudText Typo="Typo.body2" Class="font-semibold">@record.TotalWorked.ToString(@"hh\:mm")</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(record.Status)">@GetStatusLabel(record.Status)</MudChip>
+                                    @if (record.IsNocturnal)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Color="Color.Dark" />
+                                    }
+                                </div>
                             </div>
                             <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
                         </div>

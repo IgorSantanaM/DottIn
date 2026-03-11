@@ -30,9 +30,15 @@
                         <tr>
                             <td><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" />Status</td>
                             <td>
-                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Details.Status)">
-                                    @GetStatusLabel(Details.Status)
-                                </MudChip>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Details.Status)">
+                                        @GetStatusLabel(Details.Status)
+                                    </MudChip>
+                                    @if (Details.IsNocturnal)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Filled">🌙 Noturno</MudChip>
+                                    }
+                                </div>
                             </td>
                         </tr>
                         <tr>

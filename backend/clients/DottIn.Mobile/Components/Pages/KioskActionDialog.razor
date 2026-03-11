@@ -9,6 +9,10 @@
             <div>
                 <MudText Typo="Typo.h6">@Employee.Name</MudText>
                 <MudChip T="string" Size="Size.Small" Color="@GetStatusColor()">@GetStatusLabel()</MudChip>
+                @if (TodayRecord?.IsNocturnal == true)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Filled">🌙 Noturno</MudChip>
+                }
             </div>
         </div>
     </TitleContent>

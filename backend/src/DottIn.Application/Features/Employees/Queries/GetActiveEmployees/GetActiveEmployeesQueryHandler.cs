@@ -33,7 +33,8 @@ namespace DottIn.Application.Features.Employees.Queries.GetActiveEmployees
                         e.IntervalStart,
                         e.IntervalEnd,
                         e.IsActive,
-                        e.AllowOvernightShifts));
+                        e.AllowOvernightShifts,
+                        !string.IsNullOrEmpty(e.FingerprintHash)));
 
             return employeesSummaryDto;
         }
