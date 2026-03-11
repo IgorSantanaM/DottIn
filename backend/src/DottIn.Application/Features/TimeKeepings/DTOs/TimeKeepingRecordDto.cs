@@ -7,4 +7,5 @@ public record TimeKeepingRecordDto(
     DateTime? ClockOut,
     TimeSpan TotalWorked,
     TimeSpan TotalBreak,
-    string Status);
+    string Status,
+    bool IsNocturnal);

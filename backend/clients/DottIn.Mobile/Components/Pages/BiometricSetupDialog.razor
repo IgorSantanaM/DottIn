@@ -1,0 +1,124 @@
+@using MudBlazor
+@using DottIn.Mobile.Services
+@using DottIn.Mobile.Services.Interfaces
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Fingerprint" />
+            <MudText Typo="Typo.h6">Configurar Biometria</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (!string.IsNullOrEmpty(EmployeeName))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Registrando biometria para <strong>@EmployeeName</strong>
+            </MudAlert>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                O funcionário deve digitar sua senha para confirmar.
+            </MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Confirme sua senha para registrar a biometria neste dispositivo.
+            </MudText>
+        }
+
+        <MudTextField @bind-Value="_password"
+                      Label="Senha"
+                      Placeholder="Digite sua senha"
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                      InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                      FullWidth="true"
+                      Disabled="@_isProcessing">
+            <AdornmentContent>
+                <MudIconButton Icon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                               OnClick="@(() => _showPassword = !_showPassword)"
+                               Edge="Edge.End" />
+            </AdornmentContent>
+        </MudTextField>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Disabled="@_isProcessing">Cancelar</MudButton>
+        <MudButton OnClick="Register" Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(string.IsNullOrWhiteSpace(_password) || _isProcessing)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Registrar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string CompanyCode { get; set; } = "";
+    [Parameter] public string Cpf { get; set; } = "";
+    [Parameter] public Guid? EmployeeId { get; set; }
+    [Parameter] public string? EmployeeName { get; set; }
+
+    [Inject] private IAuthApi AuthApi { get; set; } = default!;
+    [Inject] private ISecureStorageService SecureStorage { get; set; } = default!;
+
+    private string _password = "";
+    private bool _showPassword = false;
+    private bool _isProcessing = false;
+    private string _errorMessage = "";
+
+    private async Task Register()
+    {
+        _isProcessing = true;
+        _errorMessage = "";
+
+        try
+        {
+            var deviceToken = Guid.NewGuid().ToString();
+
+            var request = new RegisterFingerprintRequest(CompanyCode, Cpf, _password, deviceToken);
+            await AuthApi.RegisterFingerprintAsync(request);
+
+            if (EmployeeId.HasValue)
+            {
+                await SecureStorage.SetAsync($"fingerprint_token_{EmployeeId.Value}", deviceToken);
+            }
+            else
+            {
+                await SecureStorage.SetAsync("fingerprint_token", deviceToken);
+                await SecureStorage.SetAsync("fingerprint_cpf", Cpf);
+                await SecureStorage.SetAsync("fingerprint_company", CompanyCode);
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _errorMessage = "Senha incorreta";
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _errorMessage = "Funcionário não encontrado";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Erro ao registrar biometria. Tente novamente.";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

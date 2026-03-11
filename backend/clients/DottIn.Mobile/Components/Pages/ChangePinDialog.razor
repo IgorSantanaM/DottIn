@@ -1,0 +1,191 @@
+@using MudBlazor
+@using DottIn.Mobile.Services
+@using DottIn.Mobile.Services.Interfaces
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Pin" />
+            <MudText Typo="Typo.h6">@(_step == PinStep.Password ? "Confirmar Identidade" : _step == PinStep.NewPin ? "Novo PIN" : "Confirmar PIN")</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_step == PinStep.Password)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Digite sua senha para autorizar a alteração do PIN.
+            </MudText>
+
+            <MudTextField @bind-Value="_password"
+                          Label="Senha"
+                          Placeholder="Digite sua senha"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                          InputType="InputType.Password"
+                          FullWidth="true"
+                          Disabled="@_isProcessing" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Align="Align.Center">
+                @(_step == PinStep.NewPin ? "Digite o novo PIN de 6 dígitos" : "Confirme o novo PIN")
+            </MudText>
+
+            <div style="display: flex; justify-content: center; gap: 8px;" class="mb-4">
+                @for (int i = 0; i < 6; i++)
+                {
+                    var currentPin = _step == PinStep.NewPin ? _newPin : _confirmPin;
+                    var filled = i < currentPin.Length;
+                    <div style="width: 14px; height: 14px; border-radius: 50%; background: @(filled ? "var(--mud-palette-primary)" : "var(--mud-palette-lines-default)");"></div>
+                }
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 240px; margin: 0 auto;">
+                @for (int i = 1; i <= 9; i++)
+                {
+                    var digit = i.ToString();
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => AddDigit(digit))" Disabled="@_isProcessing">@digit</MudButton>
+                }
+                <div></div>
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => AddDigit("0"))" Disabled="@_isProcessing">0</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="RemoveDigit" Disabled="@_isProcessing">
+                    <MudIcon Icon="@Icons.Material.Filled.Backspace" />
+                </MudButton>
+            </div>
+
+            @if (_step == PinStep.ConfirmPin && _confirmPin.Length == 6 && _newPin != _confirmPin)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">Os PINs não coincidem</MudAlert>
+            }
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Disabled="@_isProcessing">Cancelar</MudButton>
+        @if (_step == PinStep.Password)
+        {
+            <MudButton OnClick="ConfirmPassword" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@(string.IsNullOrWhiteSpace(_password))">
+                Continuar
+            </MudButton>
+        }
+        else if (_step == PinStep.ConfirmPin && _confirmPin.Length == 6 && _newPin == _confirmPin)
+        {
+            <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@_isProcessing">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Salvar
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string CompanyCode { get; set; } = "";
+    [Parameter] public string Cpf { get; set; } = "";
+
+    [Inject] private IAuthApi AuthApi { get; set; } = default!;
+
+    private PinStep _step = PinStep.Password;
+    private string _password = "";
+    private string _newPin = "";
+    private string _confirmPin = "";
+    private bool _isProcessing = false;
+    private string _errorMessage = "";
+
+    private void ConfirmPassword()
+    {
+        _errorMessage = "";
+        _step = PinStep.NewPin;
+    }
+
+    private void AddDigit(string digit)
+    {
+        if (_step == PinStep.NewPin && _newPin.Length < 6)
+        {
+            _newPin += digit;
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
+
+            if (_newPin.Length == 6)
+                _step = PinStep.ConfirmPin;
+        }
+        else if (_step == PinStep.ConfirmPin && _confirmPin.Length < 6)
+        {
+            _confirmPin += digit;
+            try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
+
+            if (_confirmPin.Length == 6 && _newPin != _confirmPin)
+            {
+                try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
+            }
+        }
+    }
+
+    private void RemoveDigit()
+    {
+        if (_step == PinStep.ConfirmPin && _confirmPin.Length > 0)
+        {
+            _confirmPin = _confirmPin[..^1];
+        }
+        else if (_step == PinStep.ConfirmPin && _confirmPin.Length == 0)
+        {
+            _step = PinStep.NewPin;
+            _newPin = "";
+        }
+        else if (_step == PinStep.NewPin && _newPin.Length > 0)
+        {
+            _newPin = _newPin[..^1];
+        }
+    }
+
+    private async Task Submit()
+    {
+        _isProcessing = true;
+        _errorMessage = "";
+
+        try
+        {
+            var request = new ChangePinRequest(CompanyCode, Cpf, _password, _newPin);
+            await AuthApi.ChangePinAsync(request);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _errorMessage = "Senha incorreta";
+            _step = PinStep.Password;
+            _password = "";
+            _newPin = "";
+            _confirmPin = "";
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            _errorMessage = "PIN inválido. Deve conter 6 dígitos numéricos.";
+            _step = PinStep.NewPin;
+            _newPin = "";
+            _confirmPin = "";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Erro ao alterar PIN. Tente novamente.";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private enum PinStep { Password, NewPin, ConfirmPin }
+}

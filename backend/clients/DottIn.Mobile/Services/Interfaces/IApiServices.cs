@@ -10,6 +10,18 @@ public interface IAuthApi
     [Post("/api/auth/login/pin")]
     Task<LoginResponse> LoginWithPinAsync([Body] PinLoginRequest request);
 
+    [Post("/api/auth/login/fingerprint")]
+    Task<LoginResponse> LoginWithFingerprintAsync([Body] FingerprintLoginRequest request);
+
+    [Post("/api/auth/register-fingerprint")]
+    Task RegisterFingerprintAsync([Body] RegisterFingerprintRequest request);
+
+    [Put("/api/auth/change-password")]
+    Task ChangePasswordAsync([Body] ChangePasswordRequest request);
+
+    [Put("/api/auth/change-pin")]
+    Task ChangePinAsync([Body] ChangePinRequest request);
+
     [Post("/api/auth/refresh")]
     Task<TokenResponse> RefreshTokenAsync([Body] RefreshTokenRequest request);
 
@@ -51,11 +63,24 @@ public interface IEmployeeApi
 {
     [Get("/api/branches/{branchId}/employees/{employeeId}")]
     Task<EmployeeDetails> GetByIdAsync(Guid branchId, Guid employeeId);
+
+    [Get("/api/branches/{branchId}/employees/active")]
+    Task<IEnumerable<EmployeeSummaryItem>> GetActiveByBranchAsync(Guid branchId);
+}
+
+public interface IBranchApi
+{
+    [Get("/api/branches/owner/{ownerId}")]
+    Task<IEnumerable<BranchSummary>> GetByOwnerAsync(Guid ownerId);
 }
 
 // Request Models
 public record LoginRequest(string Cpf, string Password, string CompanyCode);
 public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
+public record FingerprintLoginRequest(string CompanyCode, string Cpf, string FingerprintToken);
+public record RegisterFingerprintRequest(string CompanyCode, string Cpf, string Password, string FingerprintToken);
+public record ChangePasswordRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPassword);
+public record ChangePinRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPin);
 public record RefreshTokenRequest(string RefreshToken);
 public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
 public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
@@ -68,7 +93,8 @@ public record LoginResponse(
     DateTime ExpiresAt,
     EmployeeInfo Employee,
     Guid BranchId,
-    bool IsOwner);
+    bool IsOwner,
+    bool IsHeadquarters);
 
 public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
 public record ClockInResponse(Guid TimeKeepingId);
@@ -80,7 +106,8 @@ public record TimeKeepingRecord(
     DateTime? ClockOut,
     TimeSpan TotalWorked,
     TimeSpan TotalBreak,
-    string Status);
+    string Status,
+    bool IsNocturnal);
 
 public record BranchTimeKeepingRecord(
     Guid Id,
@@ -91,7 +118,8 @@ public record BranchTimeKeepingRecord(
     DateTime? ClockOut,
     TimeSpan TotalWorked,
     TimeSpan TotalBreak,
-    string Status);
+    string Status,
+    bool IsNocturnal);
 
 public record TimeKeepingSummary(
     Guid EmployeeId,
@@ -115,8 +143,26 @@ public record TimeKeepingDetails(
     DateOnly WorkDate,
     DateTime CreatedAt,
     GeolocationInfo? GeolocationDto,
-    IEnumerable<TimeEntryInfo> EntriesDto);
+    IEnumerable<TimeEntryInfo> EntriesDto,
+    bool IsNocturnal);
 
 public record GeolocationInfo(double Latitude, double Longitude);
 
 public record TimeEntryInfo(DateTime Timestamp, string Type);
+
+public record BranchSummary(
+    Guid Id,
+    string Name,
+    bool IsActive,
+    bool IsHeadquarters);
+
+public record EmployeeSummaryItem(
+    Guid EmployeeId,
+    string Name,
+    string? ImageUrl,
+    bool IsActive,
+    bool HasFingerprint,
+    DocumentInfo Document);
+
+public record DocumentInfo(string Value, string Type);
+

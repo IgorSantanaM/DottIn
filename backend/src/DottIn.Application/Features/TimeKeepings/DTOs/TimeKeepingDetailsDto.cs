@@ -10,5 +10,6 @@ public record TimeKeepingDetailsDto(
                 DateOnly WorkDate,
                 DateTime CreatedAt,
                 GeolocationDto? GeolocationDto,
-                IEnumerable<TimeEntryDto> EntriesDto);
+                IEnumerable<TimeEntryDto> EntriesDto,
+                bool IsNocturnal);
 

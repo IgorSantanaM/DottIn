@@ -42,6 +42,20 @@
     @if (AppState.IsOwner)
     {
         @* ===== KIOSK MODE ===== *@
+        @if (AppState.CanSwitchBranches)
+        {
+            <MudSelect T="Guid" Value="AppState.BranchId" ValueChanged="OnBranchChanged"
+                       Label="Filial" Variant="Variant.Outlined" Class="mb-4"
+                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Store">
+                @foreach (var branch in AppState.AvailableBranches)
+                {
+                    <MudSelectItem T="Guid" Value="branch.Id">
+                        @branch.Name @(branch.IsHeadquarters ? " (Matriz)" : "")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        }
+
         <MudCard Class="status-card status-idle">
             <MudCardContent>
                 <div class="status-content">
@@ -79,7 +93,15 @@
                 <div class="status-content">
                     <MudIcon Icon="@GetStatusIcon()" Size="Size.Large" />
                     <div class="status-info">
-                        <MudText Typo="Typo.h6">@GetStatusText()</MudText>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <MudText Typo="Typo.h6">@GetStatusText()</MudText>
+                            @if (_isNocturnal && _currentStatus is ClockStatus.Working or ClockStatus.OnBreak)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Filled">
+                                    ?? Noturno
+                                </MudChip>
+                            }
+                        </div>
                         <MudText Typo="Typo.body2">@GetStatusSubtext()</MudText>
                     </div>
                 </div>
@@ -165,6 +187,7 @@ private string _currentDate = DateTime.Now.ToString("dddd, dd 'de' MMMM", new Sy
 private ClockStatus _currentStatus = ClockStatus.NotClocked;
 private bool _isProcessing = false;
 private bool _gpsEnabled = false;
+private bool _isNocturnal = false;
 private TodaySummary? _todaySummary;
 private System.Timers.Timer? _timer;
 private string _lastKioskMessage = "";
@@ -206,6 +229,12 @@ protected override async Task OnInitializedAsync()
     }
 
     #region Kiosk Mode
+
+    private void OnBranchChanged(Guid branchId)
+    {
+        AppState.SwitchBranch(branchId);
+        _lastKioskMessage = "";
+    }
 
     private async Task HandleKioskAction()
     {
@@ -338,6 +367,8 @@ protected override async Task OnInitializedAsync()
                     _ => ClockStatus.NotClocked
                 };
 
+                _isNocturnal = todayRecord.IsNocturnal;
+
                 _todaySummary = new TodaySummary
                 {
                     ClockInTime = todayRecord.ClockIn,
@@ -348,6 +379,7 @@ protected override async Task OnInitializedAsync()
             }
             else
             {
+                _isNocturnal = false;
                 _todaySummary = new TodaySummary();
             }
         }

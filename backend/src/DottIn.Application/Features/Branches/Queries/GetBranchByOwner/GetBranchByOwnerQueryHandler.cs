@@ -31,6 +31,7 @@ namespace DottIn.Application.Features.Branches.Queries.GetBranchByOwner
             foreach (var branch in branches)
             {
                 var dto = new BranchSummaryDto(
+                        branch.Id,
                         branch.Name,
                         new DocumentDto(branch.Document.Value, branch.Document.Type),
                         branch.Email,

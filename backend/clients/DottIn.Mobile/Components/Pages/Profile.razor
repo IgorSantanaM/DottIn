@@ -1,5 +1,7 @@
 @page "/profile"
 @inject AppState AppState
+@inject IAuthApi AuthApi
+@inject IEmployeeApi EmployeeApi
 @inject ISecureStorageService SecureStorage
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -31,10 +33,15 @@
                 <MudListItem Icon="@Icons.Material.Filled.Pin" OnClick="ChangePin">
                     <MudText>Alterar PIN</MudText>
                 </MudListItem>
-                <MudListItem Icon="@Icons.Material.Filled.Fingerprint" OnClick="ToggleBiometric">
+                <MudListItem Icon="@Icons.Material.Filled.Fingerprint" OnClick="HandleBiometricAction">
                     <div class="list-item-content">
-                        <MudText>Biometria</MudText>
-                        <MudSwitch T="bool" @bind-Value="_biometricEnabled" Color="Color.Primary" />
+                        <div>
+                            <MudText>Biometria</MudText>
+                            <MudText Typo="Typo.caption" Color="@(_hasBiometric ? Color.Success : Color.Secondary)">
+                                @(_hasBiometric ? "Configurada ?" : "Não configurada")
+                            </MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
                     </div>
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.Password" OnClick="ChangePassword">
@@ -49,10 +56,10 @@
             <MudText Typo="Typo.overline" Color="Color.Secondary">PREFERÊNCIAS</MudText>
 
             <MudList T="string" Dense="true">
-                <MudListItem Icon="@(_darkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)">
+                <MudListItem Icon="@(AppState.IsDarkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)">
                     <div class="list-item-content">
                         <MudText>Modo Escuro</MudText>
-                        <MudSwitch T="bool" @bind-Value="_darkMode" Color="Color.Primary" />
+                        <MudSwitch T="bool" Value="AppState.IsDarkMode" ValueChanged="ToggleDarkMode" Color="Color.Primary" />
                     </div>
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.Notifications">
@@ -64,6 +71,52 @@
             </MudList>
         </MudCardContent>
     </MudCard>
+
+    @if (AppState.IsOwner)
+    {
+        <MudCard Class="settings-card">
+            <MudCardContent>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">GERENCIAR BIOMETRIA DOS FUNCIONÁRIOS</MudText>
+
+                @if (_isLoadingEmployees)
+                {
+                    <div style="display: flex; justify-content: center; padding: 24px;">
+                        <MudProgressCircular Indeterminate="true" Size="Size.Medium" />
+                    </div>
+                }
+                else if (!_employees.Any())
+                {
+                    <div style="text-align: center; padding: 16px;">
+                        <MudIcon Icon="@Icons.Material.Filled.GroupOff" Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Nenhum funcionário ativo</MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudList T="EmployeeSummaryItem" Dense="true">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudListItem OnClick="@(() => SetupEmployeeBiometric(emp))">
+                                <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                                    <MudAvatar Size="Size.Small" Color="Color.Primary">
+                                        @GetInitials(emp.Name)
+                                    </MudAvatar>
+                                    <div style="flex: 1;">
+                                        <MudText Typo="Typo.body2" Class="font-semibold">@emp.Name</MudText>
+                                    </div>
+                                    <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small"
+                                             Color="@(emp.HasFingerprint ? Color.Success : Color.Default)" />
+                                    <MudText Typo="Typo.caption" Color="@(emp.HasFingerprint ? Color.Success : Color.Secondary)">
+                                        @(emp.HasFingerprint ? "?" : "—")
+                                    </MudText>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
 
     <MudCard Class="settings-card">
         <MudCardContent>
@@ -151,38 +204,187 @@
 </style>
 
 @code {
-    private bool _biometricEnabled = false;
-    private bool _darkMode = false;
+    private bool _hasBiometric = false;
     private bool _notificationsEnabled = true;
+    private bool _isLoadingEmployees = false;
+    private List<EmployeeSummaryItem> _employees = [];
 
     protected override async Task OnInitializedAsync()
     {
-        var biometric = await SecureStorage.GetAsync("biometric_enabled");
-        _biometricEnabled = biometric == "true";
-
-        var darkMode = await SecureStorage.GetAsync("dark_mode");
-        _darkMode = darkMode == "true";
+        var token = await SecureStorage.GetAsync("fingerprint_token");
+        _hasBiometric = !string.IsNullOrEmpty(token);
 
         var notifications = await SecureStorage.GetAsync("notifications_enabled");
         _notificationsEnabled = notifications != "false";
+
+        if (AppState.IsOwner)
+            await LoadEmployees();
     }
+
+    private async Task ToggleDarkMode(bool value)
+    {
+        AppState.SetDarkMode(value);
+        await SecureStorage.SetAsync("dark_mode", value.ToString().ToLower());
+    }
+
+    private async Task LoadEmployees()
+    {
+        _isLoadingEmployees = true;
+        try
+        {
+            var employees = await EmployeeApi.GetActiveByBranchAsync(AppState.BranchId);
+            _employees = employees
+                .Where(e => e.EmployeeId != AppState.EmployeeId)
+                .ToList();
+        }
+        catch
+        {
+            _employees = [];
+        }
+        finally
+        {
+            _isLoadingEmployees = false;
+        }
+    }
+
+    private async Task SetupEmployeeBiometric(EmployeeSummaryItem employee)
+    {
+        var companyCode = await SecureStorage.GetAsync("company_code") ?? "";
+
+        var parameters = new DialogParameters<BiometricSetupDialog>
+        {
+            { x => x.CompanyCode, companyCode },
+            { x => x.Cpf, employee.Document.Value },
+            { x => x.EmployeeId, employee.EmployeeId },
+            { x => x.EmployeeName, employee.Name }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<BiometricSetupDialog>($"Biometria - {employee.Name}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadEmployees();
+            Snackbar.Add($"Biometria configurada para {employee.Name}!", Severity.Success);
+        }
+    }
+
+    private string GetInitials(string name) =>
+        string.Join("", name.Split(' ').Take(2).Select(n => n.FirstOrDefault()));
 
     private async Task ChangePin()
     {
-        // TODO: Implement PIN change dialog
-        Snackbar.Add("Funcionalidade em desenvolvimento", Severity.Info);
+        var parameters = new DialogParameters<ChangePinDialog>
+        {
+            { x => x.CompanyCode, await SecureStorage.GetAsync("company_code") ?? "" },
+            { x => x.Cpf, AppState.Employee?.Cpf ?? "" }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ChangePinDialog>("Alterar PIN", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            Snackbar.Add("PIN alterado com sucesso!", Severity.Success);
+        }
     }
 
-    private async Task ToggleBiometric()
+    private async Task HandleBiometricAction()
     {
-        await SecureStorage.SetAsync("biometric_enabled", _biometricEnabled.ToString().ToLower());
-        Snackbar.Add(_biometricEnabled ? "Biometria ativada" : "Biometria desativada", Severity.Success);
+        if (_hasBiometric)
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Biometria",
+                "O que deseja fazer com a biometria?",
+                yesText: "Reconfigurar",
+                noText: "Remover",
+                cancelText: "Cancelar");
+
+            if (result == true)
+            {
+                await SetupBiometric();
+            }
+            else if (result == false)
+            {
+                await RemoveBiometric();
+            }
+        }
+        else
+        {
+            await SetupBiometric();
+        }
+    }
+
+    private async Task SetupBiometric()
+    {
+        var parameters = new DialogParameters<BiometricSetupDialog>
+        {
+            { x => x.CompanyCode, await SecureStorage.GetAsync("company_code") ?? "" },
+            { x => x.Cpf, AppState.Employee?.Cpf ?? "" }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<BiometricSetupDialog>("Configurar Biometria", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            _hasBiometric = true;
+            Snackbar.Add("Biometria configurada com sucesso!", Severity.Success);
+        }
+    }
+
+    private async Task RemoveBiometric()
+    {
+        await SecureStorage.RemoveAsync("fingerprint_token");
+        await SecureStorage.RemoveAsync("fingerprint_cpf");
+        await SecureStorage.RemoveAsync("fingerprint_company");
+        _hasBiometric = false;
+        Snackbar.Add("Biometria removida", Severity.Info);
     }
 
     private async Task ChangePassword()
     {
-        // TODO: Implement password change
-        Snackbar.Add("Funcionalidade em desenvolvimento", Severity.Info);
+        var parameters = new DialogParameters<ChangePasswordDialog>
+        {
+            { x => x.CompanyCode, await SecureStorage.GetAsync("company_code") ?? "" },
+            { x => x.Cpf, AppState.Employee?.Cpf ?? "" }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ChangePasswordDialog>("Alterar Senha", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            Snackbar.Add("Senha alterada com sucesso!", Severity.Success);
+        }
     }
 
     private void OpenTerms()

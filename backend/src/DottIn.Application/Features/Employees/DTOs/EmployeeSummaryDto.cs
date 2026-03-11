@@ -12,4 +12,5 @@ public record EmployeeSummaryDto(Guid EmployeeId,
                     TimeOnly IntervalStart,
                     TimeOnly IntervalEnd,
                     bool IsActive,
-                    bool AllowOvernightShifts);
+                    bool AllowOvernightShifts,
+                    bool HasFingerprint);

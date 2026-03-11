@@ -5,13 +5,14 @@
 @inject AppState AppState
 @inject NavigationManager Navigation
 @inject IConnectivityService ConnectivityService
+@inject ISecureStorageService SecureStorage
 
-<MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
+<MudThemeProvider Theme="_theme" IsDarkMode="@AppState.IsDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="app-container @(_isDarkMode ? "dark-mode" : "light-mode")">
+<div class="app-container @(AppState.IsDarkMode ? "dark-mode" : "light-mode")">
     @* Offline Banner *@
     @if (!_isOnline)
     {
@@ -44,7 +45,6 @@
 </div>
 
 @code {
-    private bool _isDarkMode = false;
     private bool _isOnline = true;
 
     private readonly MudTheme _theme = new()
@@ -94,7 +94,7 @@
         }
     };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _isOnline = ConnectivityService?.IsConnected ?? true;
 
@@ -103,6 +103,9 @@
 
         if (AppState != null)
             AppState.OnChange += StateHasChanged;
+
+        var darkMode = await SecureStorage.GetAsync("dark_mode");
+        AppState.SetDarkMode(darkMode == "true");
     }
 
     private void OnConnectivityChanged(bool isConnected)
