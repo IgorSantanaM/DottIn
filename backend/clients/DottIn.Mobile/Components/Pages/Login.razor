@@ -257,7 +257,7 @@
 
             AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
 
-            if (response.IsOwner && response.IsHeadquarters)
+            if (response.IsOwner)
                 await LoadOwnerBranches(response.Employee.Id);
 
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
@@ -294,7 +294,7 @@
 
             AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
 
-            if (response.IsOwner && response.IsHeadquarters)
+            if (response.IsOwner)
                 await LoadOwnerBranches(response.Employee.Id);
 
             try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }
@@ -371,7 +371,7 @@
 
             AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
 
-            if (response.IsOwner && response.IsHeadquarters)
+            if (response.IsOwner)
                 await LoadOwnerBranches(response.Employee.Id);
 
             try { HapticFeedback.Perform(HapticFeedbackType.Click); } catch { }

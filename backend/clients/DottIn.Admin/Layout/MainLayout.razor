@@ -1,0 +1,64 @@
+﻿@inherits LayoutComponentBase
+@inject AdminState State
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+
+@if (!State.IsAuthenticated)
+{
+    @Body
+}
+else
+{
+    <MudLayout>
+        <MudAppBar Elevation="1" Dense="true">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                           Edge="Edge.Start" OnClick="ToggleDrawer" />
+            <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" Class="mr-2" />
+            <MudText Typo="Typo.h6" Style="font-weight: 700; color: #2563EB;">DottIn</MudText>
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2">Admin</MudChip>
+            <MudSpacer />
+            <MudIconButton Icon="@(State.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Inherit" OnClick="State.ToggleDarkMode"
+                           Title="@(State.IsDarkMode ? "Modo claro" : "Modo escuro")" />
+            <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Dense="true"
+                     AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                <MudMenuItem Disabled="true">
+                    <div style="min-width: 180px;">
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">@State.User?.Name</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Administrador</MudText>
+                    </div>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="Logout">Sair</MudMenuItem>
+            </MudMenu>
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
+                   Variant="DrawerVariant.Mini" OpenMiniOnHover="true">
+            <MudNavMenu>
+                <MudNavLink Href="/dashboard" Match="NavLinkMatch.All"
+                            Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.People">Funcionários</MudNavLink>
+                <MudNavLink Href="/timekeeping" Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
+            </MudNavMenu>
+        </MudDrawer>
+
+        <MudMainContent Class="pa-6" Style="min-height: 100vh; background: var(--mud-palette-background);">
+            @Body
+        </MudMainContent>
+    </MudLayout>
+}
+
+@code {
+    private bool _drawerOpen = true;
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task Logout()
+    {
+        await Api.LogoutAsync();
+        State.Logout();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}

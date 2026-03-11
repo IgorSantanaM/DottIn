@@ -1,4 +1,5 @@
-﻿using DottIn.Domain.Branches;
+﻿using DottIn.Domain.Auth;
+using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.TimeKeepings;
@@ -13,6 +14,7 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<Employee> Employees { get; set; }
         public DbSet<TimeKeeping> TimeKeepings { get; set; }
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

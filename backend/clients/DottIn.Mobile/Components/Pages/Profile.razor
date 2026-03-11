@@ -412,6 +412,7 @@
 
         if (result == true)
         {
+            try { await AuthApi.LogoutAsync(); } catch { }
             await SecureStorage.ClearAllAsync();
             AppState.Logout();
             Navigation.NavigateTo("/login", true);

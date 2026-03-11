@@ -55,7 +55,8 @@ public static class MauiProgram
         builder.Services.AddTransient<AuthorizationHandler>();
 
         builder.Services.AddRefitClient<IAuthApi>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl));
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
+            .AddHttpMessageHandler<AuthorizationHandler>();
 
         builder.Services.AddRefitClient<ITimeKeepingApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))

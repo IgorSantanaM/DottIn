@@ -35,7 +35,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
             if (!branch.IsActive)
                 throw new DomainException("A empresa esta desativada e não poderá utilizar o sistem de ponto.");
 
-            if (!branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
+            if (!request.SkipGeolocationValidation &&
+                !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
                 throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);

@@ -60,6 +60,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -1,0 +1,146 @@
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Badge" />
+            <MudText Typo="Typo.h6">Identificação do Funcionário</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+            <MudTabPanel Text="Senha" Icon="@Icons.Material.Filled.Lock">
+                <div class="pa-4">
+                    <MudTextField @bind-Value="_cpf" Label="CPF" Placeholder="12345678900"
+                                  Variant="Variant.Outlined" MaxLength="11"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge"
+                                  FullWidth="true" Class="mb-3" />
+
+                    <MudTextField @bind-Value="_password" Label="Senha"
+                                  Variant="Variant.Outlined" InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                                  FullWidth="true" Class="mb-4" />
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                               Size="Size.Large" Disabled="@(!IsPasswordFormValid() || _isLoading)"
+                               OnClick="LoginWithPassword">
+                        @if (_isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Identificar
+                    </MudButton>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="PIN" Icon="@Icons.Material.Filled.Pin">
+                <div class="pa-4">
+                    <MudTextField @bind-Value="_cpf" Label="CPF" Placeholder="12345678900"
+                                  Variant="Variant.Outlined" MaxLength="11"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge"
+                                  FullWidth="true" Class="mb-4" />
+
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2" Align="Align.Center">Digite o PIN</MudText>
+                    <div style="display: flex; justify-content: center; gap: 8px;" class="mb-4">
+                        @for (int i = 0; i < 6; i++)
+                        {
+                            var filled = i < _pin.Length;
+                            <div style="width: 14px; height: 14px; border-radius: 50%;
+                                        background: @(filled ? "var(--mud-palette-primary)" : "var(--mud-palette-lines-default)");
+                                        transition: background 0.15s;"></div>
+                        }
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 260px; margin: 0 auto;">
+                        @for (int i = 1; i <= 9; i++)
+                        {
+                            var digit = i.ToString();
+                            <MudButton Variant="Variant.Outlined" OnClick="@(() => AddPinDigit(digit))"
+                                       Style="font-size: 1.2rem; min-height: 48px;">@digit</MudButton>
+                        }
+                        <div></div>
+                        <MudButton Variant="Variant.Outlined" OnClick="@(() => AddPinDigit("0"))"
+                                   Style="font-size: 1.2rem; min-height: 48px;">0</MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="RemovePinDigit">
+                            <MudIcon Icon="@Icons.Material.Filled.Backspace" />
+                        </MudButton>
+                    </div>
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string CompanyCode { get; set; } = "";
+
+    @inject AuthService AuthService
+
+    private string _cpf = "";
+    private string _password = "";
+    private string _pin = "";
+    private bool _isLoading;
+    private string? _errorMessage;
+
+    private bool IsPasswordFormValid() =>
+        !string.IsNullOrWhiteSpace(_cpf) && _cpf.Trim().Length == 11 &&
+        !string.IsNullOrWhiteSpace(_password);
+
+    private async Task LoginWithPassword()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        var (success, employee, error) = await AuthService.IdentifyWithPasswordAsync(_cpf.Trim(), _password, CompanyCode);
+        if (success && employee is not null)
+            MudDialog.Close(DialogResult.Ok(employee));
+        else
+        {
+            _errorMessage = error;
+            _password = "";
+        }
+        _isLoading = false;
+    }
+
+    private async Task LoginWithPin()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        var (success, employee, error) = await AuthService.IdentifyWithPinAsync(_cpf.Trim(), _pin, CompanyCode);
+        if (success && employee is not null)
+            MudDialog.Close(DialogResult.Ok(employee));
+        else
+        {
+            _errorMessage = error;
+            _pin = "";
+        }
+        _isLoading = false;
+    }
+
+    private void AddPinDigit(string digit)
+    {
+        if (_pin.Length < 6)
+        {
+            _pin += digit;
+            if (_pin.Length == 6 && !string.IsNullOrWhiteSpace(_cpf) && _cpf.Trim().Length == 11)
+                _ = LoginWithPin();
+        }
+    }
+
+    private void RemovePinDigit()
+    {
+        if (_pin.Length > 0)
+        {
+            _pin = _pin[..^1];
+            _errorMessage = null;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

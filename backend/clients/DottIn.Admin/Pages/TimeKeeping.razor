@@ -1,0 +1,196 @@
+@page "/timekeeping"
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>DottIn Admin - Registros</PageTitle>
+
+<MudText Typo="Typo.h5" Style="font-weight: 700;" Class="mb-1">Registros de Ponto</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Histórico de registros de ponto da empresa
+</MudText>
+
+<MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
+    @* Filters *@
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudDatePicker @bind-Date="_startDate" Label="Data Início" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker @bind-Date="_endDate" Label="Data Fim" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+        </MudItem>
+        <MudItem xs="12" sm="4" Style="display: flex; align-items: end;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="SearchAsync" Disabled="_loading" FullWidth="true">
+                Buscar
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @* Summary *@
+    @if (_records.Any())
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="6" sm="3">
+                <div style="text-align: center;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Total Registros</MudText>
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Count</MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <div style="text-align: center;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Total Horas</MudText>
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">
+                        @{
+                            var totalMinutes = _records.Sum(r => r.TotalWorked.TotalMinutes);
+                            var h = (int)(totalMinutes / 60);
+                            var m = (int)(totalMinutes % 60);
+                        }
+                        @($"{h:D2}:{m:D2}")
+                    </MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <div style="text-align: center;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários</MudText>
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Select(r => r.EmployeeId).Distinct().Count()</MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <div style="text-align: center;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Turnos Noturnos</MudText>
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Count(r => r.IsNocturnal)</MudText>
+                </div>
+            </MudItem>
+        </MudGrid>
+        <MudDivider Class="mb-4" />
+    }
+
+    @* Data Grid *@
+    @if (_loading)
+    {
+        <div style="display: flex; justify-content: center; padding: 48px;">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else if (!_records.Any())
+    {
+        <div style="text-align: center; padding: 48px;">
+            <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mt-2">Nenhum registro encontrado</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Selecione um período e clique em buscar</MudText>
+        </div>
+    }
+    else
+    {
+        <MudDataGrid T="TimeKeepingRecord" Items="_records" Dense="true" Hover="true" Striped="true"
+                     SortMode="SortMode.Multiple" Filterable="true"
+                     RowClick="@(args => ShowDetails(args.Item.Id))"
+                     Style="cursor: pointer;">
+            <Columns>
+                <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário">
+                    <CellTemplate>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <MudAvatar Size="Size.Small" Color="Color.Primary">
+                                @context.Item.EmployeeName.FirstOrDefault()
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Item.EmployeeName</MudText>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.WorkDate" Title="Data">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.WorkDate.ToString("dd/MM/yyyy")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.ClockIn" Title="Entrada">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.ClockOut" Title="Saída">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.TotalWorked" Title="Trabalhado">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.TotalWorked.ToString(@"hh\:mm")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Status" Title="Status">
+                    <CellTemplate>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Item.Status)"
+                                     Variant="Variant.Filled">
+                                @GetStatusLabel(context.Item.Status)
+                            </MudChip>
+                            @if (context.Item.IsNocturnal)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+</MudPaper>
+
+@code {
+    private List<TimeKeepingRecord> _records = [];
+    private DateTime? _startDate = DateTime.Today.AddDays(-7);
+    private DateTime? _endDate = DateTime.Today;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync() => await SearchAsync();
+
+    private async Task SearchAsync()
+    {
+        if (_startDate is null) return;
+        _loading = true;
+        try
+        {
+            var start = DateOnly.FromDateTime(_startDate.Value);
+            var end = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : (DateOnly?)null;
+            _records = await Api.GetBranchHistoryAsync(State.BranchId, start, end);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao buscar registros", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private async Task ShowDetails(Guid id)
+    {
+        try
+        {
+            var details = await Api.GetTimeKeepingByIdAsync(id);
+            if (details is null) return;
+            var parameters = new DialogParameters<TimeKeepingDetailDialog> { { x => x.Details, details } };
+            var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            await DialogService.ShowAsync<TimeKeepingDetailDialog>("Detalhes do Ponto", parameters, options);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar detalhes", Severity.Error);
+        }
+    }
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Working" => Color.Success, "OnBreak" => Color.Warning,
+        "Finished" => Color.Info, _ => Color.Default
+    };
+
+    private static string GetStatusLabel(string s) => s switch
+    {
+        "Working" => "Trabalhando", "OnBreak" => "Intervalo",
+        "Finished" => "Finalizado", "NotStarted" => "Não iniciado", _ => s
+    };
+}
