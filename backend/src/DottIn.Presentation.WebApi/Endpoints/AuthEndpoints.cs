@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
@@ -15,7 +17,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/auth")
-                .WithTags(Tag);
+                .WithTags(Tag)
+                .RequireAuthorization();
 
             group.MapPost("/login", HandleLoginAsync)
                 .WithName(nameof(HandleLoginAsync))
@@ -35,15 +38,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status404NotFound)
                 .AllowAnonymous();
 
-            group.MapPost("/register-fingerprint", HandleRegisterFingerprintAsync)
-                .WithName(nameof(HandleRegisterFingerprintAsync))
-                .WithSummary("Register Fingerprint Token")
-                .WithDescription("Registers a device's fingerprint token using password authentication.")
-                .Produces(StatusCodes.Status204NoContent)
-                .Produces(StatusCodes.Status401Unauthorized)
-                .Produces(StatusCodes.Status404NotFound)
-                .AllowAnonymous();
-
             group.MapPost("/login/fingerprint", HandleFingerprintLoginAsync)
                 .WithName(nameof(HandleFingerprintLoginAsync))
                 .WithSummary("Login with Fingerprint")
@@ -53,6 +47,29 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status404NotFound)
                 .AllowAnonymous();
 
+            group.MapPost("/refresh", HandleRefreshTokenAsync)
+                .WithName(nameof(HandleRefreshTokenAsync))
+                .WithSummary("Refresh Access Token")
+                .WithDescription("Issues a new access token and refresh token using a valid refresh token.")
+                .Produces<RefreshTokenResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status401Unauthorized)
+                .AllowAnonymous();
+
+            group.MapPost("/logout", HandleLogoutAsync)
+                .WithName(nameof(HandleLogoutAsync))
+                .WithSummary("Logout")
+                .WithDescription("Revokes all refresh tokens for the authenticated employee.")
+                .Produces(StatusCodes.Status204NoContent)
+                .Produces(StatusCodes.Status401Unauthorized);
+
+            group.MapPost("/register-fingerprint", HandleRegisterFingerprintAsync)
+                .WithName(nameof(HandleRegisterFingerprintAsync))
+                .WithSummary("Register Fingerprint Token")
+                .WithDescription("Registers a device's fingerprint token using password authentication.")
+                .Produces(StatusCodes.Status204NoContent)
+                .Produces(StatusCodes.Status401Unauthorized)
+                .Produces(StatusCodes.Status404NotFound);
+
             group.MapPut("/change-password", HandleChangePasswordAsync)
                 .WithName(nameof(HandleChangePasswordAsync))
                 .WithSummary("Change Password")
@@ -60,8 +77,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status204NoContent)
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
-                .Produces(StatusCodes.Status400BadRequest)
-                .AllowAnonymous();
+                .Produces(StatusCodes.Status400BadRequest);
 
             group.MapPut("/change-pin", HandleChangePinAsync)
                 .WithName(nameof(HandleChangePinAsync))
@@ -70,8 +86,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status204NoContent)
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
-                .Produces(StatusCodes.Status400BadRequest)
-                .AllowAnonymous();
+                .Produces(StatusCodes.Status400BadRequest);
         }
 
         private static async Task<Branch?> ValidateEmployeeBelongsToCompanyAsync(
@@ -94,11 +109,15 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return null;
         }
 
+        #region Login Handlers
+
         private static async Task<IResult> HandleLoginAsync(
             [FromBody] LoginRequest request,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
             [FromServices] ITokenService tokenService,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
             CancellationToken cancellationToken)
         {
@@ -117,7 +136,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
-            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
         }
 
         private static async Task<IResult> HandlePinLoginAsync(
@@ -125,6 +144,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
             [FromServices] ITokenService tokenService,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
             CancellationToken cancellationToken)
         {
@@ -143,8 +164,107 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPin(request.Pin))
                 return Results.Unauthorized();
 
-            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
         }
+
+        private static async Task<IResult> HandleFingerprintLoginAsync(
+            [FromBody] FingerprintLoginRequest request,
+            [FromServices] IBranchRepository branchRepository,
+            [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] ITokenService tokenService,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IUnitOfWork unitOfWork,
+            [FromServices] IConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
+            if (branch == null)
+                return Results.NotFound(new { Message = "Empresa não encontrada" });
+
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            if (employee == null)
+                return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
+            if (employeeBranch == null)
+                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
+
+            if (!employee.VerifyFingerprint(request.FingerprintToken))
+                return Results.Unauthorized();
+
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
+        }
+
+        #endregion
+
+        #region Token Management
+
+        private static async Task<IResult> HandleRefreshTokenAsync(
+            [FromBody] RefreshTokenRequest request,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IBranchRepository branchRepository,
+            [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] ITokenService tokenService,
+            [FromServices] IUnitOfWork unitOfWork,
+            [FromServices] IConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            var existingToken = await refreshTokenRepository.GetByTokenAsync(request.RefreshToken, cancellationToken);
+
+            if (existingToken == null || !existingToken.IsActive)
+                return Results.Unauthorized();
+
+            var employee = await employeeRepository.GetByIdAsync(existingToken.EmployeeId, cancellationToken);
+            if (employee == null || !employee.IsActive)
+                return Results.Unauthorized();
+
+            var branch = await branchRepository.GetByIdAsync(existingToken.BranchId, cancellationToken);
+            if (branch == null || !branch.IsActive)
+                return Results.Unauthorized();
+
+            await refreshTokenRepository.DeleteAsync(existingToken);
+
+            var jwtSettings = configuration.GetSection("JwtSettings");
+            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
+
+            var accessToken = tokenService.GenerateToken(
+                employee.Id,
+                branch.Id,
+                jwtSettings["SecretKey"]!,
+                jwtSettings["Issuer"]!,
+                jwtSettings["Audience"]!,
+                expirationMinutes);
+
+            var newRefreshToken = new RefreshToken(employee.Id, branch.Id);
+            await refreshTokenRepository.AddAsync(newRefreshToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(new RefreshTokenResponse(
+                accessToken,
+                newRefreshToken.Token,
+                DateTime.UtcNow.AddMinutes(expirationMinutes)));
+        }
+
+        private static async Task<IResult> HandleLogoutAsync(
+            ClaimsPrincipal user,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IUnitOfWork unitOfWork,
+            CancellationToken cancellationToken)
+        {
+            var employeeIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier)
+                                  ?? user.FindFirstValue("sub");
+
+            if (string.IsNullOrEmpty(employeeIdClaim) || !Guid.TryParse(employeeIdClaim, out var employeeId))
+                return Results.Unauthorized();
+
+            await refreshTokenRepository.DeleteAllByEmployeeAsync(employeeId, cancellationToken);
+
+            return Results.NoContent();
+        }
+
+        #endregion
+
+        #region Authenticated Operations
 
         private static async Task<IResult> HandleRegisterFingerprintAsync(
             [FromBody] RegisterFingerprintRequest request,
@@ -173,32 +293,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.NoContent();
-        }
-
-        private static async Task<IResult> HandleFingerprintLoginAsync(
-            [FromBody] FingerprintLoginRequest request,
-            [FromServices] IBranchRepository branchRepository,
-            [FromServices] IEmployeeRepository employeeRepository,
-            [FromServices] ITokenService tokenService,
-            [FromServices] IConfiguration configuration,
-            CancellationToken cancellationToken)
-        {
-            var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
-            if (branch == null)
-                return Results.NotFound(new { Message = "Empresa não encontrada" });
-
-            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
-            if (employee == null)
-                return Results.NotFound(new { Message = "Funcionário não encontrado" });
-
-            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
-            if (employeeBranch == null)
-                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
-
-            if (!employee.VerifyFingerprint(request.FingerprintToken))
-                return Results.Unauthorized();
-
-            return GenerateLoginResponse(employeeBranch, employee, tokenService, configuration);
         }
 
         private static async Task<IResult> HandleChangePasswordAsync(
@@ -265,28 +359,37 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.NoContent();
         }
 
-        private static IResult GenerateLoginResponse(
-            Branch branch, 
-            Employee employee, 
-            ITokenService tokenService, 
-            IConfiguration configuration)
+        #endregion
+
+        private static async Task<IResult> GenerateLoginResponseAsync(
+            Branch branch,
+            Employee employee,
+            ITokenService tokenService,
+            IRefreshTokenRepository refreshTokenRepository,
+            IUnitOfWork unitOfWork,
+            IConfiguration configuration,
+            CancellationToken cancellationToken)
         {
             var jwtSettings = configuration.GetSection("JwtSettings");
             var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
-            
-            var token = tokenService.GenerateToken(
-                employee.Id, 
-                branch.Id, 
-                jwtSettings["SecretKey"]!, 
-                jwtSettings["Issuer"]!, 
-                jwtSettings["Audience"]!, 
+
+            var accessToken = tokenService.GenerateToken(
+                employee.Id,
+                branch.Id,
+                jwtSettings["SecretKey"]!,
+                jwtSettings["Issuer"]!,
+                jwtSettings["Audience"]!,
                 expirationMinutes);
+
+            var refreshToken = new RefreshToken(employee.Id, branch.Id);
+            await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             var isOwner = branch.OwnerId.HasValue && branch.OwnerId.Value == employee.Id;
 
             var response = new LoginResponse(
-                AccessToken: token,
-                RefreshToken: "dummy-refresh-token",
+                AccessToken: accessToken,
+                RefreshToken: refreshToken.Token,
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
                 BranchId: branch.Id,

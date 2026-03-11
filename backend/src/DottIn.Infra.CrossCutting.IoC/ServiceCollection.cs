@@ -1,6 +1,7 @@
 ﻿using DottIn.Application.Features.Branches.Queries.GetBranchByOwner;
 using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
 using DottIn.Application.Features.TimeKeepings.Validators;
+using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
@@ -68,6 +69,7 @@ namespace DottIn.Infra.CrossCutting.IoC
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             services.AddScoped<ITimeKeepingRepository, TimeKeepingRepository>();
             services.AddScoped<IHolidayCalendarRepository, HolidayCalendarRepository>();
+            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
             return services;
         }
