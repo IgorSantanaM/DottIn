@@ -1,0 +1,502 @@
+@page "/dashboard"
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@implements IDisposable
+
+<PageTitle>DottIn - Dashboard</PageTitle>
+
+<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+    <div>
+        @if (State.IsOwner)
+        {
+            <MudText Typo="Typo.h5" Style="font-weight: 700;">Dashboard</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.h5" Style="font-weight: 700;">Olá, @(State.User?.FirstName ?? "Usuário")!</MudText>
+        }
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading" Size="Size.Small">
+        Atualizar
+    </MudButton>
+</div>
+
+@* Real-time Clock *@
+<div style="text-align: center;" class="mb-4">
+    <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@_currentTime</MudText>
+</div>
+
+@if (State.IsOwner)
+{
+    @* ===== OWNER / KIOSK MODE ===== *@
+    @* KPI Cards *@
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="0" Style="border-radius: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.People" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários Ativos</MudText>
+                        @if (_loading) { <MudSkeleton Width="48px" Height="32px" /> }
+                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_employees.Count(e => e.IsActive)</MudText> }
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="0" Style="border-radius: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhando Agora</MudText>
+                        @if (_loading) { <MudSkeleton Width="48px" Height="32px" /> }
+                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_todayRecords.Count(r => r.Status == "Working")</MudText> }
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="0" Style="border-radius: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.Coffee" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Em Intervalo</MudText>
+                        @if (_loading) { <MudSkeleton Width="48px" Height="32px" /> }
+                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_todayRecords.Count(r => r.Status == "OnBreak")</MudText> }
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="0" Style="border-radius: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <MudAvatar Color="Color.Info" Variant="Variant.Filled" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Finalizaram Hoje</MudText>
+                        @if (_loading) { <MudSkeleton Width="48px" Height="32px" /> }
+                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_todayRecords.Count(r => r.Status == "Finished")</MudText> }
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* Kiosk Action *@
+    <MudPaper Elevation="0" Class="pa-5 mb-4" Style="border-radius: 12px; text-align: center;">
+        <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h6" Class="mt-2" Style="font-weight: 600;">Ponto Compartilhado</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Identifique o funcionário para registrar ponto
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   Disabled="_isProcessing" OnClick="HandleKioskAction">
+            @if (_isProcessing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            REGISTRAR PONTO
+        </MudButton>
+
+        @if (!string.IsNullOrEmpty(_lastKioskMessage))
+        {
+            <MudAlert Severity="_lastKioskSeverity" Dense="true" Class="mt-4">@_lastKioskMessage</MudAlert>
+        }
+    </MudPaper>
+
+    @* Today's Table *@
+    <MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
+        <MudText Typo="Typo.h6" Style="font-weight: 700;" Class="mb-4">Atividade de Hoje</MudText>
+        @if (_loading)
+        {
+            <div style="display: flex; justify-content: center; padding: 48px;">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            </div>
+        }
+        else if (!_todayRecords.Any())
+        {
+            <div style="text-align: center; padding: 48px;">
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mt-2">Nenhum registro para hoje</MudText>
+            </div>
+        }
+        else
+        {
+            <MudDataGrid T="TimeKeepingRecord" Items="_todayRecords" Dense="true" Hover="true" Striped="true"
+                         RowClick="@(args => ShowDetails(args.Item.Id))"
+                         Style="cursor: pointer;" SortMode="SortMode.Multiple">
+                <Columns>
+                    <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário">
+                        <CellTemplate>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <MudAvatar Size="Size.Small" Color="Color.Primary">@context.Item.EmployeeName.FirstOrDefault()</MudAvatar>
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Item.EmployeeName</MudText>
+                            </div>
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.ClockIn" Title="Entrada">
+                        <CellTemplate><MudText Typo="Typo.body2">@(context.Item.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText></CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.ClockOut" Title="Saída">
+                        <CellTemplate><MudText Typo="Typo.body2">@(context.Item.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText></CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.TotalWorked" Title="Trabalhado">
+                        <CellTemplate><MudText Typo="Typo.body2">@context.Item.TotalWorked.ToString(@"hh\:mm")</MudText></CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.Status" Title="Status">
+                        <CellTemplate>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Item.Status)" Variant="Variant.Filled">
+                                    @GetStatusLabel(context.Item.Status)
+                                </MudChip>
+                                @if (context.Item.IsNocturnal)
+                                {
+                                    <MudTooltip Text="Turno noturno"><MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" /></MudTooltip>
+                                }
+                            </div>
+                        </CellTemplate>
+                    </PropertyColumn>
+                </Columns>
+            </MudDataGrid>
+        }
+    </MudPaper>
+}
+else
+{
+    @* ===== EMPLOYEE PERSONAL MODE ===== *@
+    <MudPaper Elevation="0" Class="pa-5 mb-4" Style="border-radius: 12px;">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                @* Status Card *@
+                <div style="display: flex; align-items: center; gap: 16px;" class="mb-4">
+                    <MudAvatar Color="@GetPersonalStatusAvatarColor()" Size="Size.Large" Variant="Variant.Filled">
+                        <MudIcon Icon="@GetPersonalStatusIcon()" />
+                    </MudAvatar>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <MudText Typo="Typo.h6" Style="font-weight: 600;">@GetPersonalStatusText()</MudText>
+                            @if (_myRecord?.IsNocturnal == true)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Filled">🌙 Noturno</MudChip>
+                            }
+                        </div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@GetPersonalSubtext()</MudText>
+                    </div>
+                </div>
+
+                @* Action Buttons *@
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    @if (_personalStatus == PersonalStatus.NotClocked)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   Disabled="_isProcessing" OnClick="HandleClockIn">
+                            @if (_isProcessing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                            Registrar Entrada
+                        </MudButton>
+                    }
+                    else if (_personalStatus is PersonalStatus.Working or PersonalStatus.OnBreak)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="@(_personalStatus == PersonalStatus.OnBreak ? Color.Success : Color.Warning)"
+                                   StartIcon="@(_personalStatus == PersonalStatus.OnBreak ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Coffee)"
+                                   Disabled="_isProcessing" OnClick="HandleBreak">
+                            @(_personalStatus == PersonalStatus.OnBreak ? "Retomar Trabalho" : "Iniciar Intervalo")
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Logout"
+                                   Disabled="_isProcessing" OnClick="HandleClockOut">
+                            Registrar Saída
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Large">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" Size="Size.Small" />
+                            Jornada Finalizada
+                        </MudChip>
+                    }
+                </div>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                @* Day Summary *@
+                <MudText Typo="Typo.subtitle1" Style="font-weight: 600;" Class="mb-3">Resumo do Dia</MudText>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Success" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Entrada</MudText>
+                            <MudText Typo="Typo.body1" Style="font-weight: 600;">@(_myRecord?.ClockIn?.ToString("HH:mm") ?? "--:--")</MudText>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Saída</MudText>
+                            <MudText Typo="Typo.body1" Style="font-weight: 600;">@(_myRecord?.ClockOut?.ToString("HH:mm") ?? "--:--")</MudText>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Primary" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Trabalhado</MudText>
+                            <MudText Typo="Typo.body1" Style="font-weight: 600;">@(_myRecord?.TotalWorked.ToString(@"hh\:mm") ?? "00:00")</MudText>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Coffee" Color="Color.Warning" Size="Size.Small" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Intervalo</MudText>
+                            <MudText Typo="Typo.body1" Style="font-weight: 600;">@(_myRecord?.TotalBreak.ToString(@"hh\:mm") ?? "00:00")</MudText>
+                        </div>
+                    </div>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}
+
+@code {
+    private List<EmployeeSummary> _employees = [];
+    private List<TimeKeepingRecord> _todayRecords = [];
+    private TimeKeepingRecord? _myRecord;
+    private PersonalStatus _personalStatus = PersonalStatus.NotClocked;
+    private bool _loading = true;
+    private bool _isProcessing;
+    private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
+    private System.Timers.Timer? _timer;
+    private string _lastKioskMessage = "";
+    private Severity _lastKioskSeverity = Severity.Success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (_, _) => { _currentTime = DateTime.Now.ToString("HH:mm:ss"); InvokeAsync(StateHasChanged); };
+        _timer.Start();
+        await LoadDataAsync();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            if (State.IsOwner)
+            {
+                _employees = await Api.GetActiveEmployeesAsync(State.BranchId);
+                _todayRecords = await Api.GetBranchHistoryAsync(State.BranchId, today, today);
+            }
+            else
+            {
+                var records = await Api.GetEmployeeHistoryAsync(State.EmployeeId, today, today);
+                _myRecord = records.FirstOrDefault();
+                _personalStatus = _myRecord?.Status switch
+                {
+                    "Working" => PersonalStatus.Working,
+                    "OnBreak" => PersonalStatus.OnBreak,
+                    "Finished" => PersonalStatus.Finished,
+                    _ => PersonalStatus.NotClocked
+                };
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar dados", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    #region Kiosk Mode (Owner)
+
+    private async Task HandleKioskAction()
+    {
+        var identifyParams = new DialogParameters<KioskIdentificationDialog>
+        {
+            { x => x.CompanyCode, State.CompanyCode }
+        };
+        var identifyOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var identifyDialog = await DialogService.ShowAsync<KioskIdentificationDialog>("Identificação", identifyParams, identifyOptions);
+        var identifyResult = await identifyDialog.Result;
+
+        if (identifyResult is null || identifyResult.Canceled) return;
+        var employee = identifyResult.Data as EmployeeInfo;
+        if (employee is null) return;
+
+        _isProcessing = true;
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var records = await Api.GetEmployeeHistoryAsync(employee.Id, today, today);
+            var todayRecord = records.FirstOrDefault();
+            var employeeStatus = todayRecord?.Status ?? "NotStarted";
+            _isProcessing = false;
+
+            var actionParams = new DialogParameters<KioskActionDialog>
+            {
+                { x => x.Employee, employee },
+                { x => x.EmployeeStatus, employeeStatus },
+                { x => x.TodayRecord, todayRecord }
+            };
+            var actionOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            var actionDialog = await DialogService.ShowAsync<KioskActionDialog>(employee.FirstName, actionParams, actionOptions);
+            var actionResult = await actionDialog.Result;
+
+            if (actionResult is null || actionResult.Canceled) return;
+            var selectedAction = (KioskActionDialog.KioskAction)actionResult.Data!;
+
+            _isProcessing = true;
+
+            switch (selectedAction)
+            {
+                case KioskActionDialog.KioskAction.ClockIn:
+                    await Api.ClockInAsync(new ClockInRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    _lastKioskMessage = $"✅ Entrada registrada para {employee.FirstName}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+                case KioskActionDialog.KioskAction.ClockOut:
+                    await Api.ClockOutAsync(new ClockOutRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    _lastKioskMessage = $"✅ Saída registrada para {employee.FirstName}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+                case KioskActionDialog.KioskAction.StartBreak:
+                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    _lastKioskMessage = $"☕ Intervalo iniciado para {employee.FirstName}";
+                    _lastKioskSeverity = Severity.Info;
+                    break;
+                case KioskActionDialog.KioskAction.EndBreak:
+                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    _lastKioskMessage = $"✅ Retorno registrado para {employee.FirstName}";
+                    _lastKioskSeverity = Severity.Success;
+                    break;
+            }
+
+            Snackbar.Add(_lastKioskMessage, _lastKioskSeverity);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _lastKioskMessage = $"Erro: {ex.Message}";
+            _lastKioskSeverity = Severity.Error;
+            Snackbar.Add(_lastKioskMessage, Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    #endregion
+
+    #region Personal Mode (Employee)
+
+    private async Task HandleClockIn()
+    {
+        _isProcessing = true;
+        try
+        {
+            await Api.ClockInAsync(new ClockInRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            Snackbar.Add("Entrada registrada com sucesso!", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
+        finally { _isProcessing = false; }
+    }
+
+    private async Task HandleClockOut()
+    {
+        _isProcessing = true;
+        try
+        {
+            await Api.ClockOutAsync(new ClockOutRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            Snackbar.Add("Saída registrada com sucesso!", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
+        finally { _isProcessing = false; }
+    }
+
+    private async Task HandleBreak()
+    {
+        _isProcessing = true;
+        try
+        {
+            await Api.BreakAsync(new BreakRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            var msg = _personalStatus == PersonalStatus.Working ? "Intervalo iniciado" : "Intervalo finalizado";
+            Snackbar.Add(msg, Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
+        finally { _isProcessing = false; }
+    }
+
+    private Color GetPersonalStatusAvatarColor() => _personalStatus switch
+    {
+        PersonalStatus.Working => Color.Success, PersonalStatus.OnBreak => Color.Warning,
+        PersonalStatus.Finished => Color.Info, _ => Color.Default
+    };
+
+    private string GetPersonalStatusIcon() => _personalStatus switch
+    {
+        PersonalStatus.Working => Icons.Material.Filled.Work, PersonalStatus.OnBreak => Icons.Material.Filled.Coffee,
+        PersonalStatus.Finished => Icons.Material.Filled.CheckCircle, _ => Icons.Material.Filled.Schedule
+    };
+
+    private string GetPersonalStatusText() => _personalStatus switch
+    {
+        PersonalStatus.Working => "Trabalhando", PersonalStatus.OnBreak => "Em Intervalo",
+        PersonalStatus.Finished => "Jornada Finalizada", _ => "Ponto não registrado"
+    };
+
+    private string GetPersonalSubtext() => _personalStatus switch
+    {
+        PersonalStatus.Working => $"Desde {_myRecord?.ClockIn?.ToString("HH:mm")}",
+        PersonalStatus.OnBreak => "Intervalo em andamento",
+        PersonalStatus.Finished => $"Trabalhou {_myRecord?.TotalWorked.ToString(@"hh\:mm")}",
+        _ => "Registre sua entrada para começar"
+    };
+
+    #endregion
+
+    private async Task ShowDetails(Guid id)
+    {
+        try
+        {
+            var details = await Api.GetTimeKeepingByIdAsync(id);
+            if (details is null) return;
+            var parameters = new DialogParameters<TimeKeepingDetailDialog> { { x => x.Details, details } };
+            var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            await DialogService.ShowAsync<TimeKeepingDetailDialog>("Detalhes do Ponto", parameters, options);
+        }
+        catch { Snackbar.Add("Erro ao carregar detalhes", Severity.Error); }
+    }
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Working" => Color.Success, "OnBreak" => Color.Warning,
+        "Finished" => Color.Info, _ => Color.Default
+    };
+
+    private static string GetStatusLabel(string s) => s switch
+    {
+        "Working" => "Trabalhando", "OnBreak" => "Intervalo",
+        "Finished" => "Finalizado", "NotStarted" => "Não iniciado", _ => s
+    };
+
+    private enum PersonalStatus { NotClocked, Working, OnBreak, Finished }
+}

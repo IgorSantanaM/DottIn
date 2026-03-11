@@ -1,0 +1,115 @@
+@page "/employees"
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn Admin - Funcionários</PageTitle>
+
+<MudText Typo="Typo.h5" Style="font-weight: 700;" Class="mb-1">Funcionários</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Gerencie os funcionários da empresa
+</MudText>
+
+<MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+        <MudTextField @bind-Value="_search" Placeholder="Buscar funcionário..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" Style="max-width: 320px;" />
+        <MudToggleGroup T="string" @bind-Value="_filter" Color="Color.Primary" Size="Size.Small"
+                        Outline="true" Dense="true">
+            <MudToggleItem T="string" Value="@("all")">Todos</MudToggleItem>
+            <MudToggleItem T="string" Value="@("active")">Ativos</MudToggleItem>
+            <MudToggleItem T="string" Value="@("inactive")">Inativos</MudToggleItem>
+        </MudToggleGroup>
+    </div>
+
+    @if (_loading)
+    {
+        <div style="display: flex; justify-content: center; padding: 48px;">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else
+    {
+        <MudDataGrid Items="FilteredEmployees" Dense="true" Hover="true" Striped="true"
+                     SortMode="SortMode.Multiple">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Nome">
+                    <CellTemplate>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <MudAvatar Size="Size.Small" Color="Color.Primary">
+                                @context.Item.Name.FirstOrDefault()
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Item.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@FormatDocument(context.Item.Document)</MudText>
+                            </div>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.BranchName" Title="Filial" />
+                <PropertyColumn Property="x => x.StartWorkTime" Title="Horário">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">
+                            @context.Item.StartWorkTime.ToString("HH:mm") - @context.Item.EndWorkTime.ToString("HH:mm")
+                        </MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.HasFingerprint" Title="Biometria">
+                    <CellTemplate>
+                        <MudIcon Icon="@(context.Item.HasFingerprint ? Icons.Material.Filled.Fingerprint : Icons.Material.Filled.DoNotTouch)"
+                                 Color="@(context.Item.HasFingerprint ? Color.Success : Color.Default)"
+                                 Size="Size.Small" />
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.IsActive" Title="Status">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                                 Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Ativo" : "Inativo")
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+</MudPaper>
+
+@code {
+    private List<EmployeeSummary> _employees = [];
+    private string _search = "";
+    private string _filter = "all";
+    private bool _loading = true;
+
+    private IEnumerable<EmployeeSummary> FilteredEmployees => _employees
+        .Where(e => _filter switch
+        {
+            "active" => e.IsActive,
+            "inactive" => !e.IsActive,
+            _ => true
+        })
+        .Where(e => string.IsNullOrWhiteSpace(_search) ||
+                    e.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                    e.Document.Value.Contains(_search));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _employees = await Api.GetEmployeesByBranchAsync(State.BranchId);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar funcionários", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private static string FormatDocument(DocumentInfo doc)
+    {
+        if (doc.Value.Length == 11)
+            return $"{doc.Value[..3]}.{doc.Value[3..6]}.{doc.Value[6..9]}-{doc.Value[9..]}";
+        return doc.Value;
+    }
+}

@@ -1,0 +1,104 @@
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Description" />
+            <MudText Typo="Typo.h6">Detalhes do Ponto</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (Details is not null)
+        {
+            <div class="mb-4">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <tbody>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-2" />Funcionário</td>
+                            <td style="font-weight: 600;">@Details.EmployeeName</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-2" />Filial</td>
+                            <td style="font-weight: 600;">@Details.BranchName</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-2" />Data</td>
+                            <td style="font-weight: 600;">@Details.WorkDate.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" />Status</td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Details.Status)" Variant="Variant.Filled">
+                                    @GetStatusLabel(Details.Status)
+                                </MudChip>
+                                @if (Details.IsNocturnal)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Filled">🌙 Noturno</MudChip>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-2" />Localização</td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(Details.GeolocationDto is not null ? Color.Success : Color.Error)">
+                                    @(Details.GeolocationDto is not null ? "Verificada ✓" : "Não disponível")
+                                </MudChip>
+                            </td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </div>
+
+            @if (Details.EntriesDto.Any())
+            {
+                <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-2">REGISTROS</MudText>
+                <MudTimeline TimelinePosition="TimelinePosition.Start">
+                    @foreach (var entry in Details.EntriesDto.OrderBy(e => e.Timestamp))
+                    {
+                        <MudTimelineItem Color="@GetEntryColor(entry.Type)" Size="Size.Small">
+                            <ItemContent>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@GetEntryLabel(entry.Type)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@entry.Timestamp.ToString("HH:mm:ss")</MudText>
+                                </div>
+                            </ItemContent>
+                        </MudTimelineItem>
+                    }
+                </MudTimeline>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Primary">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public TimeKeepingDetails? Details { get; set; }
+
+    private void Close() => MudDialog.Close();
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Working" => Color.Success, "OnBreak" => Color.Warning,
+        "Finished" => Color.Info, _ => Color.Default
+    };
+
+    private static string GetStatusLabel(string s) => s switch
+    {
+        "Working" => "Trabalhando", "OnBreak" => "Intervalo",
+        "Finished" => "Finalizado", "NotStarted" => "Não iniciado", _ => s
+    };
+
+    private static Color GetEntryColor(string t) => t switch
+    {
+        "ClockIn" => Color.Success, "ClockOut" => Color.Error,
+        "BreakStart" => Color.Warning, "BreakEnd" => Color.Info, _ => Color.Default
+    };
+
+    private static string GetEntryLabel(string t) => t switch
+    {
+        "ClockIn" => "Entrada", "ClockOut" => "Saída",
+        "BreakStart" => "Início Intervalo", "BreakEnd" => "Fim Intervalo", _ => t
+    };
+}

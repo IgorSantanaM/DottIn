@@ -1,0 +1,81 @@
+﻿@page "/"
+@inject AuthService AuthService
+@inject AdminState State
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn Admin - Login</PageTitle>
+
+@if (State.IsAuthenticated)
+{
+    <DottIn.Admin.Pages.Dashboard />
+}
+else
+{
+<div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);">
+    <MudCard Style="width: 420px; border-radius: 16px;" Elevation="8">
+        <MudCardContent Class="pa-8">
+            <div style="text-align: center;" class="mb-6">
+                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Style="font-weight: 700;" Class="mt-2">DottIn</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Painel Administrativo</MudText>
+            </div>
+
+            <MudTextField @bind-Value="_companyCode" Label="Código da Empresa" Variant="Variant.Outlined"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business"
+                          FullWidth="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_cpf" Label="CPF" Variant="Variant.Outlined"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge"
+                          FullWidth="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_password" Label="Senha" Variant="Variant.Outlined"
+                          InputType="@(_showPwd ? InputType.Text : InputType.Password)"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPwd ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                          OnAdornmentClick="() => _showPwd = !_showPwd"
+                          FullWidth="true" Class="mb-5" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       Size="Size.Large" Disabled="_loading" OnClick="HandleLogin">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Entrar
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+</div>
+}
+
+@code {
+    private string _companyCode = "";
+    private string _cpf = "";
+    private string _password = "";
+    private bool _showPwd;
+    private bool _loading;
+
+    protected override void OnInitialized()
+    {
+        if (State.IsAuthenticated)
+            Navigation.NavigateTo("/dashboard", replace: true);
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        var (success, error) = await AuthService.LoginAsync(_cpf, _password, _companyCode);
+        if (success)
+        {
+            Snackbar.Add("Login realizado com sucesso!", Severity.Success);
+            Navigation.NavigateTo("/dashboard", replace: true);
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Erro ao fazer login", Severity.Error);
+        }
+        _loading = false;
+    }
+}

@@ -4,6 +4,7 @@
         Guid BranchId,
         Guid EmployeeId,
         double Latitude,
-        double Longitude);
+        double Longitude,
+        bool SkipGeolocationValidation = false);
 
 }

@@ -141,7 +141,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var command = new ClockInCommand(
                 request.BranchId,
                 request.EmployeeId,
-                new GeolocationDto(request.Latitude, request.Longitude));
+                new GeolocationDto(request.Latitude, request.Longitude),
+                request.SkipGeolocationValidation);
 
             var timeKeepingId = await mediator.Send(command, cancellationToken);
 
@@ -158,7 +159,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var command = new ClockOutCommand(
                 request.BranchId,
                 request.EmployeeId,
-                new GeolocationDto(request.Latitude, request.Longitude));
+                new GeolocationDto(request.Latitude, request.Longitude),
+                request.SkipGeolocationValidation);
 
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
@@ -172,7 +174,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var command = new BreakCommand(
                 request.EmployeeId,
                 request.BranchId,
-                new GeolocationDto(request.Latitude, request.Longitude));
+                new GeolocationDto(request.Latitude, request.Longitude),
+                request.SkipGeolocationValidation);
 
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
