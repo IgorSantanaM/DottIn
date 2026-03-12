@@ -3,6 +3,7 @@ using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
 using DottIn.Application.Features.TimeKeepings.Commands.ClockOut;
 using DottIn.Application.Features.TimeKeepings.DTOs;
 using DottIn.Application.Features.TimeKeepings.Queries.GetCurrentTimeKeeping;
+using DottIn.Domain.TimeKeepings;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod;
 using DottIn.Application.Features.TimeKeepings.Queries.GetBranchTimeKeepingByPeriod;
@@ -138,11 +139,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
+            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+
             var command = new ClockInCommand(
                 request.BranchId,
                 request.EmployeeId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation);
+                request.SkipGeolocationValidation,
+                source);
 
             var timeKeepingId = await mediator.Send(command, cancellationToken);
 
@@ -156,11 +160,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
+            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+
             var command = new ClockOutCommand(
                 request.BranchId,
                 request.EmployeeId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation);
+                request.SkipGeolocationValidation,
+                source);
 
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
@@ -171,11 +178,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
+            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+
             var command = new BreakCommand(
                 request.EmployeeId,
                 request.BranchId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation);
+                request.SkipGeolocationValidation,
+                source);
 
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();

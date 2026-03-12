@@ -1,6 +1,7 @@
 @page "/dashboard"
 @inject AppState AppState
 @inject ITimeKeepingApi TimeKeepingApi
+@inject IHolidayCalendarApi HolidayApi
 @inject ILocationService LocationService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -38,6 +39,15 @@
     <div class="clock-display">
         <MudText Typo="Typo.h2" Class="clock-time">@_currentTime</MudText>
     </div>
+
+    @* Holiday Banner *@
+    @if (_todayHolidayName is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true"
+                  Icon="@Icons.Material.Filled.Celebration" Class="mb-3">
+            <b>Feriado:</b> @_todayHolidayName
+        </MudAlert>
+    }
 
     @if (AppState.IsOwner)
     {
@@ -188,6 +198,7 @@ private ClockStatus _currentStatus = ClockStatus.NotClocked;
 private bool _isProcessing = false;
 private bool _gpsEnabled = false;
 private bool _isNocturnal = false;
+private string? _todayHolidayName;
 private TodaySummary? _todaySummary;
 private System.Timers.Timer? _timer;
 private string _lastKioskMessage = "";
@@ -213,6 +224,8 @@ protected override async Task OnInitializedAsync()
 
         await CheckGpsStatus();
 
+        await CheckTodayHoliday();
+
         if (!AppState.IsOwner)
             await LoadTodayState();
     }
@@ -226,6 +239,17 @@ protected override async Task OnInitializedAsync()
     {
         var status = await LocationService.CheckPermissionAsync();
         _gpsEnabled = status == PermissionStatus.Granted;
+    }
+
+    private async Task CheckTodayHoliday()
+    {
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var holidays = await HolidayApi.GetHolidaysInRangeAsync(AppState.BranchId, today, today);
+            _todayHolidayName = holidays.FirstOrDefault()?.Name;
+        }
+        catch { _todayHolidayName = null; }
     }
 
     #region Kiosk Mode

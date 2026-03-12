@@ -1,0 +1,82 @@
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.FileDownload" />
+            <MudText Typo="Typo.h6">Exportar Domínio</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Selecione o mês para exportar os registros no formato Domínio Sistemas.
+        </MudText>
+
+        <MudDatePicker @bind-Date="_selectedMonth" Label="Mês de Referência"
+                       Variant="Variant.Outlined" FullWidth="true"
+                       OpenTo="OpenTo.Month" FixMonth="null"
+                       DateFormat="MM/yyyy" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_exporting || _selectedMonth is null)" OnClick="Export"
+                   StartIcon="@Icons.Material.Filled.FileDownload">
+            @if (_exporting) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Exportar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private DateTime? _selectedMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private bool _exporting;
+
+    private async Task Export()
+    {
+        if (_selectedMonth is null) return;
+        _exporting = true;
+        try
+        {
+            var month = _selectedMonth.Value.ToString("yyyy-MM");
+            var bytes = await Api.ExportDominioAsync(State.BranchId, month);
+
+            if (bytes.Length == 0)
+            {
+                Snackbar.Add("Nenhum dado para exportar. Verifique os mapeamentos Domínio.", Severity.Warning);
+                _exporting = false;
+                return;
+            }
+
+            var filename = $"dominio_{_selectedMonth.Value:yyyyMM}.txt";
+            await DownloadFile(bytes, filename, "text/plain");
+            Snackbar.Add("Arquivo exportado!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _exporting = false;
+    }
+
+    private async Task DownloadFile(byte[] bytes, string filename, string contentType)
+    {
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("eval", $@"
+            var link = document.createElement('a');
+            link.href = 'data:{contentType};base64,{base64}';
+            link.download = '{filename}';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        ");
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

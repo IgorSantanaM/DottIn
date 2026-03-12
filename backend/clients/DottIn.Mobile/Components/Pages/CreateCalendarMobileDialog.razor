@@ -1,0 +1,60 @@
+@inject IHolidayCalendarApi HolidayApi
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_name" Label="Nome" Variant="Variant.Outlined"
+                      Placeholder="ex: Feriados 2026" FullWidth="true" Class="mb-3" />
+
+        <div style="display:flex;gap:12px;" class="mb-3">
+            <MudTextField @bind-Value="_countryCode" Label="País" Variant="Variant.Outlined"
+                          Placeholder="BR" MaxLength="2" Style="flex:1;" />
+            <MudTextField @bind-Value="_regionCode" Label="Região" Variant="Variant.Outlined"
+                          Placeholder="SP" MaxLength="10" Style="flex:1;" />
+        </div>
+
+        <MudTextField @bind-Value="_description" Label="Descrição (opcional)" Variant="Variant.Outlined"
+                      Lines="2" FullWidth="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!IsValid() || _saving)" OnClick="Create">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Criar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int Year { get; set; }
+    [Parameter] public Guid BranchId { get; set; }
+
+    private string _name = "";
+    private string _countryCode = "BR";
+    private string? _regionCode;
+    private string? _description;
+    private bool _saving;
+
+    private bool IsValid() => !string.IsNullOrWhiteSpace(_name) && _countryCode.Length == 2;
+
+    private async Task Create()
+    {
+        _saving = true;
+        try
+        {
+            var request = new CreateCalendarApiRequest(_name.Trim(), _countryCode.Trim().ToUpperInvariant(), Year, _regionCode?.Trim(), _description?.Trim());
+            await HolidayApi.CreateCalendarAsync(BranchId, request);
+            Snackbar.Add("Calendário criado!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _saving = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

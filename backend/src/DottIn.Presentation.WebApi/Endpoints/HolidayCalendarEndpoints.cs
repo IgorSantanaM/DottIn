@@ -144,7 +144,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
-            var query = new GetHolidayCalendarByIdQuery(branchId, calendarId);
+            var query = new GetHolidayCalendarByIdQuery(calendarId, branchId);
             var calendar = await mediator.Send(query, cancellationToken);
 
             return calendar is null

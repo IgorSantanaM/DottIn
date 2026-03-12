@@ -1,6 +1,7 @@
 ﻿using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
+using DottIn.Domain.Exports;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.TimeKeepings;
 using MassTransit;
@@ -15,6 +16,7 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<TimeKeeping> TimeKeepings { get; set; }
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<DominioEmployeeMapping> DominioEmployeeMappings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

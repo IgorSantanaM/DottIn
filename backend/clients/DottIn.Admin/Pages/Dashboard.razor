@@ -168,6 +168,15 @@
                             </div>
                         </CellTemplate>
                     </PropertyColumn>
+                    <PropertyColumn Property="x => x.Source" Title="Origem">
+                        <CellTemplate>
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                     Color="@GetSourceColor(context.Item.Source)"
+                                     Icon="@GetSourceIcon(context.Item.Source)">
+                                @GetSourceLabel(context.Item.Source)
+                            </MudChip>
+                        </CellTemplate>
+                    </PropertyColumn>
                 </Columns>
             </MudDataGrid>
         }
@@ -365,22 +374,22 @@ else
             switch (selectedAction)
             {
                 case KioskActionDialog.KioskAction.ClockIn:
-                    await Api.ClockInAsync(new ClockInRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    await Api.ClockInAsync(new ClockInRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true, Source: "Kiosk"));
                     _lastKioskMessage = $"✅ Entrada registrada para {employee.FirstName}";
                     _lastKioskSeverity = Severity.Success;
                     break;
                 case KioskActionDialog.KioskAction.ClockOut:
-                    await Api.ClockOutAsync(new ClockOutRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    await Api.ClockOutAsync(new ClockOutRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true, Source: "Kiosk"));
                     _lastKioskMessage = $"✅ Saída registrada para {employee.FirstName}";
                     _lastKioskSeverity = Severity.Success;
                     break;
                 case KioskActionDialog.KioskAction.StartBreak:
-                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true, Source: "Kiosk"));
                     _lastKioskMessage = $"☕ Intervalo iniciado para {employee.FirstName}";
                     _lastKioskSeverity = Severity.Info;
                     break;
                 case KioskActionDialog.KioskAction.EndBreak:
-                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true));
+                    await Api.BreakAsync(new BreakRequest(State.BranchId, employee.Id, 0, 0, SkipGeolocationValidation: true, Source: "Kiosk"));
                     _lastKioskMessage = $"✅ Retorno registrado para {employee.FirstName}";
                     _lastKioskSeverity = Severity.Success;
                     break;
@@ -496,6 +505,26 @@ else
     {
         "Working" => "Trabalhando", "OnBreak" => "Intervalo",
         "Finished" => "Finalizado", "NotStarted" => "Não iniciado", _ => s
+    };
+
+    private static Color GetSourceColor(string s) => s switch
+    {
+        "Mobile" => Color.Primary, "Web" => Color.Info,
+        "Kiosk" => Color.Warning, _ => Color.Default
+    };
+
+    private static string GetSourceIcon(string s) => s switch
+    {
+        "Mobile" => Icons.Material.Filled.PhoneAndroid,
+        "Web" => Icons.Material.Filled.Computer,
+        "Kiosk" => Icons.Material.Filled.Tablet,
+        _ => Icons.Material.Filled.DeviceUnknown
+    };
+
+    private static string GetSourceLabel(string s) => s switch
+    {
+        "Mobile" => "Celular", "Web" => "Website",
+        "Kiosk" => "Quiosque", _ => s
     };
 
     private enum PersonalStatus { NotClocked, Working, OnBreak, Finished }

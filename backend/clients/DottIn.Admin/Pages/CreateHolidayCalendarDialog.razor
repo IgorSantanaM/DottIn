@@ -1,0 +1,73 @@
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
+            <MudText Typo="Typo.h6">Novo Calendário de Feriados</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_name" Label="Nome" Variant="Variant.Outlined"
+                      Placeholder="ex: Feriados 2026" FullWidth="true" Class="mb-3" />
+
+        <div style="display: flex; gap: 12px;" class="mb-3">
+            <MudTextField @bind-Value="_countryCode" Label="País (ISO)" Variant="Variant.Outlined"
+                          Placeholder="BR" MaxLength="2" Style="flex: 1;" />
+            <MudTextField @bind-Value="_regionCode" Label="Região (opcional)" Variant="Variant.Outlined"
+                          Placeholder="SP" MaxLength="10" Style="flex: 1;" />
+        </div>
+
+        <MudNumericField @bind-Value="_year" Label="Ano" Variant="Variant.Outlined"
+                         Min="@(DateTime.Now.Year - 1)" Max="@(DateTime.Now.Year + 5)"
+                         FullWidth="true" Class="mb-3" />
+
+        <MudTextField @bind-Value="_description" Label="Descrição (opcional)" Variant="Variant.Outlined"
+                      Lines="2" FullWidth="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!IsValid() || _saving)" OnClick="Create">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Criar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int Year { get; set; } = DateTime.Now.Year;
+
+    private string _name = "";
+    private string _countryCode = "BR";
+    private string? _regionCode;
+    private int _year;
+    private string? _description;
+    private bool _saving;
+
+    protected override void OnParametersSet() => _year = Year;
+
+    private bool IsValid() => !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_countryCode) && _countryCode.Length == 2;
+
+    private async Task Create()
+    {
+        _saving = true;
+        try
+        {
+            var request = new CreateHolidayCalendarRequest(_name.Trim(), _countryCode.Trim().ToUpperInvariant(), _year, _regionCode?.Trim(), _description?.Trim());
+            await Api.CreateHolidayCalendarAsync(State.BranchId, request);
+            Snackbar.Add("Calendário criado com sucesso!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _saving = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

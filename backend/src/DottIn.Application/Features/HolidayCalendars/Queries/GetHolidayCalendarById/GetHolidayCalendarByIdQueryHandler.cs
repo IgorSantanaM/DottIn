@@ -24,7 +24,9 @@ namespace DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalenda
             if(holidayCalendar is null)
                 throw NotFoundException.ForEntity(nameof(HolidayCalendar), request.HolidayCalendarId);
 
-            return new HolidayCalendarDetailsDto(branch.Name,
+            return new HolidayCalendarDetailsDto(
+                                   holidayCalendar.Id,
+                                   branch.Name,
                                    holidayCalendar.Name,
                                    holidayCalendar.Description,
                                    holidayCalendar.CountryCode,
@@ -32,7 +34,8 @@ namespace DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalenda
                                    holidayCalendar.Year,
                                    holidayCalendar.IsActive,
                                    holidayCalendar.CreatedAt,
-                                   holidayCalendar.UpdatedAt);
+                                   holidayCalendar.UpdatedAt,
+                                   holidayCalendar.Holidays.Select(h => new HolidayDto(h.Date, h.Name, h.Type, h.IsOptional)));
         }
     }
 }

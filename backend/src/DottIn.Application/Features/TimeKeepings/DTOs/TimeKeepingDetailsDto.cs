@@ -11,5 +11,8 @@ public record TimeKeepingDetailsDto(
                 DateTime CreatedAt,
                 GeolocationDto? GeolocationDto,
                 IEnumerable<TimeEntryDto> EntriesDto,
-                bool IsNocturnal);
+                bool IsNocturnal,
+                string Source,
+                bool IsHoliday = false,
+                string? HolidayName = null);
 

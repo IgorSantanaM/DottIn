@@ -3,6 +3,7 @@
 @inject AdminState State
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 
 <PageTitle>DottIn Admin - Registros</PageTitle>
 
@@ -22,12 +23,25 @@
             <MudDatePicker @bind-Date="_endDate" Label="Data Fim" Variant="Variant.Outlined"
                            Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
         </MudItem>
-        <MudItem xs="12" sm="4" Style="display: flex; align-items: end;">
+        <MudItem xs="12" sm="4" Style="display: flex; align-items: end; gap: 8px;">
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Search"
                        OnClick="SearchAsync" Disabled="_loading" FullWidth="true">
                 Buscar
             </MudButton>
+            @if (State.IsOwner && _records.Any())
+            {
+                <MudMenu Icon="@Icons.Material.Filled.FileDownload" Variant="Variant.Outlined"
+                         Color="Color.Default" Size="Size.Medium"
+                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Description" OnClick="ExportDominio">
+                        Exportar Domínio (.txt)
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.TableChart" OnClick="ExportCsv">
+                        Exportar CSV (.csv)
+                    </MudMenuItem>
+                </MudMenu>
+            }
         </MudItem>
     </MudGrid>
 
@@ -66,6 +80,18 @@
                     <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Count(r => r.IsNocturnal)</MudText>
                 </div>
             </MudItem>
+            @{
+                var holidayCount = _records.Count(r => r.IsHoliday);
+            }
+            @if (holidayCount > 0)
+            {
+                <MudItem xs="6" sm="3">
+                    <div style="text-align: center;">
+                        <MudText Typo="Typo.caption" Color="Color.Warning">Feriados Trabalhados</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700;" Color="Color.Warning">@holidayCount</MudText>
+                    </div>
+                </MudItem>
+            }
         </MudGrid>
         <MudDivider Class="mb-4" />
     }
@@ -104,7 +130,16 @@
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.WorkDate" Title="Data">
                     <CellTemplate>
-                        <MudText Typo="Typo.body2">@context.Item.WorkDate.ToString("dd/MM/yyyy")</MudText>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <MudText Typo="Typo.body2">@context.Item.WorkDate.ToString("dd/MM/yyyy")</MudText>
+                            @if (context.Item.IsHoliday)
+                            {
+                                <MudTooltip Text="@context.Item.HolidayName">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled"
+                                             Icon="@Icons.Material.Filled.Celebration">Feriado</MudChip>
+                                </MudTooltip>
+                            }
+                        </div>
                     </CellTemplate>
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.ClockIn" Title="Entrada">
@@ -134,6 +169,15 @@
                                 <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" />
                             }
                         </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Source" Title="Origem">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                 Color="@GetSourceColor(context.Item.Source)"
+                                 Icon="@GetSourceIcon(context.Item.Source)">
+                            @GetSourceLabel(context.Item.Source)
+                        </MudChip>
                     </CellTemplate>
                 </PropertyColumn>
             </Columns>
@@ -182,6 +226,45 @@
         }
     }
 
+    private async Task ExportDominio()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<ExportDominioDialog>("Exportar Domínio", options);
+    }
+
+    private async Task ExportCsv()
+    {
+        if (_startDate is null) return;
+        try
+        {
+            var start = DateOnly.FromDateTime(_startDate.Value);
+            var end = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : start;
+            var bytes = await Api.ExportCsvAsync(State.BranchId, start, end);
+
+            if (bytes.Length == 0)
+            {
+                Snackbar.Add("Nenhum dado para exportar.", Severity.Warning);
+                return;
+            }
+
+            var filename = $"registros_{start:yyyyMMdd}_{end:yyyyMMdd}.csv";
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("eval", $@"
+                var link = document.createElement('a');
+                link.href = 'data:text/csv;base64,{base64}';
+                link.download = '{filename}';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            ");
+            Snackbar.Add("CSV exportado!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+    }
+
     private static Color GetStatusColor(string s) => s switch
     {
         "Working" => Color.Success, "OnBreak" => Color.Warning,
@@ -192,5 +275,25 @@
     {
         "Working" => "Trabalhando", "OnBreak" => "Intervalo",
         "Finished" => "Finalizado", "NotStarted" => "Não iniciado", _ => s
+    };
+
+    private static Color GetSourceColor(string s) => s switch
+    {
+        "Mobile" => Color.Primary, "Web" => Color.Info,
+        "Kiosk" => Color.Warning, _ => Color.Default
+    };
+
+    private static string GetSourceIcon(string s) => s switch
+    {
+        "Mobile" => Icons.Material.Filled.PhoneAndroid,
+        "Web" => Icons.Material.Filled.Computer,
+        "Kiosk" => Icons.Material.Filled.Tablet,
+        _ => Icons.Material.Filled.DeviceUnknown
+    };
+
+    private static string GetSourceLabel(string s) => s switch
+    {
+        "Mobile" => "Celular", "Web" => "Website",
+        "Kiosk" => "Quiosque", _ => s
     };
 }

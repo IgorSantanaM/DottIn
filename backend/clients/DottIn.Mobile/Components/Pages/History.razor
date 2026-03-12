@@ -1,13 +1,28 @@
 @page "/history"
 @inject AppState AppState
 @inject ITimeKeepingApi TimeKeepingApi
+@inject IExportApi ExportApi
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
 <div class="history-container">
-    <MudText Typo="Typo.h5" Class="page-title">
-        @(AppState.IsOwner ? "Histórico da Empresa" : "Histórico de Ponto")
-    </MudText>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <MudText Typo="Typo.h5" Class="page-title" Style="margin-bottom: 0;">
+            @(AppState.IsOwner ? "Histórico da Empresa" : "Histórico de Ponto")
+        </MudText>
+        @if (AppState.IsOwner && (_records.Any() || _branchRecords.Any()))
+        {
+            <MudMenu Icon="@Icons.Material.Filled.FileDownload" Size="Size.Small"
+                     AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                <MudMenuItem Icon="@Icons.Material.Filled.Description" OnClick="ExportDominio">
+                    Exportar Domínio
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.TableChart" OnClick="ExportCsv">
+                    Exportar CSV
+                </MudMenuItem>
+            </MudMenu>
+        }
+    </div>
 
     @* Month Selector *@
     <div class="month-selector">
@@ -70,6 +85,10 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                     @record.WorkDate.ToString("ddd", new System.Globalization.CultureInfo("pt-BR")).ToUpper()
                                 </MudText>
+                                @if (record.IsHoliday)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Celebration" Size="Size.Small" Color="Color.Warning" />
+                                }
                             </div>
                             <div class="record-times" style="flex: 1;">
                                 <MudText Typo="Typo.body2" Class="font-semibold">@record.EmployeeName</MudText>
@@ -91,6 +110,10 @@
                                     @if (record.IsNocturnal)
                                     {
                                         <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Color="Color.Dark" />
+                                    }
+                                    @if (record.IsHoliday)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">Feriado</MudChip>
                                     }
                                 </div>
                             </div>
@@ -125,6 +148,10 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                     @record.WorkDate.ToString("ddd", new System.Globalization.CultureInfo("pt-BR")).ToUpper()
                                 </MudText>
+                                @if (record.IsHoliday)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Celebration" Size="Size.Small" Color="Color.Warning" />
+                                }
                             </div>
                             <div class="record-times">
                                 <div class="time-entry">
@@ -143,6 +170,10 @@
                                     @if (record.IsNocturnal)
                                     {
                                         <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Color="Color.Dark" />
+                                    }
+                                    @if (record.IsHoliday)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">Feriado</MudChip>
                                     }
                                 </div>
                             </div>
@@ -358,6 +389,67 @@
 
     private string FormatTotalHours(TimeSpan ts) =>
         $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+
+    private async Task ExportDominio()
+    {
+        try
+        {
+            var month = _selectedMonth.ToString("yyyy-MM");
+            var response = await ExportApi.ExportDominioAsync(AppState.BranchId, month);
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            if (bytes.Length == 0)
+            {
+                Snackbar.Add("Nenhum dado. Verifique os mapeamentos Domínio.", Severity.Warning);
+                return;
+            }
+
+            var filename = $"dominio_{_selectedMonth:yyyyMM}.txt";
+            var path = Path.Combine(FileSystem.CacheDirectory, filename);
+            await File.WriteAllBytesAsync(path, bytes);
+
+            await Share.RequestAsync(new ShareFileRequest
+            {
+                Title = "Exportar Domínio",
+                File = new ShareFile(path)
+            });
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportCsv()
+    {
+        try
+        {
+            var startDate = new DateOnly(_selectedMonth.Year, _selectedMonth.Month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+            var response = await ExportApi.ExportCsvAsync(AppState.BranchId, startDate, endDate);
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            if (bytes.Length == 0)
+            {
+                Snackbar.Add("Nenhum dado para exportar.", Severity.Warning);
+                return;
+            }
+
+            var filename = $"registros_{startDate:yyyyMMdd}_{endDate:yyyyMMdd}.csv";
+            var path = Path.Combine(FileSystem.CacheDirectory, filename);
+            await File.WriteAllBytesAsync(path, bytes);
+
+            await Share.RequestAsync(new ShareFileRequest
+            {
+                Title = "Exportar CSV",
+                File = new ShareFile(path)
+            });
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+    }
 
     private record MonthSummary
     {

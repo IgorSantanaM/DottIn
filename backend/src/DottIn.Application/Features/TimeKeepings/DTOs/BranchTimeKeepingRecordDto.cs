@@ -10,4 +10,7 @@ public record BranchTimeKeepingRecordDto(
     TimeSpan TotalWorked,
     TimeSpan TotalBreak,
     string Status,
-    bool IsNocturnal);
+    bool IsNocturnal,
+    string Source,
+    bool IsHoliday = false,
+    string? HolidayName = null);

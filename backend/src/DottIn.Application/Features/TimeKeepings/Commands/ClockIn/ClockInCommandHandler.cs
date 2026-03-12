@@ -51,7 +51,7 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
 
             var geolocation = new Geolocation(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude);
 
-            var timeKeeping = new TimeKeeping(request.BranchId, request.EmployeeId, geolocation);
+            var timeKeeping = new TimeKeeping(request.BranchId, request.EmployeeId, geolocation, request.Source);
 
             timeKeeping.ClockIn(DateTime.UtcNow);
 

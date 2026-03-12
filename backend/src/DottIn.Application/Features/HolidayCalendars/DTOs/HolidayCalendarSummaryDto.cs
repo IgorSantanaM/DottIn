@@ -1,9 +1,12 @@
 ﻿namespace DottIn.Application.Features.HolidayCalendars.DTOs;
 
-public record HolidayCalendarSummaryDto(string BranchName,
+public record HolidayCalendarSummaryDto(
+            Guid Id,
+            string BranchName,
             string Name,
             string? Description,
             string CountryCode,
             string? RegionCode,
             int Year,
-            bool IsActive);
+            bool IsActive,
+            int HolidayCount);

@@ -5,6 +5,7 @@ using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
+using DottIn.Domain.Exports;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.Storage;
 using DottIn.Domain.TimeKeepings;
@@ -70,6 +71,7 @@ namespace DottIn.Infra.CrossCutting.IoC
             services.AddScoped<ITimeKeepingRepository, TimeKeepingRepository>();
             services.AddScoped<IHolidayCalendarRepository, HolidayCalendarRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<IDominioMappingRepository, DominioMappingRepository>();
 
             return services;
         }

@@ -12,12 +12,13 @@ namespace DottIn.Domain.TimeKeepings
         public DateOnly WorkDate { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public Geolocation? Location { get; private set; }
+        public ClockSource Source { get; private set; }
         private readonly List<TimeEntry> _entries = new();
         public IReadOnlyCollection<TimeEntry> Entries => _entries.AsReadOnly();
 
         private TimeKeeping() { }
 
-        public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation)
+        public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation, ClockSource source = ClockSource.Mobile)
         {
             Id = Guid.NewGuid();
 
@@ -30,6 +31,7 @@ namespace DottIn.Domain.TimeKeepings
             BranchId = branchId;
             EmployeeId = employeeId;
             Location = geolocation;
+            Source = source;
             CreatedAt = DateTime.UtcNow;
             WorkDate = DateOnly.FromDateTime(CreatedAt);
         }

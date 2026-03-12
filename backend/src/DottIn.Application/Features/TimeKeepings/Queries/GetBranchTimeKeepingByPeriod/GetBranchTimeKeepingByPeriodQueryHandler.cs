@@ -3,6 +3,7 @@ using DottIn.Application.Features.TimeKeepings.DTOs;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
+using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.TimeKeepings;
 using MediatR;
 
@@ -11,7 +12,8 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetBranchTimeKeepingB
 public class GetBranchTimeKeepingByPeriodQueryHandler(
     ITimeKeepingRepository timeKeepingRepository,
     IEmployeeRepository employeeRepository,
-    IBranchRepository branchRepository)
+    IBranchRepository branchRepository,
+    IHolidayCalendarRepository holidayCalendarRepository)
     : IRequestHandler<GetBranchTimeKeepingByPeriodQuery, IEnumerable<BranchTimeKeepingRecordDto>>
 {
     public async Task<IEnumerable<BranchTimeKeepingRecordDto>> Handle(
@@ -34,6 +36,10 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
 
         var now = DateTime.UtcNow;
         var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
+
+        var holidays = await holidayCalendarRepository.GetHolidaysInRangeAsync(
+            request.BranchId, request.StartDate, request.EndDate ?? request.StartDate.AddMonths(1));
+        var holidayMap = holidays.ToDictionary(h => h.Date, h => h.Name);
 
         var records = timeKeepings.Select(tk =>
         {
@@ -86,7 +92,10 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
                 totalWorked,
                 totalBreak,
                 tk.Status.ToString(),
-                isNocturnal);
+                isNocturnal,
+                tk.Source.ToString(),
+                holidayMap.ContainsKey(tk.WorkDate),
+                holidayMap.TryGetValue(tk.WorkDate, out var hName) ? hName : null);
         });
 
         return records;

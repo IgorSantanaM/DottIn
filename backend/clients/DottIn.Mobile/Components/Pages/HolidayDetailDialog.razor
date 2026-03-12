@@ -1,0 +1,87 @@
+@inject IHolidayCalendarApi HolidayApi
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <div style="text-align:center;padding:8px 0 16px;">
+            <MudIcon Icon="@Icons.Material.Filled.Celebration" Size="Size.Large"
+                         Style="@($"color:{GetColor(Holiday.Type)}")" />
+        </div>
+
+        <MudText Typo="Typo.h6" Align="Align.Center" Class="font-bold mb-2">@Holiday.Name</MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-3">
+            @Holiday.Date.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
+            — @(Holiday.Date.DayOfWeek switch {
+                DayOfWeek.Monday => "Segunda", DayOfWeek.Tuesday => "Terça",
+                DayOfWeek.Wednesday => "Quarta", DayOfWeek.Thursday => "Quinta",
+                DayOfWeek.Friday => "Sexta", DayOfWeek.Saturday => "Sábado",
+                DayOfWeek.Sunday => "Domingo", _ => ""
+            })
+        </MudText>
+
+        <div style="display:flex;justify-content:center;gap:8px;" class="mb-3">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                     Style="@($"background:{GetColor(Holiday.Type)};color:white")">
+                @GetTypeLabel(Holiday.Type)
+            </MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                     Color="@(Holiday.IsOptional ? Color.Warning : Color.Success)">
+                @(Holiday.IsOptional ? "Facultativo" : "Obrigatório")
+            </MudChip>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        @if (CanManage && CalendarId != Guid.Empty)
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="Delete"
+                       StartIcon="@Icons.Material.Filled.Delete" Disabled="_deleting">
+                Remover
+            </MudButton>
+        }
+        <MudSpacer />
+        <MudButton OnClick="Close" Variant="Variant.Text">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public HolidayItemDto Holiday { get; set; } = default!;
+    [Parameter] public bool CanManage { get; set; }
+    [Parameter] public bool WorkedOnHoliday { get; set; }
+    [Parameter] public Guid CalendarId { get; set; }
+    [Parameter] public Guid BranchId { get; set; }
+
+    private bool _deleting;
+
+    private async Task Delete()
+    {
+        _deleting = true;
+        try
+        {
+            await HolidayApi.DeleteHolidayAsync(BranchId, CalendarId, Holiday.Date.ToString("yyyy-MM-dd"));
+            Snackbar.Add("Feriado removido!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _deleting = false;
+    }
+
+    private void Close() => MudDialog.Cancel();
+
+    private static string GetColor(string type) => type switch
+    {
+        "National" => "#EF4444", "Regional" => "#F59E0B",
+        "Municipal" => "#3B82F6", "Religious" => "#8B5CF6",
+        "Company" => "#10B981", _ => "#94A3B8"
+    };
+
+    private static string GetTypeLabel(string type) => type switch
+    {
+        "National" => "Nacional", "Regional" => "Regional",
+        "Municipal" => "Municipal", "Religious" => "Religioso",
+        "Company" => "Empresa", _ => type
+    };
+}
