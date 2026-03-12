@@ -38,6 +38,12 @@ namespace DottIn.Infra.Data.Mappings
 
             builder.Ignore(tk => tk.Status);
 
+            builder.Property(tk => tk.Source)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(ClockSource.Mobile);
+
             builder.OwnsMany(tk => tk.Entries, entry =>
             {
                 entry.ToTable("TimeEntries");

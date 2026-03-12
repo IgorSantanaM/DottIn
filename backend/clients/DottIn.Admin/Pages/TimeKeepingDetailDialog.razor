@@ -21,7 +21,16 @@
                         </tr>
                         <tr>
                             <td><MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-2" />Data</td>
-                            <td style="font-weight: 600;">@Details.WorkDate.ToString("dd/MM/yyyy")</td>
+                            <td style="font-weight: 600;">
+                                @Details.WorkDate.ToString("dd/MM/yyyy")
+                                @if (Details.IsHoliday)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled"
+                                             Icon="@Icons.Material.Filled.Celebration" Class="ml-2">
+                                        @(Details.HolidayName ?? "Feriado")
+                                    </MudChip>
+                                }
+                            </td>
                         </tr>
                         <tr>
                             <td><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" />Status</td>
@@ -41,6 +50,16 @@
                                 <MudChip T="string" Size="Size.Small"
                                          Color="@(Details.GeolocationDto is not null ? Color.Success : Color.Error)">
                                     @(Details.GeolocationDto is not null ? "Verificada ✓" : "Não disponível")
+                                </MudChip>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@GetSourceIcon(Details.Source)" Size="Size.Small" Class="mr-2" />Origem</td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                         Color="@GetSourceColor(Details.Source)"
+                                         Icon="@GetSourceIcon(Details.Source)">
+                                    @GetSourceLabel(Details.Source)
                                 </MudChip>
                             </td>
                         </tr>
@@ -100,5 +119,25 @@
     {
         "ClockIn" => "Entrada", "ClockOut" => "Saída",
         "BreakStart" => "Início Intervalo", "BreakEnd" => "Fim Intervalo", _ => t
+    };
+
+    private static Color GetSourceColor(string s) => s switch
+    {
+        "Mobile" => Color.Primary, "Web" => Color.Info,
+        "Kiosk" => Color.Warning, _ => Color.Default
+    };
+
+    private static string GetSourceIcon(string s) => s switch
+    {
+        "Mobile" => Icons.Material.Filled.PhoneAndroid,
+        "Web" => Icons.Material.Filled.Computer,
+        "Kiosk" => Icons.Material.Filled.Tablet,
+        _ => Icons.Material.Filled.DeviceUnknown
+    };
+
+    private static string GetSourceLabel(string s) => s switch
+    {
+        "Mobile" => "Celular", "Web" => "Website",
+        "Kiosk" => "Quiosque", _ => s
     };
 }

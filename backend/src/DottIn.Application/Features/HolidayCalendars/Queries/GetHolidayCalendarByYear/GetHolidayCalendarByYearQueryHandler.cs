@@ -24,13 +24,16 @@ namespace DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalenda
             if (holidayCalendar is null)
                 throw NotFoundException.ForEntity(nameof(HolidayCalendar), new { BranchId = request.BranchId, Year = request.Year });
 
-            return new HolidayCalendarSummaryDto(branch.Name,
+            return new HolidayCalendarSummaryDto(
+                                 holidayCalendar.Id,
+                                 branch.Name,
                                  holidayCalendar.Name,
                                  holidayCalendar.Description,
                                  holidayCalendar.CountryCode,
                                  holidayCalendar.RegionCode,
                                  holidayCalendar.Year,
-                                 holidayCalendar.IsActive);
+                                 holidayCalendar.IsActive,
+                                 holidayCalendar.Holidays.Count);
         }
     }
 }

@@ -1,0 +1,361 @@
+@page "/holidays"
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>DottIn Admin - Calendário de Feriados</PageTitle>
+
+<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight: 700;">Calendário de Feriados</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @(State.IsOwner ? "Gerencie os feriados da sua empresa" : "Visualize os feriados da empresa")
+        </MudText>
+    </div>
+    @if (State.IsOwner)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="ShowCreateDialog">
+            Novo Calendário
+        </MudButton>
+    }
+</div>
+
+@* Year selector *@
+<MudPaper Elevation="0" Class="pa-4 mb-4" Style="border-radius: 12px;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <MudSelect T="int" Value="_selectedYear" ValueChanged="OnYearChanged" Label="Ano" Variant="Variant.Outlined" Style="max-width: 160px;">
+            @foreach (var year in _yearOptions)
+            {
+                <MudSelectItem Value="year">@year</MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+</MudPaper>
+
+@if (_loading)
+{
+    <div style="display: flex; justify-content: center; padding: 48px;">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </div>
+}
+else if (!_calendars.Any())
+{
+    <MudPaper Elevation="0" Class="pa-6" Style="border-radius: 12px; text-align: center;">
+        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Large" Color="Color.Secondary" />
+        <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">Nenhum calendário encontrado</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @(State.IsOwner
+                ? $"Crie um calendário para o ano {_selectedYear}"
+                : $"Nenhum feriado cadastrado para {_selectedYear}")
+        </MudText>
+    </MudPaper>
+}
+else
+{
+    @foreach (var cal in _calendars)
+    {
+        <MudPaper Elevation="0" Class="pa-5 mb-4" Style="border-radius: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">@cal.Name</MudText>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@cal.Year</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="@(cal.IsActive ? Color.Success : Color.Default)"
+                                     Variant="Variant.Filled">@(cal.IsActive ? "Ativo" : "Inativo")</MudChip>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@cal.CountryCode @cal.RegionCode</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">• @cal.HolidayCount feriado(s)</MudText>
+                        </div>
+                    </div>
+                </div>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => LoadCalendarDetails(cal.Id))">
+                    Ver Feriados
+                </MudButton>
+            </div>
+
+            @if (_expandedCalendarId == cal.Id && _selectedCalendar is not null)
+            {
+                <MudDivider Class="mb-3" />
+
+                @if (State.IsOwner)
+                {
+                    <div style="display: flex; gap: 8px;" class="mb-3">
+                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => ShowAddHolidayDialog(cal.Id))">
+                            Adicionar Feriado
+                        </MudButton>
+                    </div>
+                }
+
+                @if (!_selectedCalendar.Holidays.Any())
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">Nenhum feriado cadastrado neste calendário.</MudAlert>
+                }
+                else
+                {
+                    <MudDataGrid T="HolidayItem" Items="_selectedCalendar.Holidays.OrderBy(h => h.Date)" Dense="true" Hover="true">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Date" Title="Data">
+                                <CellTemplate>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Small" Color="Color.Primary" />
+                                        <MudText Typo="Typo.body2" Style="font-weight: 500;">
+                                            @context.Item.Date.ToString("dd/MM/yyyy")
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @(context.Item.Date.DayOfWeek switch {
+                                                DayOfWeek.Monday => "Seg", DayOfWeek.Tuesday => "Ter",
+                                                DayOfWeek.Wednesday => "Qua", DayOfWeek.Thursday => "Qui",
+                                                DayOfWeek.Friday => "Sex", DayOfWeek.Saturday => "Sáb",
+                                                DayOfWeek.Sunday => "Dom", _ => ""
+                                            })
+                                        </MudText>
+                                    </div>
+                                </CellTemplate>
+                            </PropertyColumn>
+                            <PropertyColumn Property="x => x.Name" Title="Feriado" />
+                            <PropertyColumn Property="x => x.Type" Title="Tipo">
+                                <CellTemplate>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                             Color="@GetTypeColor(context.Item.Type)">
+                                        @GetTypeLabel(context.Item.Type)
+                                    </MudChip>
+                                </CellTemplate>
+                            </PropertyColumn>
+                            <PropertyColumn Property="x => x.IsOptional" Title="Obrigatório">
+                                <CellTemplate>
+                                    <MudIcon Icon="@(context.Item.IsOptional ? Icons.Material.Filled.RadioButtonUnchecked : Icons.Material.Filled.CheckCircle)"
+                                             Color="@(context.Item.IsOptional ? Color.Default : Color.Success)" Size="Size.Small" />
+                                </CellTemplate>
+                            </PropertyColumn>
+                            @if (State.IsOwner)
+                            {
+                                <TemplateColumn Title="">
+                                    <CellTemplate>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="@(() => RemoveHoliday(cal.Id, context.Item))" />
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            }
+                        </Columns>
+                    </MudDataGrid>
+                }
+            }
+        </MudPaper>
+    }
+}
+
+@* Worked on Holiday section *@
+@if (_holidayRecords.Any())
+{
+    <MudPaper Elevation="0" Class="pa-5 mt-4" Style="border-radius: 12px;">
+        <MudText Typo="Typo.h6" Style="font-weight: 700;" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Class="mr-1" />
+            Funcionários que trabalharam em feriados
+        </MudText>
+        <MudDataGrid T="HolidayWorkRecord" Items="_holidayRecords" Dense="true" Hover="true">
+            <Columns>
+                <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário">
+                    <CellTemplate>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <MudAvatar Size="Size.Small" Color="Color.Primary">@context.Item.EmployeeName.FirstOrDefault()</MudAvatar>
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Item.EmployeeName</MudText>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.WorkDate" Title="Data">
+                    <CellTemplate><MudText Typo="Typo.body2">@context.Item.WorkDate.ToString("dd/MM/yyyy")</MudText></CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.HolidayName" Title="Feriado">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
+                            @context.Item.HolidayName
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.TotalWorked" Title="Trabalhado">
+                    <CellTemplate><MudText Typo="Typo.body2">@context.Item.TotalWorked.ToString(@"hh\:mm")</MudText></CellTemplate>
+                </PropertyColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+}
+
+@code {
+    private int _selectedYear = DateTime.Now.Year;
+    private readonly int[] _yearOptions = Enumerable.Range(DateTime.Now.Year - 1, 4).ToArray();
+    private bool _loading = true;
+    private List<HolidayCalendarSummary> _calendars = [];
+    private HolidayCalendarDetails? _selectedCalendar;
+    private Guid? _expandedCalendarId;
+    private List<HolidayWorkRecord> _holidayRecords = [];
+
+    protected override async Task OnInitializedAsync() => await LoadDataAsync();
+
+    private async Task OnYearChanged(int year)
+    {
+        _selectedYear = year;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _expandedCalendarId = null;
+        _selectedCalendar = null;
+        _holidayRecords = [];
+        try
+        {
+            var all = await Api.GetHolidayCalendarsAsync(State.BranchId);
+            _calendars = all.Where(c => c.Year == _selectedYear).ToList();
+
+            if (State.IsOwner && _calendars.Any())
+                await LoadHolidayWorkRecords();
+        }
+        catch (Exception ex)
+        {
+            _calendars = [];
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private async Task LoadCalendarDetails(Guid calendarId)
+    {
+        if (_expandedCalendarId == calendarId)
+        {
+            _expandedCalendarId = null;
+            _selectedCalendar = null;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var details = await Api.GetHolidayCalendarByIdAsync(State.BranchId, calendarId);
+            if (details is null)
+            {
+                Snackbar.Add("Calendário não encontrado.", Severity.Warning);
+                return;
+            }
+            _selectedCalendar = details;
+            _expandedCalendarId = calendarId;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar feriados: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadHolidayWorkRecords()
+    {
+        try
+        {
+            var yearStart = new DateOnly(_selectedYear, 1, 1);
+            var yearEnd = new DateOnly(_selectedYear, 12, 31);
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var end = yearEnd > today ? today : yearEnd;
+
+            var holidays = await Api.GetHolidaysInRangeAsync(State.BranchId, yearStart, end);
+            if (!holidays.Any()) { _holidayRecords = []; return; }
+
+            var records = await Api.GetBranchHistoryAsync(State.BranchId, yearStart, end);
+
+            var holidayDates = holidays.ToDictionary(h => h.Date, h => h.Name);
+            _holidayRecords = records
+                .Where(r => holidayDates.ContainsKey(r.WorkDate))
+                .Select(r => new HolidayWorkRecord(r.EmployeeName, r.WorkDate, holidayDates[r.WorkDate], r.TotalWorked))
+                .OrderByDescending(r => r.WorkDate)
+                .ToList();
+        }
+        catch
+        {
+            _holidayRecords = [];
+        }
+    }
+
+    private async Task ShowCreateDialog()
+    {
+        var parameters = new DialogParameters<CreateHolidayCalendarDialog>
+        {
+            { x => x.Year, _selectedYear }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<CreateHolidayCalendarDialog>("Novo Calendário", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            _expandedCalendarId = null;
+            _selectedCalendar = null;
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task ShowAddHolidayDialog(Guid calendarId)
+    {
+        var parameters = new DialogParameters<AddHolidayDialog>
+        {
+            { x => x.CalendarId, calendarId },
+            { x => x.Year, _selectedYear }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<AddHolidayDialog>("Adicionar Feriado", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            await RefreshCalendarDetails(calendarId);
+    }
+
+    private async Task RemoveHoliday(Guid calendarId, HolidayItem holiday)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Remover Feriado",
+            $"Deseja remover o feriado \"{holiday.Name}\" ({holiday.Date:dd/MM/yyyy})?",
+            yesText: "Remover", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            try
+            {
+                await Api.RemoveHolidayAsync(State.BranchId, calendarId, holiday.Date);
+                Snackbar.Add("Feriado removido!", Severity.Success);
+                await RefreshCalendarDetails(calendarId);
+            }
+            catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
+        }
+    }
+
+    private async Task RefreshCalendarDetails(Guid calendarId)
+    {
+        try
+        {
+            _selectedCalendar = await Api.GetHolidayCalendarByIdAsync(State.BranchId, calendarId);
+            _expandedCalendarId = calendarId;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao atualizar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static Color GetTypeColor(string t) => t switch
+    {
+        "National" => Color.Error, "Regional" => Color.Warning,
+        "Municipal" => Color.Info, "Company" => Color.Primary,
+        "Religious" => Color.Secondary, _ => Color.Default
+    };
+
+    private static string GetTypeLabel(string t) => t switch
+    {
+        "National" => "Nacional", "Regional" => "Regional",
+        "Municipal" => "Municipal", "Company" => "Empresa",
+        "Religious" => "Religioso", _ => t
+    };
+
+    private record HolidayWorkRecord(string EmployeeName, DateOnly WorkDate, string HolidayName, TimeSpan TotalWorked);
+}

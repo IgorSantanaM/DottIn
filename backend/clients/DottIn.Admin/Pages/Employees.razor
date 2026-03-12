@@ -2,13 +2,25 @@
 @inject AdminApiClient Api
 @inject AdminState State
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>DottIn Admin - Funcionários</PageTitle>
 
-<MudText Typo="Typo.h5" Style="font-weight: 700;" Class="mb-1">Funcionários</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Gerencie os funcionários da empresa
-</MudText>
+<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight: 700;">Funcionários</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Gerencie os funcionários da empresa
+        </MudText>
+    </div>
+    @if (State.IsOwner)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.SyncAlt" OnClick="ShowDominioMapping">
+            Mapeamento Domínio
+        </MudButton>
+    }
+</div>
 
 <MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
     <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
@@ -111,5 +123,11 @@
         if (doc.Value.Length == 11)
             return $"{doc.Value[..3]}.{doc.Value[3..6]}.{doc.Value[6..9]}-{doc.Value[9..]}";
         return doc.Value;
+    }
+
+    private async Task ShowDominioMapping()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<DominioMappingDialog>("Mapeamento Domínio", options);
     }
 }

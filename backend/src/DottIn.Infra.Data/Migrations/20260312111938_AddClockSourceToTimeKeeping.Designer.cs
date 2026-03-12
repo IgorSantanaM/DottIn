@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DottIn.Infra.Data.Migrations
 {
     [DbContext(typeof(DottInContext))]
-    partial class DottInContextModelSnapshot : ModelSnapshot
+    [Migration("20260312111938_AddClockSourceToTimeKeeping")]
+    partial class AddClockSourceToTimeKeeping
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -283,38 +286,6 @@ namespace DottIn.Infra.Data.Migrations
                     b.HasIndex("BranchId", "IsActive");
 
                     b.ToTable("Employees", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Exports.DominioEmployeeMapping", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DominioCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character(10)")
-                        .IsFixedLength();
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BranchId", "EmployeeId")
-                        .IsUnique();
-
-                    b.ToTable("DominioEmployeeMappings", (string)null);
                 });
 
             modelBuilder.Entity("DottIn.Domain.HolidayCalendars.HolidayCalendar", b =>

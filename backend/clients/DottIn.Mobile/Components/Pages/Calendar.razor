@@ -1,0 +1,271 @@
+@page "/calendar"
+@inject AppState AppState
+@inject IHolidayCalendarApi HolidayApi
+@inject ITimeKeepingApi TimeKeepingApi
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<div class="calendar-container">
+    <div class="calendar-header">
+        <MudText Typo="Typo.h5" Class="font-bold">Calendário</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Feriados e dias especiais</MudText>
+    </div>
+
+    @* Year selector *@
+    <div class="year-selector">
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PreviousYear"
+                       Disabled="@(_selectedYear <= DateTime.Now.Year - 1)" Size="Size.Small" />
+        <MudText Typo="Typo.h6" Class="font-bold">@_selectedYear</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="NextYear"
+                       Disabled="@(_selectedYear >= DateTime.Now.Year + 2)" Size="Size.Small" />
+    </div>
+
+    @* Legend *@
+    <div class="holiday-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#EF4444;"></span>Nacional</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#F59E0B;"></span>Regional</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#3B82F6;"></span>Municipal</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#8B5CF6;"></span>Religioso</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#10B981;"></span>Empresa</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#EF4444;border:2px solid #FCA5A5;width:10px;height:10px;"></span>Trabalhou</span>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="loading-container">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        @if (!_holidays.Any())
+        {
+            <MudPaper Class="month-card" Elevation="0" Style="text-align:center;padding:24px;">
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mt-2">
+                    Nenhum feriado cadastrado para @_selectedYear
+                </MudText>
+                @if (AppState.IsOwner)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="ShowOwnerActions">
+                        Criar Calendário
+                    </MudButton>
+                }
+            </MudPaper>
+        }
+
+        @* Worked on holidays summary *@
+        @if (_workedHolidayDates.Any())
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true"
+                      Icon="@Icons.Material.Filled.Warning" Class="mb-2">
+                @if (AppState.IsOwner)
+                {
+                    @($"{_workedHolidayDates.Count} registro(s) de trabalho em feriados neste ano")
+                }
+                else
+                {
+                    @($"Você trabalhou em {_workedHolidayDates.Count} feriado(s) — pode haver compensação")
+                }
+            </MudAlert>
+        }
+
+        @* 12-month grid *@
+        @for (int m = 1; m <= 12; m++)
+        {
+            var month = m;
+            var firstDay = new DateOnly(_selectedYear, month, 1);
+            var daysInMonth = DateTime.DaysInMonth(_selectedYear, month);
+
+            <MudPaper Class="month-card" Elevation="0">
+                <MudText Typo="Typo.subtitle1" Class="font-semibold month-title">
+                    @firstDay.ToString("MMMM", new System.Globalization.CultureInfo("pt-BR"))
+                </MudText>
+
+                <div class="day-header-row">
+                    <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
+                </div>
+
+                <div class="day-grid">
+                    @* Empty cells before first day *@
+                    @for (int e = 0; e < (int)firstDay.DayOfWeek; e++)
+                    {
+                        <div class="day-cell empty"></div>
+                    }
+
+                    @for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var date = new DateOnly(_selectedYear, month, d);
+                        var holiday = GetHoliday(date);
+                        var isToday = date == DateOnly.FromDateTime(DateTime.Today);
+                        var isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+                        var workedOnHoliday = holiday is not null && _workedHolidayDates.Contains(date);
+
+                        <div class="day-cell @(isToday ? "today" : "") @(isWeekend ? "weekend" : "") @(holiday is not null ? "has-holiday" : "") @(workedOnHoliday ? "worked-holiday" : "")"
+                             @onclick="@(() => { if (holiday is not null) ShowHolidayDetail(holiday); })">
+                            <span class="day-number">@d</span>
+                            @if (holiday is not null)
+                            {
+                                <span class="holiday-dot" style="background:@GetHolidayColor(holiday.Type);@(holiday.IsOptional ? "opacity:0.5;" : "")"></span>
+                            }
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+        }
+
+        @* Owner FAB *@
+        @if (AppState.IsOwner)
+        {
+            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                    Style="position:fixed;bottom:90px;right:20px;z-index:50;"
+                    OnClick="ShowOwnerActions" />
+        }
+    }
+</div>
+
+@code {
+    private int _selectedYear = DateTime.Now.Year;
+    private bool _loading = true;
+    private Dictionary<DateOnly, HolidayItemDto> _holidays = new();
+    private HashSet<DateOnly> _workedHolidayDates = new();
+    private List<HolidayCalendarSummary> _calendars = [];
+
+    protected override async Task OnInitializedAsync() => await LoadHolidays();
+
+    private async Task LoadHolidays()
+    {
+        _loading = true;
+        _holidays.Clear();
+        _workedHolidayDates.Clear();
+        try
+        {
+            var start = new DateOnly(_selectedYear, 1, 1);
+            var end = new DateOnly(_selectedYear, 12, 31);
+            var items = await HolidayApi.GetHolidaysInRangeAsync(AppState.BranchId, start, end);
+            _holidays = items.ToDictionary(h => h.Date, h => h);
+        }
+        catch
+        {
+            _holidays.Clear();
+        }
+
+        if (AppState.IsOwner)
+        {
+            try
+            {
+                _calendars = (await HolidayApi.GetAllAsync(AppState.BranchId))
+                    .Where(c => c.Year == _selectedYear).ToList();
+            }
+            catch { _calendars = []; }
+        }
+
+        await LoadWorkedHolidays();
+
+        _loading = false;
+    }
+
+    private async Task LoadWorkedHolidays()
+    {
+        if (!_holidays.Any()) return;
+        try
+        {
+            var start = new DateOnly(_selectedYear, 1, 1);
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var end = new DateOnly(_selectedYear, 12, 31);
+            if (end > today) end = today;
+            if (start > end) return;
+
+            if (AppState.IsOwner)
+            {
+                var records = await TimeKeepingApi.GetBranchHistoryAsync(AppState.BranchId, start, end);
+                _workedHolidayDates = records
+                    .Where(r => _holidays.ContainsKey(r.WorkDate))
+                    .Select(r => r.WorkDate)
+                    .ToHashSet();
+            }
+            else
+            {
+                var records = await TimeKeepingApi.GetHistoryAsync(AppState.EmployeeId, start, end);
+                _workedHolidayDates = records
+                    .Where(r => _holidays.ContainsKey(r.WorkDate))
+                    .Select(r => r.WorkDate)
+                    .ToHashSet();
+            }
+        }
+        catch { _workedHolidayDates.Clear(); }
+    }
+
+    private HolidayItemDto? GetHoliday(DateOnly date) =>
+        _holidays.TryGetValue(date, out var h) ? h : null;
+
+    private async Task PreviousYear() { _selectedYear--; await LoadHolidays(); }
+    private async Task NextYear() { _selectedYear++; await LoadHolidays(); }
+
+    private async Task ShowHolidayDetail(HolidayItemDto holiday)
+    {
+        var parameters = new DialogParameters<HolidayDetailDialog>
+        {
+            { x => x.Holiday, holiday },
+            { x => x.CanManage, AppState.IsOwner },
+            { x => x.WorkedOnHoliday, _workedHolidayDates.Contains(holiday.Date) },
+            { x => x.CalendarId, _calendars.FirstOrDefault()?.Id ?? Guid.Empty },
+            { x => x.BranchId, AppState.BranchId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<HolidayDetailDialog>("Feriado", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            await LoadHolidays();
+    }
+
+    private async Task ShowOwnerActions()
+    {
+        if (!_calendars.Any())
+        {
+            var create = await DialogService.ShowMessageBox(
+                "Calendário não encontrado",
+                $"Não existe calendário para {_selectedYear}. Deseja criar um?",
+                yesText: "Criar", cancelText: "Cancelar");
+
+            if (create == true)
+            {
+                var parameters = new DialogParameters<CreateCalendarMobileDialog>
+                {
+                    { x => x.Year, _selectedYear },
+                    { x => x.BranchId, AppState.BranchId }
+                };
+                var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+                var dialog = await DialogService.ShowAsync<CreateCalendarMobileDialog>("Novo Calendário", parameters, options);
+                var result = await dialog.Result;
+                if (result is not null && !result.Canceled)
+                    await LoadHolidays();
+            }
+            return;
+        }
+
+        var calendarId = _calendars.First().Id;
+        var addParams = new DialogParameters<AddHolidayMobileDialog>
+        {
+            { x => x.CalendarId, calendarId },
+            { x => x.BranchId, AppState.BranchId },
+            { x => x.Year, _selectedYear }
+        };
+        var addOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var addDialog = await DialogService.ShowAsync<AddHolidayMobileDialog>("Adicionar Feriado", addParams, addOptions);
+        var addResult = await addDialog.Result;
+        if (addResult is not null && !addResult.Canceled)
+            await LoadHolidays();
+    }
+
+    private static string GetHolidayColor(string type) => type switch
+    {
+        "National" => "#EF4444",
+        "Regional" => "#F59E0B",
+        "Municipal" => "#3B82F6",
+        "Religious" => "#8B5CF6",
+        "Company" => "#10B981",
+        _ => "#94A3B8"
+    };
+}

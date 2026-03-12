@@ -1,6 +1,8 @@
 ﻿namespace DottIn.Application.Features.HolidayCalendars.DTOs;
 
-public record HolidayCalendarDetailsDto(string BranchName,
+public record HolidayCalendarDetailsDto(
+        Guid Id,
+        string BranchName,
         string Name,
         string? Description,
         string CountryCode,
@@ -8,4 +10,5 @@ public record HolidayCalendarDetailsDto(string BranchName,
         int Year,
         bool IsActive,
         DateTime CreatedAt,
-        DateTime? UpdatedAt);
+        DateTime? UpdatedAt,
+        IEnumerable<HolidayDto> Holidays);

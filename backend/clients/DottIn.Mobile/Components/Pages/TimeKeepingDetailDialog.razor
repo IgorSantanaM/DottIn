@@ -25,7 +25,16 @@
                         </tr>
                         <tr>
                             <td><MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-2" />Data</td>
-                            <td class="font-semibold">@Details.WorkDate.ToString("dd/MM/yyyy")</td>
+                            <td class="font-semibold">
+                                @Details.WorkDate.ToString("dd/MM/yyyy")
+                                @if (Details.IsHoliday)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled"
+                                             Icon="@Icons.Material.Filled.Celebration" Class="ml-2">
+                                        @(Details.HolidayName ?? "Feriado")
+                                    </MudChip>
+                                }
+                            </td>
                         </tr>
                         <tr>
                             <td><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" />Status</td>

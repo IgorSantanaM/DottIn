@@ -23,13 +23,16 @@ namespace DottIn.Application.Features.HolidayCalendars.Queries.GetAllHolidayCale
 
             var holidayCalendars = await holidayCalendarRepository.GetAllAsync(request.BranchId, cancellationToken);
 
-            return holidayCalendars.Select(h => new HolidayCalendarSummaryDto(branch.Name,
+            return holidayCalendars.Select(h => new HolidayCalendarSummaryDto(
+                               h.Id,
+                               branch.Name,
                                h.Name,
                                h.Description,
                                h.CountryCode,
                                h.RegionCode,
                                h.Year,
-                               h.IsActive));
+                               h.IsActive,
+                               h.Holidays.Count));
         }
     }
 }

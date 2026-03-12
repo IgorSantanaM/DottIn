@@ -1,0 +1,121 @@
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudIcon Icon="@Icons.Material.Filled.SyncAlt" />
+            <MudText Typo="Typo.h6">Mapeamento Domínio</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Associe cada funcionário ao seu código no sistema Domínio Sistemas para exportação da folha de pagamento.
+        </MudText>
+
+        @if (_loading)
+        {
+            <div style="display: flex; justify-content: center; padding: 32px;">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            </div>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true">
+                <thead>
+                    <tr>
+                        <th>Funcionário</th>
+                        <th style="width: 160px;">Código Domínio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mapping in _mappings)
+                    {
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <MudAvatar Size="Size.Small" Color="Color.Primary">@mapping.EmployeeName.FirstOrDefault()</MudAvatar>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@mapping.EmployeeName</MudText>
+                                </div>
+                            </td>
+                            <td>
+                                <MudTextField @bind-Value="mapping.Code" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="ex: 1"
+                                              MaxLength="10"
+                                              HelperText="Zeros à esquerda são adicionados automaticamente" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_saving || _loading)" OnClick="Save"
+                   StartIcon="@Icons.Material.Filled.Save">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Salvar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private List<MappingRow> _mappings = [];
+    private bool _loading = true;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var dtos = await Api.GetDominioMappingsAsync(State.BranchId);
+            _mappings = dtos.Select(d => new MappingRow
+            {
+                EmployeeId = d.EmployeeId,
+                EmployeeName = d.EmployeeName,
+                Code = string.IsNullOrWhiteSpace(d.DominioCode) || d.DominioCode.Trim('0').Length == 0
+                    ? ""
+                    : d.DominioCode.TrimStart('0')
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        try
+        {
+            var requests = _mappings
+                .Where(m => !string.IsNullOrWhiteSpace(m.Code))
+                .Select(m => new SaveDominioMappingRequest(m.EmployeeId, m.Code.Trim()));
+
+            await Api.SaveDominioMappingsAsync(State.BranchId, requests);
+            Snackbar.Add("Mapeamentos salvos!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _saving = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private class MappingRow
+    {
+        public Guid EmployeeId { get; set; }
+        public string EmployeeName { get; set; } = "";
+        public string Code { get; set; } = "";
+    }
+}

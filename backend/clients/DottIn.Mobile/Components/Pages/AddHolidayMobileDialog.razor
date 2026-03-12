@@ -1,0 +1,73 @@
+@inject IHolidayCalendarApi HolidayApi
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudDatePicker @bind-Date="_date" Label="Data do Feriado" Variant="Variant.Outlined"
+                       PickerVariant="PickerVariant.Static"
+                       DateFormat="dd/MM/yyyy" FullWidth="true" Class="mb-3"
+                       MinDate="@(new DateTime(Year, 1, 1))"
+                       MaxDate="@(new DateTime(Year, 12, 31))"
+                       OpenTo="OpenTo.Date"
+                       Elevation="0" />
+
+        <MudTextField @bind-Value="_name" Label="Nome do Feriado" Variant="Variant.Outlined"
+                      Placeholder="ex: Natal" FullWidth="true" Class="mb-3" />
+
+        <MudSelect T="string" @bind-Value="_type" Label="Tipo" Variant="Variant.Outlined" FullWidth="true" Class="mb-3">
+            <MudSelectItem Value="@("National")">Nacional</MudSelectItem>
+            <MudSelectItem Value="@("Regional")">Regional</MudSelectItem>
+            <MudSelectItem Value="@("Municipal")">Municipal</MudSelectItem>
+            <MudSelectItem Value="@("Company")">Empresa</MudSelectItem>
+            <MudSelectItem Value="@("Religious")">Religioso</MudSelectItem>
+        </MudSelect>
+
+        <MudCheckBox @bind-Value="_isOptional" Color="Color.Primary">
+            <MudText Typo="Typo.body2">Feriado opcional (facultativo)</MudText>
+        </MudCheckBox>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!IsValid() || _saving)" OnClick="Add">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Adicionar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid CalendarId { get; set; }
+    [Parameter] public Guid BranchId { get; set; }
+    [Parameter] public int Year { get; set; }
+
+    private DateTime? _date;
+    private string _name = "";
+    private string _type = "National";
+    private bool _isOptional;
+    private bool _saving;
+
+    private bool IsValid() => _date.HasValue && !string.IsNullOrWhiteSpace(_name);
+
+    private async Task Add()
+    {
+        _saving = true;
+        try
+        {
+            var dateOnly = DateOnly.FromDateTime(_date!.Value);
+            var holiday = new AddHolidayItemRequest(dateOnly, _name.Trim(), _type, _isOptional);
+            var request = new AddHolidaysApiRequest([holiday]);
+            await HolidayApi.AddHolidaysAsync(BranchId, CalendarId, request);
+            Snackbar.Add("Feriado adicionado!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        _saving = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -142,11 +142,15 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 8px 16px;
-    font-size: 12px;
+    gap: 2px;
+    padding: 6px 8px;
+    font-size: 11px;
     color: var(--text-secondary);
     text-decoration: none;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .bottom-nav .mud-nav-link.active {
@@ -452,4 +456,134 @@ html, body {
     gap: 16px;
     text-align: center;
     padding: 24px;
+}
+
+/* ===================================
+   Calendar Page
+   =================================== */
+.calendar-container {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.calendar-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.year-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.holiday-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.month-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.month-title {
+    text-transform: capitalize;
+    margin-bottom: 8px;
+}
+
+.day-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-bottom: 4px;
+}
+
+.day-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.day-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    gap: 2px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.day-cell.empty {
+    cursor: default;
+}
+
+.day-cell.weekend .day-number {
+    color: var(--text-secondary);
+}
+
+.day-cell.today {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+.day-cell.has-holiday {
+    background: rgba(0,0,0,0.04);
+}
+
+.dark-mode .day-cell.has-holiday {
+    background: rgba(255,255,255,0.06);
+}
+
+.day-number {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.holiday-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.day-cell.worked-holiday {
+    outline: 2px solid #EF4444;
+    outline-offset: -2px;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.dark-mode .day-cell.worked-holiday {
+    background: rgba(239, 68, 68, 0.15);
 }
