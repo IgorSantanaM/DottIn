@@ -60,7 +60,7 @@ else
     private async Task Logout()
     {
         await Api.LogoutAsync();
-        State.Logout();
+        await State.LogoutAsync();
         Navigation.NavigateTo("/", forceLoad: true);
     }
 }

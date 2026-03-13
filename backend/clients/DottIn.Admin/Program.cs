@@ -14,6 +14,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseU
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AdminApiClient>();
 builder.Services.AddScoped<AdminState>();
+builder.Services.AddScoped<SessionStorageService>();
 
 builder.Services.AddMudServices(config =>
 {
