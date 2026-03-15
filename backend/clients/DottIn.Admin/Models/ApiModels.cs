@@ -11,6 +11,9 @@ public record LoginResponse(
     string AccessToken, string RefreshToken, DateTime ExpiresAt,
     EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters);
 
+public record RefreshTokenRequest(string RefreshToken);
+public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
+
 public record EmployeeInfo(Guid Id, string Name, string Cpf, string? ImageUrl)
 {
     public string FirstName => Name.Split(' ').FirstOrDefault() ?? Name;

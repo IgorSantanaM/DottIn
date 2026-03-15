@@ -288,16 +288,38 @@ else
     private System.Timers.Timer? _timer;
     private string _lastKioskMessage = "";
     private Severity _lastKioskSeverity = Severity.Success;
+    private bool _loaded;
 
     protected override async Task OnInitializedAsync()
     {
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (_, _) => { _currentTime = DateTime.Now.ToString("HH:mm:ss"); InvokeAsync(StateHasChanged); };
         _timer.Start();
-        await LoadDataAsync();
+        if (State.IsAuthenticated && State.BranchId != Guid.Empty)
+        {
+            _loaded = true;
+            await LoadDataAsync();
+            return;
+        }
+
+        State.OnChange += HandleStateChange;
     }
 
-    public void Dispose() => _timer?.Dispose();
+    private async void HandleStateChange()
+    {
+        if (_loaded || !State.IsAuthenticated || State.BranchId == Guid.Empty)
+            return;
+
+        _loaded = true;
+        State.OnChange -= HandleStateChange;
+        await InvokeAsync(LoadDataAsync);
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= HandleStateChange;
+        _timer?.Dispose();
+    }
 
     private async Task LoadDataAsync()
     {

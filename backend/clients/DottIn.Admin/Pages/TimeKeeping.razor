@@ -1,4 +1,5 @@
 @page "/timekeeping"
+@implements IDisposable
 @inject AdminApiClient Api
 @inject AdminState State
 @inject ISnackbar Snackbar
@@ -82,15 +83,6 @@
             </MudItem>
             @{
                 var holidayCount = _records.Count(r => r.IsHoliday);
-            }
-            @if (holidayCount > 0)
-            {
-                <MudItem xs="6" sm="3">
-                    <div style="text-align: center;">
-                        <MudText Typo="Typo.caption" Color="Color.Warning">Feriados Trabalhados</MudText>
-                        <MudText Typo="Typo.h6" Style="font-weight: 700;" Color="Color.Warning">@holidayCount</MudText>
-                    </div>
-                </MudItem>
             }
         </MudGrid>
         <MudDivider Class="mb-4" />
@@ -190,8 +182,31 @@
     private DateTime? _startDate = DateTime.Today.AddDays(-7);
     private DateTime? _endDate = DateTime.Today;
     private bool _loading;
+    private bool _loaded;
 
-    protected override async Task OnInitializedAsync() => await SearchAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        if (State.IsAuthenticated && State.BranchId != Guid.Empty)
+        {
+            _loaded = true;
+            await SearchAsync();
+            return;
+        }
+
+        State.OnChange += HandleStateChange;
+    }
+
+    private async void HandleStateChange()
+    {
+        if (_loaded || !State.IsAuthenticated || State.BranchId == Guid.Empty)
+            return;
+
+        _loaded = true;
+        State.OnChange -= HandleStateChange;
+        await InvokeAsync(SearchAsync);
+    }
+
+    public void Dispose() => State.OnChange -= HandleStateChange;
 
     private async Task SearchAsync()
     {
