@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Exceptions;
+using DottIn.Application.Exceptions;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
@@ -26,6 +26,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
 
             if (!employee.IsActive)
                 throw new DomainException("Funcionário está desativado e não poderá bater ponto.");
+
+            employee.ValidateBreakTime(DateTime.UtcNow);
 
             var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
 

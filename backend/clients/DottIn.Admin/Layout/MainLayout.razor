@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @inject AdminState State
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
@@ -10,7 +10,7 @@
 else
 {
     <MudLayout>
-        <MudAppBar Elevation="1" Dense="true">
+        <MudAppBar Elevation="1" Dense="true" Fixed="true">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
                            Edge="Edge.Start" OnClick="ToggleDrawer" />
             <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" Class="mr-2" />

@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Core.Exceptions;
+using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Core.Models;
 using DottIn.Domain.ValueObjects;
 
@@ -136,6 +136,26 @@ namespace DottIn.Domain.Employees
         {
             if (string.IsNullOrWhiteSpace(FingerprintHash) || string.IsNullOrWhiteSpace(fingerprintToken)) return false;
             return BCrypt.Net.BCrypt.EnhancedVerify(fingerprintToken, FingerprintHash);
+        }
+
+        public void ValidateBreakTime(DateTime now)
+        {
+            var currentTime = TimeOnly.FromDateTime(now);
+
+            bool isWithinInterval;
+            if (IntervalStart <= IntervalEnd)
+            {
+                // Same-day interval (e.g., 12:00–13:00)
+                isWithinInterval = currentTime >= IntervalStart && currentTime <= IntervalEnd;
+            }
+            else
+            {
+                // Overnight interval (e.g., 23:00–01:00)
+                isWithinInterval = currentTime >= IntervalStart || currentTime <= IntervalEnd;
+            }
+
+            if (!isWithinInterval)
+                throw new BreakOutsideAllowedTimeException(IntervalStart, IntervalEnd);
         }
 
         private void SetScheduleInternal(TimeOnly start, TimeOnly end, TimeOnly intStart, TimeOnly intEnd)
