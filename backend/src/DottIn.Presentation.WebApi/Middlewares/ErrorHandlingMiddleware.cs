@@ -49,6 +49,11 @@ namespace DottIn.Presentation.WebApi.Middlewares
                     badHttpRequestException.Message,
                     null
                 ),
+                BreakOutsideAllowedTimeException breakOutsideAllowedTimeException => (
+                    HttpStatusCode.UnprocessableEntity,
+                    breakOutsideAllowedTimeException.Message,
+                    null
+                ),
                 _ => (
                     HttpStatusCode.InternalServerError,
                     "An unexpected error occurred, try again later.",
