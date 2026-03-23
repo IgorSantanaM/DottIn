@@ -104,7 +104,6 @@ public class ExportEndpoints : IEndpoint
             if (!codeMap.TryGetValue(group.Key, out var dominioCode))
                 continue;
 
-            // Domínio expects centesimal hours: hours * 100 (e.g., 8h30m = 8.50 = value 850)
             var totalWorkedHours = group.Sum(r => r.TotalWorked.TotalHours);
             var nocturnalHours = group.Where(r => r.IsNocturnal).Sum(r => r.TotalWorked.TotalHours);
             var holidayHours = group.Where(r => r.IsHoliday).Sum(r => r.TotalWorked.TotalHours);

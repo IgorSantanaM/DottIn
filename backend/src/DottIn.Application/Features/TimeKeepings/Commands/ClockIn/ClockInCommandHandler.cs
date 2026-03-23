@@ -40,8 +40,6 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
                 !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
                 throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
 
-            // TODO: Verify if its weekend or holiday.
-
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var existingTimeKeeping = await timeKeepingRepository.GetTodayByEmployeeAsync(
                 request.EmployeeId, today, cancellationToken);

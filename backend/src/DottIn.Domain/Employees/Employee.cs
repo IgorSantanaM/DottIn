@@ -144,15 +144,9 @@ namespace DottIn.Domain.Employees
 
             bool isWithinInterval;
             if (IntervalStart <= IntervalEnd)
-            {
-                // Same-day interval (e.g., 12:00–13:00)
                 isWithinInterval = currentTime >= IntervalStart && currentTime <= IntervalEnd;
-            }
             else
-            {
-                // Overnight interval (e.g., 23:00–01:00)
                 isWithinInterval = currentTime >= IntervalStart || currentTime <= IntervalEnd;
-            }
 
             if (!isWithinInterval)
                 throw new BreakOutsideAllowedTimeException(IntervalStart, IntervalEnd);
@@ -194,7 +188,6 @@ namespace DottIn.Domain.Employees
             bool isOvernight = start > end;
             bool isIntervalOvernight = intStart > intEnd;
 
-            double startMin = 0;
             double endMin = (isOvernight ? (TimeSpan.FromHours(24) - start.ToTimeSpan()) + end.ToTimeSpan() : end - start).TotalMinutes;
 
             double intStartMin = GetOffsetMinutes(start, intStart);
