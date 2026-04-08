@@ -3,6 +3,7 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using DottIn.Domain.Exports;
 using DottIn.Domain.HolidayCalendars;
+using DottIn.Domain.Subscriptions;
 using DottIn.Domain.TimeKeepings;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<DominioEmployeeMapping> DominioEmployeeMappings { get; set; }
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+        public DbSet<TenantSubscription> TenantSubscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

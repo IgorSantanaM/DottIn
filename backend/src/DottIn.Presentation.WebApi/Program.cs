@@ -34,6 +34,7 @@ builder.Services.RegisterApplication(builder.Configuration);
 
 builder.Services.RegisterInfrastructure(builder.Configuration);
 
+// Always call AddMassTransitConfiguration - it handles disabled mode internally
 builder.Services.AddMassTransitConfiguration(builder.Configuration);
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

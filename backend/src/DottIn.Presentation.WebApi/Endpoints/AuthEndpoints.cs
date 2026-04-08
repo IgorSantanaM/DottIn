@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
@@ -119,6 +120,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
+            [FromServices] ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
             var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
@@ -136,7 +138,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
         }
 
         private static async Task<IResult> HandlePinLoginAsync(
@@ -147,6 +149,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
+            [FromServices] ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
             var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
@@ -164,7 +167,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPin(request.Pin))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
         }
 
         private static async Task<IResult> HandleFingerprintLoginAsync(
@@ -175,6 +178,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
+            [FromServices] ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
             var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
@@ -192,7 +196,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyFingerprint(request.FingerprintToken))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
         }
 
         #endregion
@@ -207,6 +211,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] ITokenService tokenService,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
+            [FromServices] ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
             var existingToken = await refreshTokenRepository.GetByTokenAsync(request.RefreshToken, cancellationToken);
@@ -368,6 +373,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             IRefreshTokenRepository refreshTokenRepository,
             IUnitOfWork unitOfWork,
             IConfiguration configuration,
+            ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
             var jwtSettings = configuration.GetSection("JwtSettings");
@@ -387,6 +393,22 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             var isOwner = branch.OwnerId.HasValue && branch.OwnerId.Value == employee.Id;
 
+            SubscriptionInfoDto? subscriptionInfo = null;
+            if (branch.OwnerId.HasValue)
+            {
+                var subscription = await subscriptionService.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
+                if (subscription != null)
+                {
+                    subscriptionInfo = new SubscriptionInfoDto(
+                        PlanName: subscription.PlanName,
+                        MaxEmployees: subscription.MaxEmployees,
+                        MaxBranches: subscription.MaxBranches,
+                        CanAddEmployee: subscription.CanAddEmployee,
+                        CanAddBranch: subscription.CanAddBranch
+                    );
+                }
+            }
+
             var response = new LoginResponse(
                 AccessToken: accessToken,
                 RefreshToken: refreshToken.Token,
@@ -394,7 +416,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
                 BranchId: branch.Id,
                 IsOwner: isOwner,
-                IsHeadquarters: branch.IsHeadquarters
+                IsHeadquarters: branch.IsHeadquarters,
+                Subscription: subscriptionInfo
             );
 
             return Results.Ok(response);

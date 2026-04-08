@@ -737,6 +737,10 @@ img {
   align-items: start;
 }
 
+.pricing-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .pricing-card {
   padding: 40px 32px;
   background: var(--bg-card);
@@ -873,6 +877,12 @@ img {
   border-color: var(--accent-blue);
   background: rgba(79, 125, 249, 0.08);
   transform: translateY(-2px);
+}
+
+.pricing-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 /* ===== TESTIMONIALS ===== */
@@ -1130,7 +1140,7 @@ img {
   .hero-visual { max-width: 600px; margin: 0 auto; }
 
   .features-grid { grid-template-columns: repeat(2, 1fr); }
-  .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  .pricing-grid, .pricing-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .pricing-card.featured { grid-column: span 2; max-width: 420px; margin: 0 auto; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -1163,7 +1173,7 @@ img {
   .features-grid { grid-template-columns: 1fr; }
   .steps-grid { grid-template-columns: 1fr; gap: 48px; }
   .steps-grid::before { display: none; }
-  .pricing-grid { grid-template-columns: 1fr; }
+  .pricing-grid, .pricing-grid-4 { grid-template-columns: 1fr; }
   .pricing-card.featured { grid-column: unset; max-width: 100%; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .footer-grid { grid-template-columns: 1fr; gap: 32px; }

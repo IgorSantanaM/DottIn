@@ -18,6 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="styles.css">
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
@@ -236,30 +237,46 @@
         </p>
       </div>
 
-      <div class="pricing-grid">
-        <!-- Starter -->
+      <div class="pricing-grid pricing-grid-4">
+        <!-- FreeTier -->
         <div class="pricing-card reveal reveal-delay-1">
-          <div class="pricing-name">Starter</div>
+          <div class="pricing-name">Free</div>
           <div class="pricing-price">
             <span class="currency">R$</span>0<span class="period">/mês</span>
           </div>
-          <div class="pricing-description">Para pequenas equipes começarem agora.</div>
+          <div class="pricing-description">Para começar sem compromisso.</div>
           <ul class="pricing-features">
-            <li><span class="check">✓</span> Até 5 funcionários</li>
-            <li><span class="check">✓</span> Ponto por senha ou PIN</li>
+            <li><span class="check">✓</span> Até 3 funcionários</li>
+            <li><span class="check">✓</span> Ponto por senha</li>
             <li><span class="check">✓</span> 1 filial</li>
+            <li><span class="check">✓</span> Relatórios básicos</li>
+          </ul>
+          <button class="pricing-btn outline" data-plan="free" data-price-id="price_1TJw5L0mdZxVzzZMbGa57Pji">Começar grátis</button>
+        </div>
+
+        <!-- Basic -->
+        <div class="pricing-card reveal reveal-delay-2">
+          <div class="pricing-name">Basic</div>
+          <div class="pricing-price">
+            <span class="currency">R$</span>60<span class="period">/mês</span>
+          </div>
+          <div class="pricing-description">Para pequenas equipes.</div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> Até 15 funcionários</li>
+            <li><span class="check">✓</span> Ponto por PIN</li>
+            <li><span class="check">✓</span> Até 2 filiais</li>
             <li><span class="check">✓</span> Relatórios básicos</li>
             <li><span class="check">✓</span> Suporte por email</li>
           </ul>
-          <a href="#cta" class="pricing-btn outline">Começar grátis</a>
+          <button class="pricing-btn outline" data-plan="basic" data-price-id="price_1TJw8M0mdZxVzzZM1Qwqc9zh">Assinar Basic</button>
         </div>
 
         <!-- Pro -->
-        <div class="pricing-card featured reveal reveal-delay-2">
+        <div class="pricing-card featured reveal reveal-delay-3">
           <div class="pricing-popular">Mais popular</div>
           <div class="pricing-name">Pro</div>
           <div class="pricing-price">
-            <span class="currency">R$</span>49<span class="period">/mês</span>
+            <span class="currency">R$</span>160<span class="period">/mês</span>
           </div>
           <div class="pricing-description">Para empresas em crescimento.</div>
           <ul class="pricing-features">
@@ -268,29 +285,27 @@
             <li><span class="check">✓</span> Até 5 filiais</li>
             <li><span class="check">✓</span> Relatórios avançados</li>
             <li><span class="check">✓</span> Calendário de feriados</li>
-            <li><span class="check">✓</span> Turnos noturnos</li>
             <li><span class="check">✓</span> Suporte prioritário</li>
           </ul>
-          <a href="#cta" class="pricing-btn primary">Assinar Pro</a>
+          <button class="pricing-btn primary" data-plan="pro" data-price-id="price_1TJwB30mdZxVzzZMyQ6uSOB6">Assinar Pro</button>
         </div>
 
-        <!-- Enterprise -->
-        <div class="pricing-card reveal reveal-delay-3">
-          <div class="pricing-name">Enterprise</div>
+        <!-- Unlimited -->
+        <div class="pricing-card reveal reveal-delay-4">
+          <div class="pricing-name">Unlimited</div>
           <div class="pricing-price">
-            <span class="currency">R$</span>149<span class="period">/mês</span>
+            <span class="currency">R$</span>400<span class="period">/mês</span>
           </div>
-          <div class="pricing-description">Para grandes operações com necessidades avançadas.</div>
+          <div class="pricing-description">Para grandes operações.</div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Funcionários ilimitados</li>
             <li><span class="check">✓</span> Todas as autenticações</li>
             <li><span class="check">✓</span> Filiais ilimitadas</li>
             <li><span class="check">✓</span> API de integração</li>
             <li><span class="check">✓</span> Exportação para folha</li>
-            <li><span class="check">✓</span> SLA dedicado</li>
             <li><span class="check">✓</span> Gerente de conta</li>
           </ul>
-          <a href="#cta" class="pricing-btn outline">Falar com vendas</a>
+          <button class="pricing-btn outline" data-plan="unlimited" data-price-id="price_1TJwCj0mdZxVzzZMD17iG8tY">Assinar Unlimited</button>
         </div>
       </div>
     </div>

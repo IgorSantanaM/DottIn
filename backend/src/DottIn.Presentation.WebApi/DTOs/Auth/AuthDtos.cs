@@ -15,7 +15,8 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         EmployeeInfoDto Employee,
         Guid BranchId,
         bool IsOwner,
-        bool IsHeadquarters);
+        bool IsHeadquarters,
+        SubscriptionInfoDto? Subscription);
 
     public record RefreshTokenResponse(
         string AccessToken,
@@ -27,4 +28,11 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         string Name,
         string Cpf,
         string? ImageUrl);
+
+    public record SubscriptionInfoDto(
+        string PlanName,
+        int MaxEmployees,
+        int MaxBranches,
+        bool CanAddEmployee,
+        bool CanAddBranch);
 }

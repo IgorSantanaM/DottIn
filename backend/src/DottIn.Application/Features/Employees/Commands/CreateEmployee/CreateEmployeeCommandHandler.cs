@@ -1,5 +1,6 @@
 ﻿using DottIn.Application.Exceptions;
 using DottIn.Application.Features.Employees.Events;
+using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Core.Exceptions;
@@ -13,6 +14,7 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
 {
     public class CreateEmployeeCommandHandler(IEmployeeRepository employeeRepository,
                     IBranchRepository branchRepository,
+                    ITenantSubscriptionService tenantSubscriptionService,
                     IValidator<CreateEmployeeCommand> validator,
                     IPublishEndpoint publishEndpoint,
                     IUnitOfWork unitOfWork)
@@ -29,6 +31,17 @@ namespace DottIn.Application.Features.Employees.Commands.CreateEmployee
 
             if (!branch.IsActive)
                 throw new DomainException("A empresa não esta ativa.");
+
+            if (branch.OwnerId.HasValue)
+            {
+                var subscription = await tenantSubscriptionService.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
+                if (subscription != null && !subscription.CanAddEmployee)
+                {
+                    throw SubscriptionLimitExceededException.ForEmployees(
+                        subscription.CurrentEmployeeCount,
+                        subscription.MaxEmployees);
+                }
+            }
 
             var document = new Document(request.Document.Value);
 
