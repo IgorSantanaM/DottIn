@@ -36,5 +36,11 @@ namespace DottIn.Infra.Data.Repositories
                 .AsNoTracking()
                 .Where(b => b.IsHeadquarters)
                 .ToListAsync(token);
+
+        public async Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
+            => await context.Branches
+                .AsNoTracking()
+                .Where(b => b.OwnerId == ownerId && b.IsActive)
+                .CountAsync(token);
     }
 }

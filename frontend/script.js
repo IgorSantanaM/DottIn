@@ -1,6 +1,101 @@
 // ===== DottIn Landing Page — Scripts =====
 
+// ----- STRIPE CONFIG -----
+const API_BASE_URL = 'http://localhost:5000'; // Change to production URL when deploying
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TJvpW0mdZxVzzZMSOswy0dBL977nTs6DsRU6Mu6eBB6hrvL2u2FZggidVFQ6U0sXsEOPKhg40ntk9iWPembjOE900ClO93yKa';
+
 document.addEventListener('DOMContentLoaded', () => {
+
+  // ----- STRIPE CHECKOUT -----
+  let stripe = null;
+
+  // Initialize Stripe with publishable key
+  async function initStripe() {
+    try {
+      // Try to get from backend first, fallback to hardcoded key
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/billing/config`);
+        if (response.ok) {
+          const config = await response.json();
+          stripe = Stripe(config.publishableKey);
+          return;
+        }
+      } catch (e) {
+        console.log('Backend not available, using hardcoded Stripe key');
+      }
+      // Fallback to hardcoded key for testing
+      stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+    } catch (error) {
+      console.error('Failed to initialize Stripe:', error);
+    }
+  }
+
+  // Handle checkout button clicks
+  async function handleCheckout(priceId, planName) {
+    if (!stripe) {
+      alert('Sistema de pagamento não disponível. Tente novamente.');
+      return;
+    }
+
+    const button = document.querySelector(`[data-price-id="${priceId}"]`);
+    const originalText = button.textContent;
+    button.textContent = 'Carregando...';
+    button.disabled = true;
+
+    try {
+      // Get auth token from localStorage (user must be logged in)
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Você precisa estar logado para assinar um plano.');
+        window.location.href = '/login'; // Adjust to your login page
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/billing/checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ priceId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao criar sessão de checkout');
+      }
+
+      const session = await response.json();
+      
+      // Redirect to Stripe Checkout
+      const result = await stripe.redirectToCheckout({
+        sessionId: session.sessionId
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert(`Erro no checkout: ${error.message}`);
+    } finally {
+      button.textContent = originalText;
+      button.disabled = false;
+    }
+  }
+
+  // Attach click handlers to pricing buttons
+  document.querySelectorAll('[data-price-id]').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      const priceId = button.dataset.priceId;
+      const planName = button.dataset.plan;
+      handleCheckout(priceId, planName);
+    });
+  });
+
+  // Initialize Stripe on page load
+  initStripe();
 
   // ----- NAVBAR SCROLL EFFECT -----
   const navbar = document.getElementById('navbar');

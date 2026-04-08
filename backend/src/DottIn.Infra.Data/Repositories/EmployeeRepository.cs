@@ -34,6 +34,21 @@ namespace DottIn.Infra.Data.Repositories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.BranchId == branchId && e.CPF.Value == sanitizedCpf, token);
         }
+
+        public async Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
+        {
+            var branchIds = await context.Branches
+                .AsNoTracking()
+                .Where(b => b.OwnerId == ownerId && b.IsActive)
+                .Select(b => b.Id)
+                .ToListAsync(token);
+
+            return await context.Employees
+                .AsNoTracking()
+                .Where(e => branchIds.Contains(e.BranchId) && e.IsActive)
+                .CountAsync(token);
+        }
+
         public async Task<bool> AddEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default)
         {
             var employee = await context.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);

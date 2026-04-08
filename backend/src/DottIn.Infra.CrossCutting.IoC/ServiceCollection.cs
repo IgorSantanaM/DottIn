@@ -1,4 +1,5 @@
 ﻿using DottIn.Application.Features.Branches.Queries.GetBranchByOwner;
+using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
 using DottIn.Application.Features.TimeKeepings.Validators;
 using DottIn.Domain.Auth;
@@ -8,6 +9,7 @@ using DottIn.Domain.Employees;
 using DottIn.Domain.Exports;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.Storage;
+using DottIn.Domain.Subscriptions;
 using DottIn.Domain.TimeKeepings;
 using DottIn.Infra.Data.Contexts;
 using DottIn.Infra.Data.Interceptors;
@@ -16,11 +18,13 @@ using DottIn.Infra.Data.UoW;
 using DottIn.Infra.Messaging.Consumers;
 using DottIn.Infra.Services.Auth;
 using DottIn.Infra.Services.Storage;
+using DottIn.Infra.Services.Stripe;
 using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using AppIStripeService = DottIn.Application.Interfaces.IStripeService;
 
 namespace DottIn.Infra.CrossCutting.IoC
 {
@@ -38,6 +42,8 @@ namespace DottIn.Infra.CrossCutting.IoC
                 typeof(ClockInCommandValidator).Assembly,
                 typeof(GetBranchByOwnerQuery).Assembly
             ]);
+
+            services.AddScoped<ITenantSubscriptionService, TenantSubscriptionService>();
 
             return services;
         }
@@ -72,12 +78,30 @@ namespace DottIn.Infra.CrossCutting.IoC
             services.AddScoped<IHolidayCalendarRepository, HolidayCalendarRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IDominioMappingRepository, DominioMappingRepository>();
+            services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
+            services.AddScoped<ITenantSubscriptionRepository, TenantSubscriptionRepository>();
+
+            services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
+            services.AddScoped<StripeService>();
+            services.AddScoped<IStripeService>(sp => sp.GetRequiredService<StripeService>());
+            services.AddScoped<AppIStripeService>(sp => sp.GetRequiredService<StripeService>());
 
             return services;
         }
 
         public static IServiceCollection AddMassTransitConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
+            var isDisabled = configuration.GetValue<bool>("MassTransit:Disabled");
+            
+            if (isDisabled)
+            {
+                // Register no-op IPublishEndpoint for when MassTransit is disabled
+                services.AddSingleton<MassTransit.IPublishEndpoint, NoOpPublishEndpoint>();
+                return services;
+            }
+            
+            var useInMemory = configuration.GetValue<bool>("MassTransit:UseInMemory");
+            
             services.AddMassTransit(cfg =>
             {
                 cfg.AddConsumer<EmployeeImageConsumer>();
@@ -98,21 +122,76 @@ namespace DottIn.Infra.CrossCutting.IoC
                     });
                 });
 
-                cfg.UsingRabbitMq((context, config) =>
+                if (useInMemory)
                 {
-                    var rabbitMqConnection = configuration.GetConnectionString("RabbitMQ");
+                    cfg.UsingInMemory((context, config) =>
+                    {
+                        config.ConfigureEndpoints(context);
+                    });
+                }
+                else
+                {
+                    cfg.UsingRabbitMq((context, config) =>
+                    {
+                        var rabbitMqConnection = configuration.GetConnectionString("RabbitMQ");
 
-                    config.Host(rabbitMqConnection);
+                        config.Host(rabbitMqConnection);
 
-                    config.UseRawJsonSerializer();
+                        config.UseRawJsonSerializer();
 
-                    config.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+                        config.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
-                    config.ConfigureEndpoints(context);
-                });
+                        config.ConfigureEndpoints(context);
+                    });
+                }
             });
 
             return services;
         }
+    }
+    
+    /// <summary>
+    /// No-op implementation of IPublishEndpoint for local development without MassTransit
+    /// </summary>
+    public class NoOpPublishEndpoint : MassTransit.IPublishEndpoint
+    {
+        public MassTransit.ConnectHandle ConnectPublishObserver(MassTransit.IPublishObserver observer) => 
+            new NoOpConnectHandle();
+
+        public Task Publish<T>(T message, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+
+        public Task Publish<T>(T message, MassTransit.IPipe<MassTransit.PublishContext<T>> publishPipe, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+
+        public Task Publish<T>(T message, MassTransit.IPipe<MassTransit.PublishContext> publishPipe, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+
+        public Task Publish(object message, CancellationToken cancellationToken = default) => 
+            Task.CompletedTask;
+
+        public Task Publish(object message, MassTransit.IPipe<MassTransit.PublishContext> publishPipe, CancellationToken cancellationToken = default) => 
+            Task.CompletedTask;
+
+        public Task Publish(object message, Type messageType, CancellationToken cancellationToken = default) => 
+            Task.CompletedTask;
+
+        public Task Publish(object message, Type messageType, MassTransit.IPipe<MassTransit.PublishContext> publishPipe, CancellationToken cancellationToken = default) => 
+            Task.CompletedTask;
+
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+
+        public Task Publish<T>(object values, MassTransit.IPipe<MassTransit.PublishContext<T>> publishPipe, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+
+        public Task Publish<T>(object values, MassTransit.IPipe<MassTransit.PublishContext> publishPipe, CancellationToken cancellationToken = default) where T : class => 
+            Task.CompletedTask;
+    }
+    
+    public class NoOpConnectHandle : MassTransit.ConnectHandle
+    {
+        public void Disconnect() { }
+        public void Dispose() { }
     }
 }
