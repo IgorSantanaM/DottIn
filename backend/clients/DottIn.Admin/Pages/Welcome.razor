@@ -1,0 +1,279 @@
+@page "/welcome"
+@inject AdminState State
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn - Bem-vindo</PageTitle>
+
+<style>
+    .welcome-container {
+        position: relative;
+        min-height: 100vh;
+        width: 100vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0B1120;
+        font-family: 'Inter', sans-serif;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    .welcome-wrap {
+        width: 100%;
+        max-width: 520px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Header */
+    .brand-logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .brand-wordmark {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .brand-wordmark-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F8FAFC;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-wordmark-dot {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2563EB;
+    }
+
+    .brand-subtitle-text {
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* Card */
+    .welcome-card {
+        background: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 16px !important;
+    }
+
+    /* Welcome icon */
+    .welcome-icon-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+
+    .welcome-icon-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: welcomePulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes welcomePulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.85; }
+    }
+
+    .welcome-icon-circle .mud-icon-root {
+        color: #2563EB !important;
+        font-size: 32px !important;
+    }
+
+    /* Steps */
+    .step-item {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 12px 0;
+    }
+
+    .step-number {
+        min-width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.12);
+        color: #3B82F6;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2px;
+    }
+
+    .step-content {
+        flex: 1;
+    }
+
+    .step-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #F8FAFC;
+        margin-bottom: 2px;
+    }
+
+    .step-description {
+        font-size: 12px;
+        color: #64748B;
+        line-height: 1.4;
+    }
+
+    .step-divider {
+        height: 1px;
+        background: #1E293B;
+        margin: 0;
+    }
+
+    /* CTA Button */
+    .btn-flat {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        box-shadow: none !important;
+        transition: background-color 0.2s ease;
+    }
+
+        .btn-flat:hover:not(:disabled) {
+            background: #1D4ED8 !important;
+        }
+
+    .btn-outline {
+        border: 1px solid #1E293B !important;
+        color: #94A3B8 !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease;
+    }
+
+        .btn-outline:hover {
+            border-color: #334155 !important;
+            color: #F8FAFC !important;
+        }
+</style>
+
+<div class="welcome-container">
+    <div class="welcome-wrap">
+
+        @* Brand *@
+        <div class="brand-logo-wrap">
+            <div class="brand-wordmark">
+                <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
+            </div>
+            <div class="brand-subtitle-text">Painel Administrativo</div>
+        </div>
+
+        @* Welcome Card *@
+        <MudCard Class="welcome-card" Elevation="0">
+            <MudCardContent Class="pa-6">
+
+                <div class="welcome-icon-wrap">
+                    <div class="welcome-icon-circle">
+                        <MudIcon Icon="@Icons.Material.Filled.Celebration" />
+                    </div>
+                </div>
+
+                <MudText Typo="Typo.h6" Style="color: #F8FAFC; font-weight: 600;" Class="mb-1 text-center">
+                    Bem-vindo, @FirstName!
+                </MudText>
+                <MudText Typo="Typo.body2" Style="color: #475569;" Class="mb-5 text-center">
+                    Sua conta foi criada com sucesso. Veja os próximos passos para configurar seu sistema de ponto.
+                </MudText>
+
+                @* Steps *@
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Escolha um plano</div>
+                        <div class="step-description">Selecione o plano ideal para o tamanho da sua equipe.</div>
+                    </div>
+                </div>
+
+                <div class="step-divider"></div>
+
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Registre sua empresa</div>
+                        <div class="step-description">Cadastre os dados da sua primeira filial para gerar o código da empresa.</div>
+                    </div>
+                </div>
+
+                <div class="step-divider"></div>
+
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Adicione funcionários</div>
+                        <div class="step-description">Configure os horários e registre sua equipe no sistema.</div>
+                    </div>
+                </div>
+
+                <MudButton Variant="Variant.Filled"
+                           Class="btn-flat mt-5"
+                           FullWidth="true"
+                           Href="/branch/register"
+                           id="welcome-start-btn">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="mr-2" Size="Size.Small" />
+                    Começar Configuração
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Class="btn-outline mt-2"
+                           FullWidth="true"
+                           OnClick="HandleLogout"
+                           id="welcome-logout-btn">
+                    Sair
+                </MudButton>
+
+            </MudCardContent>
+        </MudCard>
+
+        @* Footer *@
+        <div style="text-align: center;">
+            <MudText Typo="Typo.caption" Style="color: #334155;">
+                &copy; 2026 DottIn
+            </MudText>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string FirstName => State.User?.FirstName ?? "Proprietário";
+
+    protected override void OnInitialized()
+    {
+        if (!State.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await State.LogoutAsync();
+        Navigation.NavigateTo("/", replace: true);
+    }
+}

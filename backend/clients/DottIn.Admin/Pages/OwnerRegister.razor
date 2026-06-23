@@ -1,0 +1,391 @@
+@page "/register"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AdminState State
+
+<PageTitle>DottIn - Criar Conta</PageTitle>
+
+<style>
+    .owner-register-container {
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0B1120;
+        font-family: 'Inter', sans-serif;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    .owner-register-wrap {
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Header Minimalista */
+    .brand-logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .brand-wordmark {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .brand-wordmark-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F8FAFC;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-wordmark-dot {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2563EB;
+    }
+
+    .brand-subtitle-text {
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* Card */
+    .owner-card {
+        background: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 16px !important;
+    }
+
+    /* Customização dos Inputs MudBlazor */
+    .owner-register-container .mud-input {
+        color: #F8FAFC !important;
+        background: #0B1120 !important;
+    }
+
+    .owner-register-container .mud-input-outlined-border {
+        border-color: #1E293B !important;
+        border-radius: 10px !important;
+    }
+
+    .owner-register-container .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #334155 !important;
+    }
+
+    .owner-register-container .mud-focused .mud-input-outlined-border {
+        border-color: #2563EB !important;
+        border-width: 1px !important;
+    }
+
+    .owner-register-container .mud-input-label {
+        color: #475569 !important;
+    }
+
+    .owner-register-container .mud-focused .mud-input-label {
+        color: #38BDF8 !important;
+    }
+
+    .owner-register-container .mud-input-adornment .mud-icon-root {
+        color: #334155 !important;
+    }
+
+    .owner-register-container .mud-focused .mud-input-adornment .mud-icon-root {
+        color: #2563EB !important;
+    }
+
+    /* Botão Sólido */
+    .btn-flat {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        box-shadow: none !important;
+        transition: background-color 0.2s ease;
+    }
+
+        .btn-flat:hover:not(:disabled) {
+            background: #1D4ED8 !important;
+        }
+
+    /* Strength bar */
+    .password-strength-bar {
+        height: 3px;
+        border-radius: 2px;
+        margin-top: 6px;
+        transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    .strength-label {
+        font-size: 11px;
+        margin-top: 4px;
+        font-weight: 500;
+    }
+</style>
+
+<div class="owner-register-container">
+    <div class="owner-register-wrap">
+
+        @* Identidade Visual *@
+        <div class="brand-logo-wrap">
+            <div class="brand-wordmark">
+                <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
+            </div>
+            <div class="brand-subtitle-text">Criar Conta do Proprietário</div>
+        </div>
+
+        @* Formulário *@
+        <MudCard Class="owner-card" Elevation="0">
+            <MudCardContent Class="pa-6">
+
+                <MudText Typo="Typo.h6" Style="color: #F8FAFC; font-weight: 600;" Class="mb-1 text-center">Crie sua conta</MudText>
+                <MudText Typo="Typo.body2" Style="color: #475569;" Class="mb-5 text-center">
+                    Registre-se como proprietário para começar
+                </MudText>
+
+                <MudTextField @bind-Value="_name"
+                              Label="Nome Completo"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person"
+                              FullWidth="true"
+                              Class="mb-3"
+                              id="owner-name-input" />
+
+                <MudTextField @bind-Value="_document"
+                              Label="CPF"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Badge"
+                              FullWidth="true"
+                              Class="mb-3"
+                              Mask="@(new PatternMask("000.000.000-00"))"
+                              id="owner-doc-input" />
+
+                <MudTextField @bind-Value="_password"
+                              Label="Senha"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showPwd ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPwd ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                              OnAdornmentClick="() => _showPwd = !_showPwd"
+                              FullWidth="true"
+                              Class="mb-1"
+                              id="owner-password-input" />
+
+                @* Password strength indicator *@
+                @if (!string.IsNullOrEmpty(_password))
+                {
+                    <div style="padding: 0 2px;">
+                        <div class="password-strength-bar"
+                             style="width: @(PasswordStrengthPercent)%; background-color: @PasswordStrengthColor;">
+                        </div>
+                        <div class="strength-label" style="color: @PasswordStrengthColor;">
+                            @PasswordStrengthLabel
+                        </div>
+                    </div>
+                }
+
+                <MudTextField @bind-Value="_confirmPassword"
+                              Label="Confirmar Senha"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showConfirmPwd ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showConfirmPwd ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                              OnAdornmentClick="() => _showConfirmPwd = !_showConfirmPwd"
+                              FullWidth="true"
+                              Class="mt-3 mb-5"
+                              id="owner-confirm-password-input" />
+
+                <MudButton Variant="Variant.Filled"
+                           Class="btn-flat"
+                           FullWidth="true"
+                           Disabled="@(_loading || !IsFormValid)"
+                           OnClick="HandleRegister"
+                           id="owner-register-btn">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Criar Conta
+                </MudButton>
+
+                <div style="text-align: center; margin-top: 16px;">
+                    <MudText Typo="Typo.body2" Style="color: #475569;">
+                        Já tem uma conta? <MudLink Href="/" Style="color: #2563EB; font-weight: 600; text-decoration: none;">Fazer login</MudLink>
+                    </MudText>
+                </div>
+            </MudCardContent>
+        </MudCard>
+
+        @* Rodapé *@
+        <div style="text-align: center;">
+            <MudText Typo="Typo.caption" Style="color: #334155;">
+                &copy; 2026 DottIn
+            </MudText>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _name = "";
+    private string _document = "";
+    private string _password = "";
+    private string _confirmPassword = "";
+    private bool _showPwd;
+    private bool _showConfirmPwd;
+    private bool _loading;
+
+    private bool IsFormValid =>
+        !string.IsNullOrWhiteSpace(_name) &&
+        !string.IsNullOrWhiteSpace(_document) &&
+        !string.IsNullOrWhiteSpace(_password) &&
+        _password.Length >= 6 &&
+        _password == _confirmPassword;
+
+    // Password strength helpers
+    private int PasswordStrengthScore
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_password)) return 0;
+            int score = 0;
+            if (_password.Length >= 6) score++;
+            if (_password.Length >= 10) score++;
+            if (_password.Any(char.IsUpper) && _password.Any(char.IsLower)) score++;
+            if (_password.Any(char.IsDigit)) score++;
+            if (_password.Any(c => !char.IsLetterOrDigit(c))) score++;
+            return score;
+        }
+    }
+
+    private int PasswordStrengthPercent => PasswordStrengthScore switch
+    {
+        0 => 0,
+        1 => 20,
+        2 => 40,
+        3 => 60,
+        4 => 80,
+        _ => 100
+    };
+
+    private string PasswordStrengthColor => PasswordStrengthScore switch
+    {
+        <= 1 => "#EF4444",
+        2 => "#F59E0B",
+        3 => "#EAB308",
+        4 => "#22C55E",
+        _ => "#10B981"
+    };
+
+    private string PasswordStrengthLabel => PasswordStrengthScore switch
+    {
+        <= 1 => "Fraca",
+        2 => "Razoável",
+        3 => "Boa",
+        4 => "Forte",
+        _ => "Muito forte"
+    };
+
+    private async Task HandleRegister()
+    {
+        if (!IsFormValid) return;
+
+        if (_password != _confirmPassword)
+        {
+            Snackbar.Add("As senhas não coincidem.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+
+        try
+        {
+            var cleanDocument = _document.Replace(".", "").Replace("-", "");
+
+            var request = new
+            {
+                Name = _name.Trim(),
+                Document = new
+                {
+                    Value = cleanDocument,
+                    Type = "CPF"
+                },
+                Password = _password
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/auth/register/owner", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<RegisterOwnerResponse>();
+                if (result is not null)
+                {
+                    // Auto-login: build a LoginResponse-compatible session
+                    var loginResponse = new LoginResponse(
+                        result.AccessToken,
+                        result.RefreshToken,
+                        result.ExpiresAt,
+                        new EmployeeInfo(result.Employee.Id, result.Employee.Name, result.Employee.Cpf, result.Employee.ImageUrl),
+                        Guid.Empty,
+                        IsOwner: true,
+                        IsHeadquarters: false);
+
+                    await State.SetAuthenticatedAsync(loginResponse, "");
+                    Http.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.AccessToken);
+
+                    Snackbar.Add("Conta criada com sucesso! Bem-vindo ao DottIn.", Severity.Success);
+                    Navigation.NavigateTo("/welcome", replace: true);
+                }
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict ||
+                    body.Contains("CPF", StringComparison.OrdinalIgnoreCase))
+                {
+                    Snackbar.Add("Já existe uma conta com este CPF.", Severity.Warning);
+                }
+                else
+                {
+                    Snackbar.Add("Erro ao criar conta. Tente novamente.", Severity.Error);
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Não foi possível conectar ao servidor.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // Response model for owner registration
+    private record RegisterOwnerResponse(
+        string AccessToken,
+        string RefreshToken,
+        DateTime ExpiresAt,
+        RegisterOwnerEmployeeInfo Employee);
+
+    private record RegisterOwnerEmployeeInfo(
+        Guid Id,
+        string Name,
+        string Cpf,
+        string? ImageUrl);
+}

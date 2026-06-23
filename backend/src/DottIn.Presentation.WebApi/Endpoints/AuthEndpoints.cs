@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using DottIn.Application.Features.Employees.Commands.RegisterOwner;
 using DottIn.Application.Features.Subscriptions.Services;
+using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
@@ -7,6 +9,7 @@ using DottIn.Domain.Employees;
 using DottIn.Infra.Services.Auth;
 using DottIn.Presentation.WebApi.DTOs.Auth;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DottIn.Presentation.WebApi.Endpoints
@@ -54,6 +57,15 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Issues a new access token and refresh token using a valid refresh token.")
                 .Produces<RefreshTokenResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
+                .AllowAnonymous();
+
+            group.MapPost("/register/owner", HandleRegisterOwnerAsync)
+                .WithName(nameof(HandleRegisterOwnerAsync))
+                .WithSummary("Register Owner Account")
+                .WithDescription("Creates a new owner account (no branch or schedule). Returns tokens for auto-login.")
+                .Produces<RegisterOwnerResponse>(StatusCodes.Status201Created)
+                .Produces(StatusCodes.Status400BadRequest)
+                .Produces(StatusCodes.Status409Conflict)
                 .AllowAnonymous();
 
             group.MapPost("/logout", HandleLogoutAsync)
@@ -362,6 +374,60 @@ namespace DottIn.Presentation.WebApi.Endpoints
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.NoContent();
+        }
+
+        #endregion
+
+        #region Owner Registration
+
+        private static async Task<IResult> HandleRegisterOwnerAsync(
+            [FromBody] RegisterOwnerRequest request,
+            [FromServices] IMediator mediator,
+            [FromServices] IEmployeeRepository employeeRepository,
+            [FromServices] ITokenService tokenService,
+            [FromServices] IRefreshTokenRepository refreshTokenRepository,
+            [FromServices] IUnitOfWork unitOfWork,
+            [FromServices] IConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            var documentType = Enum.TryParse<Domain.ValueObjects.DocumentType>(request.Document.Type, true, out var dt)
+                ? dt
+                : Domain.ValueObjects.DocumentType.CPF;
+
+            var command = new RegisterOwnerCommand(
+                request.Name,
+                new DocumentDto(request.Document.Value, documentType),
+                request.Password);
+
+            var employeeId = await mediator.Send(command, cancellationToken);
+
+            // Auto-login: generate tokens for the new owner
+            var employee = await employeeRepository.GetByIdAsync(employeeId, cancellationToken);
+            if (employee is null)
+                return Results.BadRequest(new { Message = "Erro interno ao criar a conta." });
+
+            var jwtSettings = configuration.GetSection("JwtSettings");
+            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
+
+            var accessToken = tokenService.GenerateToken(
+                employee.Id,
+                Guid.Empty, // Owner has no branch yet
+                jwtSettings["SecretKey"]!,
+                jwtSettings["Issuer"]!,
+                jwtSettings["Audience"]!,
+                expirationMinutes);
+
+            var refreshToken = new Domain.Auth.RefreshToken(employee.Id, Guid.Empty);
+            await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var response = new RegisterOwnerResponse(
+                AccessToken: accessToken,
+                RefreshToken: refreshToken.Token,
+                ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
+                Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl));
+
+            return Results.Created($"/api/auth/register/owner/{employeeId}", response);
         }
 
         #endregion

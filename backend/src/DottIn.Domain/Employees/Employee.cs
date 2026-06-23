@@ -24,6 +24,36 @@ namespace DottIn.Domain.Employees
 
         private Employee() { }
 
+        /// <summary>
+        /// Constructor for Owner registration (no branch, no schedule).
+        /// The owner is created before any branch exists.
+        /// </summary>
+        public Employee(string name, Document cpf, string password)
+        {
+            Id = Guid.NewGuid();
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new DomainException("O nome não pode ser vazio.");
+
+            if (cpf == null)
+                throw new DomainException("CPF é obrigatório");
+
+            if (cpf.Type != DocumentType.CPF)
+                throw new DomainException("Proprietário deve ser registrado com um CPF.");
+
+            Name = name;
+            CPF = cpf;
+            BranchId = Guid.Empty;
+            StartWorkTime = TimeOnly.MinValue;
+            EndWorkTime = TimeOnly.MinValue;
+            IntervalStart = TimeOnly.MinValue;
+            IntervalEnd = TimeOnly.MinValue;
+            IsActive = true;
+            CreatedAt = DateTime.UtcNow;
+
+            SetPassword(password);
+        }
+
         public Employee(
             string name,
             Document cpf,
