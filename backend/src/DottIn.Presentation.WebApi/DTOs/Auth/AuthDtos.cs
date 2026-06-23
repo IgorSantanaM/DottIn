@@ -35,4 +35,13 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         int MaxBranches,
         bool CanAddEmployee,
         bool CanAddBranch);
+
+    // Owner Registration
+    public record RegisterOwnerRequest(string Name, RegisterOwnerDocumentDto Document, string Password);
+    public record RegisterOwnerDocumentDto(string Value, string Type);
+    public record RegisterOwnerResponse(
+        string AccessToken,
+        string RefreshToken,
+        DateTime ExpiresAt,
+        EmployeeInfoDto Employee);
 }
