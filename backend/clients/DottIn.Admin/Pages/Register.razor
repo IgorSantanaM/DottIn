@@ -1,0 +1,396 @@
+@page "/register"
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn Admin - Registrar</PageTitle>
+
+<style>
+    .admin-register-container {
+        position: relative;
+        min-height: 100vh;
+        width: 100vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #0B1120;
+        font-family: 'Inter', sans-serif;
+        padding: 40px 16px;
+        box-sizing: border-box;
+    }
+
+    .register-content-wrap {
+        width: 100%;
+        max-width: 680px; /* Largura ideal para formulários de duas colunas */
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Header Minimalista */
+    .brand-logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .brand-wordmark {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .brand-wordmark-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F8FAFC;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-wordmark-dot {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2563EB;
+    }
+
+    .brand-subtitle-text {
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* Card Proporcional */
+    .register-card {
+        background: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 16px !important;
+    }
+
+    .section-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #2563EB;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    /* Customização dos Inputs MudBlazor */
+    .admin-register-container .mud-input {
+        color: #F8FAFC !important;
+        background: #0B1120 !important;
+    }
+
+    .admin-register-container .mud-input-outlined-border {
+        border-color: #1E293B !important;
+        border-radius: 10px !important;
+    }
+
+    .admin-register-container .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #334155 !important;
+    }
+
+    .admin-register-container .mud-focused .mud-input-outlined-border {
+        border-color: #2563EB !important;
+        border-width: 1px !important;
+    }
+
+    .admin-register-container .mud-input-label {
+        color: #475569 !important;
+    }
+
+    .admin-register-container .mud-focused .mud-input-label {
+        color: #38BDF8 !important;
+    }
+
+    /* Botão Sólido */
+    .btn-flat {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        box-shadow: none !important;
+        transition: background-color 0.2s ease;
+    }
+
+        .btn-flat:hover:not(:disabled) {
+            background: #1D4ED8 !important;
+        }
+
+    .admin-register-container .mud-picker-input-text {
+        background: transparent !important;
+    }
+
+    .dropdown-dark-popover {
+    background-color: #111827 !important; 
+    border: 1px solid #1E293B !important;  
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+    overflow: hidden !important; 
+}
+
+.dropdown-dark-popover .mud-list {
+    background: transparent !important;
+    padding: 6px !important;
+    overflow-y: auto !important;
+    max-height: 300px;
+}
+
+.dropdown-dark-popover .mud-list::-webkit-scrollbar {
+    width: 6px; 
+}
+.dropdown-dark-popover .mud-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.dropdown-dark-popover .mud-list::-webkit-scrollbar-thumb {
+    background: #1E293B; 
+    border-radius: 10px;
+}
+.dropdown-dark-popover .mud-list::-webkit-scrollbar-thumb:hover {
+    background: #334155; 
+}
+
+.dropdown-dark-popover .mud-list-item {
+    color: #F8FAFC !important; 
+    border-radius: 8px !important;
+    margin: 2px 0 !important;
+    transition: background-color 0.15s ease;
+}
+
+.dropdown-dark-popover .mud-list-item:hover {
+    background-color: rgba(37, 99, 235, 0.12) !important; 
+    color: #38BDF8 !important; 
+}
+.dropdown-dark-popover .mud-selected-item {
+    background-color: rgba(37, 99, 235, 0.2) !important;
+    color: #38BDF8 !important;
+    font-weight: 600 !important;
+}
+</style>
+
+<div class="admin-register-container">
+    <div class="register-content-wrap">
+
+        <div class="brand-logo-wrap">
+            <div class="brand-wordmark">
+                <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
+            </div>
+            <div class="brand-subtitle-text">Painel Administrativo</div>
+        </div>
+
+        <MudCard Class="register-card" Elevation="0">
+            <MudCardContent Class="pa-8">
+
+                <MudText Typo="Typo.h6" Style="color: #F8FAFC; font-weight: 600;" Class="mb-6 text-center">Registrar Empresa (Filial)</MudText>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12">
+                        <div class="section-title">Dados Gerais</div>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Value="@Name" ValueChanged="OnNameChanged" T="string" Label="Nome da Filial" Variant="Variant.Outlined" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_email" Label="E-mail Organizacional" Variant="Variant.Outlined" FullWidth="true" InputType="InputType.Email" />
+                    </MudItem>
+                   <MudItem xs="12" sm="5">
+                        <MudTextField @bind-Value="_phone" 
+                                      Label="Celular / Telefone" 
+                                      Variant="Variant.Outlined" 
+                                      FullWidth="true"
+                                      Mask="@(new PatternMask("(00) 00000-0000"))">
+                        </MudTextField>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="string"
+                                   Value="_documentType"
+                                   ValueChanged="OnDocumentTypeChanged"
+                                   Label="Tipo Doc."
+                                   Variant="Variant.Outlined"
+                                   FullWidth="true"
+                                   PopoverClass="dropdown-dark-popover">
+                            <MudSelectItem Value="@("CPF")">CPF</MudSelectItem>
+                            <MudSelectItem Value="@("CNPJ")">CNPJ</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_document"
+                                      Label="Documento"
+                                      Variant="Variant.Outlined"
+                                      FullWidth="true"
+                                      Mask="@GetDocumentMask()" />
+                    </MudItem>
+
+                    @* Seção: Configurações de Ponto *@
+                    <MudItem xs="12" Class="mt-2">
+                        <div class="section-title">Parâmetros de Jornada</div>
+                    </MudItem>
+                    <MudItem xs="12" sm="7">
+                        <MudSelect @bind-Value="_timeZoneId"
+                                   Label="Fuso Horário"
+                                   Variant="Variant.Outlined"
+                                   FullWidth="true"
+                                   PopoverClass="dropdown-dark-popover">
+                            <MudSelectItem Value="@("America/Sao_Paulo")">Horário de Brasília (UTC-3)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Manaus")">Horário da Amazônia (UTC-4)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Rio_Branco")">Horário do Acre (UTC-5)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Noronha")">Fernando de Noronha (UTC-2)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    @* Seção: Endereço *@
+                    <MudItem xs="12" Class="mt-2">
+                        <div class="section-title">Endereço & Localização</div>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="_zipCode"
+                                      Label="CEP"
+                                      Variant="Variant.Outlined"
+                                      FullWidth="true"
+                                      Mask="@(new PatternMask("00000-000"))" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_street" Label="Logradouro (Rua/Av.)" Variant="Variant.Outlined" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="_number" Label="Número" Variant="Variant.Outlined" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_complement" Label="Complemento" Variant="Variant.Outlined" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2">
+                        <MudSelect @bind-Value="_state"
+                                   Label="UF"
+                                   Variant="Variant.Outlined"
+                                   FullWidth="true"
+                                   PopoverClass="dropdown-dark-popover">
+                            <MudSelectItem Value="@("AC")">AC</MudSelectItem>
+                            <MudSelectItem Value="@("AL")">AL</MudSelectItem>
+                            <MudSelectItem Value="@("AP")">AP</MudSelectItem>
+                            <MudSelectItem Value="@("AM")">AM</MudSelectItem>
+                            <MudSelectItem Value="@("BA")">BA</MudSelectItem>
+                            <MudSelectItem Value="@("CE")">CE</MudSelectItem>
+                            <MudSelectItem Value="@("DF")">DF</MudSelectItem>
+                            <MudSelectItem Value="@("ES")">ES</MudSelectItem>
+                            <MudSelectItem Value="@("GO")">GO</MudSelectItem>
+                            <MudSelectItem Value="@("MA")">MA</MudSelectItem>
+                            <MudSelectItem Value="@("MT")">MT</MudSelectItem>
+                            <MudSelectItem Value="@("MS")">MS</MudSelectItem>
+                            <MudSelectItem Value="@("MG")">MG</MudSelectItem>
+                            <MudSelectItem Value="@("PA")">PA</MudSelectItem>
+                            <MudSelectItem Value="@("PB")">PB</MudSelectItem>
+                            <MudSelectItem Value="@("PR")">PR</MudSelectItem>
+                            <MudSelectItem Value="@("PE")">PE</MudSelectItem>
+                            <MudSelectItem Value="@("PI")">PI</MudSelectItem>
+                            <MudSelectItem Value="@("RJ")">RJ</MudSelectItem>
+                            <MudSelectItem Value="@("RN")">RN</MudSelectItem>
+                            <MudSelectItem Value="@("RS")">RS</MudSelectItem>
+                            <MudSelectItem Value="@("RO")">RO</MudSelectItem>
+                            <MudSelectItem Value="@("RR")">RR</MudSelectItem>
+                            <MudSelectItem Value="@("SC")">SC</MudSelectItem>
+                            <MudSelectItem Value="@("SP")">SP</MudSelectItem>
+                            <MudSelectItem Value="@("SE")">SE</MudSelectItem>
+                            <MudSelectItem Value="@("TO")">TO</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_city" Label="Cidade" Variant="Variant.Outlined" FullWidth="true" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudButton Variant="Variant.Filled"
+                           Class="btn-flat mt-8"
+                           FullWidth="true"
+                           Disabled="_loading"
+                           OnClick="HandleRegister">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Finalizar Registro
+                </MudButton>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <MudText Typo="Typo.body2" Style="color: #475569;">
+                        Já tem uma conta registrada? <MudLink Href="/" Style="color: #2563EB; font-weight: 600; text-decoration: none;">Voltar para o login</MudLink>
+                    </MudText>
+                </div>
+            </MudCardContent>
+        </MudCard>
+
+        @* Rodapé *@
+        <div style="text-align: center;">
+            <MudText Typo="Typo.caption" Style="color: #334155;">
+                &copy; 2026 DottIn
+            </MudText>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _companyCode = "";
+    private string _name = "";
+    private string _email = "";
+    private string _phone = "";
+    private string _documentType = "";
+    private string _document = "";
+    private TimeSpan? _startWorkTime;
+    private TimeSpan? _endWorkTime;
+    private int _toleranceMinutes;
+    private string _timeZoneId = "";
+
+    private string _zipCode = "";
+    private string _street = "";
+    private string _number = "";
+    private string _complement = "";
+    private string _city = "";
+    private string _state = "";
+
+    private bool _isActive = true;
+    private bool _loading;
+
+    private string Name { get; set; } = "";
+
+    private void OnDocumentTypeChanged(string newType)
+    {
+        _documentType = newType; 
+        _document = "";          
+    }
+
+    private IMask GetDocumentMask()
+    {
+        if (_documentType == "CPF")
+            return new PatternMask("000.000.000-00");
+
+        return new PatternMask("00.000.000/0000-00");
+    }
+
+    private void OnNameChanged(string value)
+    {
+        Name = value;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var cleanName = value.Trim().Replace(" ", "").ToLowerInvariant();
+            var random = new Random().Next(0, 999).ToString("D3");
+            _companyCode = $"{cleanName}-{random}";
+        }
+        else
+        {
+            _companyCode = "";
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        await Task.Delay(1000);
+        Snackbar.Add("Registro realizado com sucesso!", Severity.Success);
+        Navigation.NavigateTo("/");
+        _loading = false;
+    }
+}
