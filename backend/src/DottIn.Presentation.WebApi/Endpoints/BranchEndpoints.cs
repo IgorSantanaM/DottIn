@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.Branches.Commands.ActivateBranch;
+using DottIn.Application.Features.Branches.Commands.ActivateBranch;
 using DottIn.Application.Features.Branches.Commands.CreateBranch;
 using DottIn.Application.Features.Branches.Commands.DeactivateBranch;
 using DottIn.Application.Features.Branches.Commands.MoveLocation;
@@ -13,6 +13,7 @@ using DottIn.Application.Features.Branches.Queries.GetBranchById;
 using DottIn.Application.Features.Branches.Queries.GetBranchByOwner;
 using DottIn.Application.Features.Branches.Queries.GetBranchHeadquarters;
 using DottIn.Application.Shared.DTOS;
+using DottIn.Domain.Branches;
 using DottIn.Presentation.WebApi.DTOs.Branches;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
@@ -200,13 +201,21 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleCreateBranchAsync(
             [FromBody] CreateBranchCommand command,
             [FromServices] IMediator mediator,
+            [FromServices] IBranchRepository branchRepository,
             CancellationToken cancellationToken)
         {
             var branchId = await mediator.Send(command, cancellationToken);
 
-            return branchId == Guid.Empty
-                ? Results.BadRequest("Failed to create branch.")
-                : Results.CreatedAtRoute(nameof(HandleGetBranchByIdAsync), new { branchId }, branchId);
+            if (branchId == Guid.Empty)
+                return Results.BadRequest("Failed to create branch.");
+
+            var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
+            var companyCode = branch?.CompanyCode ?? "";
+
+            return Results.CreatedAtRoute(
+                nameof(HandleGetBranchByIdAsync),
+                new { branchId },
+                new { BranchId = branchId, CompanyCode = companyCode });
         }
 
         private static async Task<IResult> HandleMoveLocationAsync(

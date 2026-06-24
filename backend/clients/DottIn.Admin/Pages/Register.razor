@@ -1,7 +1,10 @@
 @page "/branch/register"
+@page "/onboarding/branch"
+@inject HttpClient Http
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject AdminState State
 
 <PageTitle>DottIn Admin - Registrar Filial</PageTitle>
 
@@ -353,13 +356,25 @@
 
     private bool _isActive = true;
     private bool _loading;
+    private bool _isOnboarding;
 
     private string Name { get; set; } = "";
 
+    protected override void OnInitialized()
+    {
+        // Detect onboarding mode from route or query param
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var onboardingQuery = query["onboarding"];
+
+        _isOnboarding = Navigation.Uri.Contains("/onboarding/branch", StringComparison.OrdinalIgnoreCase)
+                        || (onboardingQuery != null && bool.TryParse(onboardingQuery, out var result) && result);
+    }
+
     private void OnDocumentTypeChanged(string newType)
     {
-        _documentType = newType; 
-        _document = "";          
+        _documentType = newType;
+        _document = "";
     }
 
     private IMask GetDocumentMask()
@@ -388,9 +403,83 @@
     private async Task HandleRegister()
     {
         _loading = true;
-        await Task.Delay(1000);
-        Snackbar.Add("Registro realizado com sucesso!", Severity.Success);
-        Navigation.NavigateTo("/");
-        _loading = false;
+
+        try
+        {
+            var cleanDocument = _document.Replace(".", "").Replace("-", "").Replace("/", "");
+
+            var request = new
+            {
+                Name = Name.Trim(),
+                Document = new { Value = cleanDocument, Type = _documentType },
+                Geolocation = new { Latitude = 0.0, Longitude = 0.0 },
+                Address = new
+                {
+                    Street = _street,
+                    Number = _number,
+                    City = _city,
+                    State = _state,
+                    ZipCode = _zipCode.Replace("-", ""),
+                    Complement = _complement
+                },
+                TimeZoneId = string.IsNullOrWhiteSpace(_timeZoneId) ? "E. South America Standard Time" : _timeZoneId,
+                StartWorkTime = _startWorkTime.HasValue ? TimeOnly.FromTimeSpan(_startWorkTime.Value).ToString("HH:mm:ss") : "08:00:00",
+                EndWorkTime = _endWorkTime.HasValue ? TimeOnly.FromTimeSpan(_endWorkTime.Value).ToString("HH:mm:ss") : "18:00:00",
+                Email = _email,
+                PhoneNumber = _phone,
+                OwnerId = State.IsAuthenticated ? State.EmployeeId : (Guid?)null,
+                IsHeadQuarters = true,
+                AllowedRadiusMeters = 100,
+                ToleranceMinutes = _toleranceMinutes > 0 ? _toleranceMinutes : 10
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/branches", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<CreateBranchResponse>();
+
+                if (_isOnboarding && result is not null)
+                {
+                    // Update state with the newly created branch ID and company code
+                    var currentSession = await State.GetSessionAsync();
+                    if (currentSession is not null)
+                    {
+                        var updatedSession = currentSession with 
+                        { 
+                            BranchId = result.BranchId, 
+                            CompanyCode = result.CompanyCode 
+                        };
+                        await State.SetAuthenticatedAsync(updatedSession);
+                    }
+
+                    // Onboarding flow: redirect to success page with CompanyCode
+                    var encodedName = Uri.EscapeDataString(Name.Trim());
+                    Navigation.NavigateTo(
+                        $"/onboarding/success?code={result.CompanyCode}&name={encodedName}",
+                        replace: true);
+                }
+                else
+                {
+                    Snackbar.Add("Filial registrada com sucesso!", Severity.Success);
+                    Navigation.NavigateTo("/dashboard", replace: true);
+                }
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Snackbar.Add("Erro ao registrar filial. Tente novamente.", Severity.Error);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Não foi possível conectar ao servidor.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
+
+    private record CreateBranchResponse(Guid BranchId, string CompanyCode);
 }

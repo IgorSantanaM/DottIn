@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Shared.DTOS;
+using DottIn.Application.Shared.DTOS;
 
 namespace DottIn.Application.Features.Branches.DTOs
 {
@@ -17,6 +17,7 @@ namespace DottIn.Application.Features.Branches.DTOs
                     int ToleranceMinute,
                     int AllowedRadiusMeters,
                     DateTime CreatedAt,
-                    DateTime? LastUpdatedAt
+                    DateTime? LastUpdatedAt,
+                    string CompanyCode
                     );
 }
