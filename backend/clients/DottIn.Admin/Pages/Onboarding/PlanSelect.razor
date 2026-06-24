@@ -1,0 +1,311 @@
+@page "/onboarding/plan"
+@inject AdminState State
+@inject NavigationManager Navigation
+
+<PageTitle>Escolha seu Plano – DottIn</PageTitle>
+
+@if (!State.IsAuthenticated)
+{
+    <MudText>Redirecionando...</MudText>
+}
+else
+{
+    <div class="plan-page">
+        <!-- Brand Wordmark -->
+        <div class="brand">
+            <span class="brand-dott">Dott</span><span class="brand-in">In</span>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="stepper">
+            <div class="step active">
+                <div class="step-circle active">1</div>
+                <span class="step-label active">Plano</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-circle">2</div>
+                <span class="step-label">Filial</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <span class="step-label">Pronto</span>
+            </div>
+        </div>
+
+        <!-- Plan Card -->
+        <div class="plan-card">
+            <div class="recommended-badge">Recomendado</div>
+
+            <h2 class="plan-name">Plano Pro</h2>
+
+            <div class="plan-price">
+                <span class="price-value">R$ 60</span>
+                <span class="price-suffix">/mês</span>
+            </div>
+
+            <div class="features">
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Para pequenas equipes</span>
+                </div>
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Até 15 funcionários</span>
+                </div>
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Ponto por PIN</span>
+                </div>
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Até 2 filiais</span>
+                </div>
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Relatórios básicos</span>
+                </div>
+                <div class="feature-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
+                    <span>Suporte por e-mail</span>
+                </div>
+            </div>
+
+            <button class="btn-flat" @onclick="SelectPlan">Selecionar Plano Pro</button>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">© 2026 DottIn</div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!State.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private void SelectPlan()
+    {
+        Navigation.NavigateTo("/onboarding/branch");
+    }
+}
+
+<style>
+    .plan-page {
+        min-height: 100vh;
+        background: #0B1120;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px 16px 32px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Brand */
+    .brand {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 40px;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-dott {
+        color: #F8FAFC;
+    }
+
+    .brand-in {
+        color: #2563EB;
+    }
+
+    /* Stepper */
+    .stepper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        margin-bottom: 48px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+    }
+
+    .step-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+        border: 2px solid #1E293B;
+        color: #475569;
+        background: #0B1120;
+        transition: all 0.3s ease;
+    }
+
+    .step-circle.active {
+        border-color: #2563EB;
+        background: #2563EB;
+        color: #FFFFFF;
+        box-shadow: 0 0 16px rgba(37, 99, 235, 0.35);
+    }
+
+    .step-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        transition: color 0.3s ease;
+    }
+
+    .step-label.active {
+        color: #F8FAFC;
+    }
+
+    .step-line {
+        width: 64px;
+        height: 2px;
+        background: #1E293B;
+        margin: 0 12px;
+        margin-bottom: 24px;
+    }
+
+    /* Plan Card */
+    .plan-card {
+        background: #111827;
+        border: 1px solid #1E293B;
+        border-radius: 16px;
+        padding: 40px 36px 36px;
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.15);
+        animation: cardFadeIn 0.5s ease-out;
+    }
+
+    @@keyframes cardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .recommended-badge {
+        position: absolute;
+        top: -13px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #1E3A5F, #2563EB);
+        color: #FFFFFF;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 20px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 16px rgba(37, 99, 235, 0.3);
+        white-space: nowrap;
+    }
+
+    .plan-name {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F8FAFC;
+        margin: 12px 0 8px;
+        letter-spacing: -0.3px;
+    }
+
+    .plan-price {
+        margin-bottom: 28px;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+    }
+
+    .price-value {
+        font-size: 40px;
+        font-weight: 700;
+        color: #F8FAFC;
+        letter-spacing: -1px;
+    }
+
+    .price-suffix {
+        font-size: 16px;
+        font-weight: 400;
+        color: #475569;
+    }
+
+    /* Features */
+    .features {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-bottom: 32px;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #CBD5E1;
+        font-size: 15px;
+        font-weight: 400;
+    }
+
+    .feature-item .feature-icon {
+        color: #10B981 !important;
+        flex-shrink: 0;
+    }
+
+    /* CTA Button */
+    .btn-flat {
+        width: 100%;
+        height: 44px;
+        background: #2563EB;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background 0.2s ease, box-shadow 0.2s ease;
+        text-transform: none;
+        box-shadow: none;
+    }
+
+    .btn-flat:hover {
+        background: #1D4ED8;
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-flat:active {
+        background: #1E40AF;
+    }
+
+    /* Footer */
+    .footer {
+        margin-top: auto;
+        padding-top: 48px;
+        font-size: 13px;
+        color: #334155;
+        font-weight: 400;
+    }
+</style>

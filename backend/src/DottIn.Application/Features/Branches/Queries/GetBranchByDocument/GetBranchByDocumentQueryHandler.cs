@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Exceptions;
+using DottIn.Application.Exceptions;
 using DottIn.Application.Features.Branches.DTOs;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Branches;
@@ -48,7 +48,8 @@ namespace DottIn.Application.Features.Branches.Queries.GetBranchByDocument
                     branch.ToleranceMinutes,
                     branch.AllowedRadiusMeters,
                     branch.CreatedAt,
-                    branch.UpdatedAt);
+                    branch.UpdatedAt,
+                    branch.CompanyCode);
 
             return result;
         }

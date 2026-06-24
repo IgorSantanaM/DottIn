@@ -1,0 +1,459 @@
+@page "/onboarding/success"
+@inject AdminState State
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn - Empresa Pronta</PageTitle>
+
+<style>
+    /* ── Layout ── */
+    .success-container {
+        position: relative;
+        min-height: 100vh;
+        width: 100vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0B1120;
+        font-family: 'Inter', sans-serif;
+        padding: 16px;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .success-wrap {
+        width: 100%;
+        max-width: 520px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* ── Brand ── */
+    .brand-logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .brand-wordmark {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .brand-wordmark-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F8FAFC;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-wordmark-dot {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2563EB;
+    }
+
+    .brand-subtitle-text {
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* ── Stepper ── */
+    .stepper-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+    }
+
+    .step-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        min-width: 80px;
+    }
+
+    .step-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+
+    .step-circle.completed {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10B981;
+    }
+
+    .step-circle.active {
+        background: #10B981;
+        color: #FFFFFF;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+    }
+
+    .step-circle .check-icon {
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .step-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .step-label.active {
+        color: #10B981;
+    }
+
+    .step-connector {
+        width: 48px;
+        height: 2px;
+        background: #10B981;
+        margin-bottom: 22px;
+        border-radius: 1px;
+    }
+
+    /* ── Card ── */
+    .success-card {
+        background: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 16px !important;
+    }
+
+    /* ── Success icon ── */
+    .success-icon-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+
+    .success-icon-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(16, 185, 129, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: successPulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes successPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.08); opacity: 0.85; }
+    }
+
+    .success-icon-circle .mud-icon-root {
+        color: #10B981 !important;
+        font-size: 32px !important;
+    }
+
+    /* ── Link box ── */
+    .link-section {
+        margin-top: 16px;
+    }
+
+    .link-section-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #94A3B8;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .link-section-label .mud-icon-root {
+        font-size: 16px !important;
+        color: #64748B !important;
+    }
+
+    .link-box {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0B1120;
+    }
+
+    .link-url {
+        flex: 1;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-family: 'Inter', monospace;
+        color: #F8FAFC;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: transparent;
+        user-select: all;
+    }
+
+    .link-copy-btn {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border-radius: 0 8px 8px 0 !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        min-width: 120px !important;
+        box-shadow: none !important;
+        border-left: 1px solid #1E293B !important;
+        letter-spacing: 0 !important;
+    }
+
+        .link-copy-btn:hover {
+            background: #1D4ED8 !important;
+        }
+
+    .link-helper {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
+    /* ── CTA Button ── */
+    .btn-flat {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        height: 44px !important;
+        box-shadow: none !important;
+        transition: background-color 0.2s ease;
+    }
+
+        .btn-flat:hover:not(:disabled) {
+            background: #1D4ED8 !important;
+        }
+
+    /* ── Confetti ── */
+    .confetti-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+    }
+
+    .confetti-piece {
+        position: absolute;
+        top: -20px;
+        width: 10px;
+        height: 16px;
+        border-radius: 2px;
+        opacity: 0;
+        animation: confettiFall linear forwards;
+    }
+
+    @@keyframes confettiFall {
+        0% {
+            opacity: 1;
+            transform: translateY(0) rotateZ(0deg) rotateX(0deg);
+        }
+        25% {
+            opacity: 1;
+        }
+        75% {
+            opacity: 0.7;
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(105vh) rotateZ(720deg) rotateX(360deg);
+        }
+    }
+
+    @@keyframes confettiSway1 {
+        0%, 100% { margin-left: 0; }
+        50% { margin-left: 30px; }
+    }
+
+    @@keyframes confettiSway2 {
+        0%, 100% { margin-left: 0; }
+        50% { margin-left: -25px; }
+    }
+</style>
+
+@* ── Confetti overlay ── *@
+<div class="confetti-container">
+    @for (int i = 0; i < 28; i++)
+    {
+        var idx = i;
+        var colors = new[] { "#2563EB", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6" };
+        var color = colors[idx % colors.Length];
+        var left = (idx * 3.7) % 100;
+        var delay = (idx * 0.18) + (idx % 3) * 0.1;
+        var duration = 2.8 + (idx % 5) * 0.4;
+        var width = 6 + (idx % 4) * 3;
+        var height = 8 + (idx % 3) * 5;
+        <div class="confetti-piece"
+             style="left: @(left.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;
+                    background: @color;
+                    width: @(width)px;
+                    height: @(height)px;
+                    animation-delay: @(delay.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))s;
+                    animation-duration: @(duration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))s;"></div>
+    }
+</div>
+
+<div class="success-container">
+    <div class="success-wrap">
+
+        @* ── Brand ── *@
+        <div class="brand-logo-wrap">
+            <div class="brand-wordmark">
+                <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
+            </div>
+            <div class="brand-subtitle-text">Painel Administrativo</div>
+        </div>
+
+        @* ── Stepper ── *@
+        <div class="stepper-bar">
+            <div class="step-node">
+                <div class="step-circle completed">
+                    <span class="check-icon">✓</span>
+                </div>
+                <span class="step-label">Plano</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-node">
+                <div class="step-circle completed">
+                    <span class="check-icon">✓</span>
+                </div>
+                <span class="step-label">Filial</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-node">
+                <div class="step-circle active">
+                    <span class="check-icon">✓</span>
+                </div>
+                <span class="step-label active">Pronto</span>
+            </div>
+        </div>
+
+        @* ── Success Card ── *@
+        <MudCard Class="success-card" Elevation="0">
+            <MudCardContent Class="pa-6">
+
+                <div class="success-icon-wrap">
+                    <div class="success-icon-circle">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </div>
+                </div>
+
+                <MudText Typo="Typo.h6" Style="color: #F8FAFC; font-weight: 600;" Class="mb-1 text-center">
+                    Sua empresa está pronta!
+                </MudText>
+                <MudText Typo="Typo.body2" Style="color: #475569;" Class="mb-4 text-center">
+                    A filial @BranchName foi criada com sucesso.
+                </MudText>
+
+                @* ── Employee Login Link ── *@
+                <div class="link-section">
+                    <div class="link-section-label">
+                        <MudIcon Icon="@Icons.Material.Filled.Link" />
+                        Link de acesso dos funcionários
+                    </div>
+                    <div class="link-box">
+                        <div class="link-url">@EmployeeLink</div>
+                        <MudButton Variant="Variant.Filled"
+                                   Class="link-copy-btn"
+                                   OnClick="CopyLink"
+                                   id="copy-link-btn">
+                            <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Class="mr-1" />
+                            Copiar Link
+                        </MudButton>
+                    </div>
+                    <div class="link-helper">
+                        Compartilhe este link com seus funcionários para que eles acessem o sistema da sua empresa.
+                    </div>
+                </div>
+
+                @* ── CTA ── *@
+                <MudButton Variant="Variant.Filled"
+                           Class="btn-flat mt-6"
+                           FullWidth="true"
+                           OnClick="GoToDashboard"
+                           id="go-dashboard-btn">
+                    Ir para o Painel
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ml-2" Size="Size.Small" />
+                </MudButton>
+
+            </MudCardContent>
+        </MudCard>
+
+        @* ── Footer ── *@
+        <div style="text-align: center;">
+            <MudText Typo="Typo.caption" Style="color: #334155;">
+                &copy; 2026 DottIn
+            </MudText>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string CompanyCode = "";
+    private string BranchName = "";
+    private string EmployeeLink = "";
+
+    protected override void OnInitialized()
+    {
+        if (!State.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        // Parse query parameters
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        CompanyCode = query["code"] ?? State.CompanyCode;
+        BranchName = query["name"] ?? "Principal";
+
+        // Build employee login link
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        EmployeeLink = $"{baseUri}/?empresa={CompanyCode}";
+    }
+
+    private async Task CopyLink()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", EmployeeLink);
+            Snackbar.Add("Link copiado!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Não foi possível copiar o link.", Severity.Error);
+        }
+    }
+
+    private void GoToDashboard()
+    {
+        Navigation.NavigateTo("/", replace: true);
+    }
+}
