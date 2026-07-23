@@ -35,6 +35,18 @@ namespace DottIn.Infra.Data.Repositories
                 .FirstOrDefaultAsync(e => e.BranchId == branchId && e.CPF.Value == sanitizedCpf, token);
         }
 
+        public async Task<Employee?> GetByTenantAndCPFAsync(Guid tenantId, string cpf, CancellationToken token = default)
+        {
+            var sanitizedCpf = new string(cpf.Where(char.IsDigit).ToArray());
+            var branchIds = context.Branches
+                .Where(b => b.OwnerId == tenantId || b.Id == tenantId)
+                .Select(b => b.Id);
+
+            return await context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => branchIds.Contains(e.BranchId) && e.CPF.Value == sanitizedCpf, token);
+        }
+
         public async Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
         {
             var branchIds = await context.Branches
@@ -45,7 +57,7 @@ namespace DottIn.Infra.Data.Repositories
 
             return await context.Employees
                 .AsNoTracking()
-                .Where(e => branchIds.Contains(e.BranchId) && e.IsActive)
+                .Where(e => branchIds.Contains(e.BranchId) && e.IsActive && e.Role != EmployeeRole.Owner)
                 .CountAsync(token);
         }
 

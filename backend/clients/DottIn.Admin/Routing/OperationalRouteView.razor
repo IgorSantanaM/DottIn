@@ -1,0 +1,59 @@
+@inject AdminState State
+@inject NavigationManager Navigation
+
+@if (CanRenderRoute)
+{
+    <RouteView RouteData="RouteData" DefaultLayout="DefaultLayout" />
+}
+else if (IsResolving)
+{
+    <LayoutView Layout="DefaultLayout">
+        <div class="d-flex align-center justify-center" style="min-height: 100vh;">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    </LayoutView>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = default!;
+
+    [Parameter]
+    public Type? DefaultLayout { get; set; }
+
+    private bool RequiresOperationalAccess
+        => Attribute.IsDefined(
+            RouteData.PageType,
+            typeof(OperationalAccessRequiredAttribute));
+
+    private bool CanRenderRoute
+        => !RequiresOperationalAccess || State.CanAccessOperationalModules;
+
+    private bool IsResolving
+        => RequiresOperationalAccess
+           && State.IsAuthenticated
+           && !State.IsOperationalAccessResolved;
+
+    private string? RedirectTarget
+    {
+        get
+        {
+            if (!RequiresOperationalAccess)
+                return null;
+
+            if (!State.IsAuthenticated)
+                return "/";
+
+            return State.IsOperationalAccessResolved && !State.CanAccessOperationalModules
+                ? "/welcome"
+                : null;
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var target = RedirectTarget;
+        if (target is not null)
+            Navigation.NavigateTo(target, replace: true);
+    }
+}

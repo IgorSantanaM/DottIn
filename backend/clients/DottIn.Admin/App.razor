@@ -1,5 +1,6 @@
 ﻿@inject AdminState State
 @inject AuthService Auth
+@inject OperationalAccessService OperationalAccess
 @implements IDisposable
 
 <MudThemeProvider Theme="_theme" IsDarkMode="State.IsDarkMode" />
@@ -9,7 +10,7 @@
 
 <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <OperationalRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
 </Router>
@@ -19,6 +20,8 @@
     {
         State.OnChange += StateHasChanged;
         await Auth.InitializeAsync();
+        if (State.IsAuthenticated)
+            await OperationalAccess.RefreshAsync();
     }
 
     public void Dispose() => State.OnChange -= StateHasChanged;

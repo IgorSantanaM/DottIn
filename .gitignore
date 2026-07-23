@@ -5,6 +5,7 @@
 
 # dotenv files
 .env
+.hermes
 
 # User-specific files
 *.rsuser

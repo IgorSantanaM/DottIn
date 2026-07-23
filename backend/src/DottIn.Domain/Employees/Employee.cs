@@ -21,6 +21,8 @@ namespace DottIn.Domain.Employees
         public DateTime? UpdatedAt { get; private set; }
         public bool IsActive { get; private set; }
         public bool AllowOvernightShifts { get; private set; }
+        public EmployeeRole Role { get; private set; }
+        public bool IsSeatBillable => Role != EmployeeRole.Owner;
 
         private Employee() { }
 
@@ -49,6 +51,7 @@ namespace DottIn.Domain.Employees
             IntervalStart = TimeOnly.MinValue;
             IntervalEnd = TimeOnly.MinValue;
             IsActive = true;
+            Role = EmployeeRole.Owner;
             CreatedAt = DateTime.UtcNow;
 
             SetPassword(password);
@@ -83,6 +86,7 @@ namespace DottIn.Domain.Employees
             CPF = cpf;
             BranchId = branchId;
             IsActive = true;
+            Role = EmployeeRole.Employee;
             CreatedAt = DateTime.UtcNow;
         }
 
@@ -115,7 +119,29 @@ namespace DottIn.Domain.Employees
         {
             if (IsActive) return;
             IsActive = true;
-            UpdatedAt = DateTime.Now;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void AssociateOwnerWithBranch(Guid branchId)
+        {
+            if (Role != EmployeeRole.Owner || BranchId != Guid.Empty)
+                throw new DomainException("O proprietário já está associado a uma filial.");
+            if (branchId == Guid.Empty)
+                throw new DomainException("A filial é obrigatória.");
+
+            BranchId = branchId;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetRole(EmployeeRole role)
+        {
+            if (role == EmployeeRole.Owner)
+                throw new DomainException("O papel de proprietário não pode ser atribuído manualmente.");
+            if (Role == EmployeeRole.Owner)
+                throw new DomainException("O papel do proprietário não pode ser alterado.");
+
+            Role = role;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void Deactivate()
@@ -127,7 +153,14 @@ namespace DottIn.Domain.Employees
 
         public void SetPassword(string password)
         {
-            if (string.IsNullOrWhiteSpace(password)) throw new DomainException("Senha inválida.");
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 10 ||
+                !password.Any(char.IsUpper) || !password.Any(char.IsLower) ||
+                !password.Any(char.IsDigit) || password.All(char.IsLetterOrDigit))
+            {
+                throw new DomainException(
+                    "A senha deve ter ao menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.");
+            }
+
             PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword(password);
             UpdatedAt = DateTime.UtcNow;
         }

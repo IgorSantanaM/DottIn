@@ -1,4 +1,6 @@
 @page "/register"
+@using System.Text.Json
+@using static DottIn.Admin.Services.AuthService
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -354,12 +356,15 @@
             }
             else
             {
-                var body = await response.Content.ReadAsStringAsync();
-                if (response.StatusCode == System.Net.HttpStatusCode.Conflict ||
-                    body.Contains("CPF", StringComparison.OrdinalIgnoreCase))
+                var content = await response.Content.ReadAsStringAsync();
+                var body = JsonSerializer.Deserialize<ValidationErrorResponse>(content, new JsonSerializerOptions{
+                    PropertyNameCaseInsensitive = true
+                });
+                if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
                 {
-                    Snackbar.Add("Já existe uma conta com este CPF.", Severity.Warning);
+                    Snackbar.Add(body!.Title, Severity.Warning);
                 }
+                
                 else
                 {
                     Snackbar.Add("Erro ao criar conta. Tente novamente.", Severity.Error);

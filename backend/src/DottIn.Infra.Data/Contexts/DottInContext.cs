@@ -14,12 +14,14 @@ namespace DottIn.Infra.Data.Contexts
     {
         public DbSet<Branch> Branches { get; set; }
         public DbSet<Employee> Employees { get; set; }
+        public DbSet<EmployeeInvitation> EmployeeInvitations { get; set; }
         public DbSet<TimeKeeping> TimeKeepings { get; set; }
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<DominioEmployeeMapping> DominioEmployeeMappings { get; set; }
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<TenantSubscription> TenantSubscriptions { get; set; }
+        public DbSet<StripeWebhookReceipt> StripeWebhookReceipts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -12,6 +12,7 @@ using DottIn.Presentation.WebApi.DTOs.TimeKeepings;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -22,7 +23,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/timekeeping")
-                .WithTags(Tag);
+                .WithTags(Tag)
+                .RequireAuthorization()
+                .AddEndpointFilter<TenantAuthorizationFilter>();
 
             group.MapGet("/branch/{branchId:guid}/current", HandleGetCurrentTimeKeepingAsync)
                 .WithName(nameof(HandleGetCurrentTimeKeepingAsync))
@@ -137,15 +140,18 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleClockInAsync(
             [FromBody] ClockInRequest request,
             [FromServices] IMediator mediator,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
-            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var source = ResolveClockSource(requestedSource, request.EmployeeId, currentUser);
+            var skipGeolocation = request.SkipGeolocationValidation && currentUser.IsAdministrator;
 
             var command = new ClockInCommand(
                 request.BranchId,
                 request.EmployeeId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation,
+                skipGeolocation,
                 source);
 
             var timeKeepingId = await mediator.Send(command, cancellationToken);
@@ -158,15 +164,18 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleClockOutAsync(
             [FromBody] ClockOutRequest request,
             [FromServices] IMediator mediator,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
-            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var source = ResolveClockSource(requestedSource, request.EmployeeId, currentUser);
+            var skipGeolocation = request.SkipGeolocationValidation && currentUser.IsAdministrator;
 
             var command = new ClockOutCommand(
                 request.BranchId,
                 request.EmployeeId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation,
+                skipGeolocation,
                 source);
 
             await mediator.Send(command, cancellationToken);
@@ -176,19 +185,34 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleBreakAsync(
             [FromBody] BreakRequest request,
             [FromServices] IMediator mediator,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
-            var source = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
+            var source = ResolveClockSource(requestedSource, request.EmployeeId, currentUser);
+            var skipGeolocation = request.SkipGeolocationValidation && currentUser.IsAdministrator;
 
             var command = new BreakCommand(
                 request.EmployeeId,
                 request.BranchId,
                 new GeolocationDto(request.Latitude, request.Longitude),
-                request.SkipGeolocationValidation,
+                skipGeolocation,
                 source);
 
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
+        }
+
+        private static ClockSource ResolveClockSource(
+            ClockSource requestedSource,
+            Guid employeeId,
+            CurrentUserContext currentUser)
+        {
+            if (!currentUser.IsManager)
+                return ClockSource.Mobile;
+            if (employeeId != currentUser.EmployeeId)
+                return ClockSource.Kiosk;
+            return requestedSource;
         }
 
         #endregion

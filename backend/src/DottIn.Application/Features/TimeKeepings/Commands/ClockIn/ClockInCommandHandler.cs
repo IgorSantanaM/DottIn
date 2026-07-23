@@ -28,6 +28,9 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
             if (!employee.IsActive)
                 throw new DomainException("Funcionário está desativado e não poderá bater ponto.");
 
+            if (employee.BranchId != request.BranchId)
+                throw new DomainException("O funcionário não pertence à filial informada.");
+
             var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
 
             if (branch is null)
@@ -40,18 +43,32 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
                 !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
                 throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var nowUtc = DateTime.UtcNow;
+            var activeTimeKeeping = await timeKeepingRepository.GetActiveByEmployeeAsync(
+                request.EmployeeId, cancellationToken);
+
+            if (activeTimeKeeping is not null)
+                throw new DomainException("Já existe uma jornada em andamento para este funcionário.");
+
+            var today = BranchTime.GetLocalDate(nowUtc, branch.TimeZoneId);
             var existingTimeKeeping = await timeKeepingRepository.GetTodayByEmployeeAsync(
                 request.EmployeeId, today, cancellationToken);
 
             if (existingTimeKeeping is not null)
-                return existingTimeKeeping.Id;
+                throw new DomainException("A jornada deste dia já foi registrada.");
 
             var geolocation = new Geolocation(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude);
 
-            var timeKeeping = new TimeKeeping(request.BranchId, request.EmployeeId, geolocation, request.Source);
+            var timeKeeping = new TimeKeeping(
+                request.BranchId,
+                request.EmployeeId,
+                geolocation,
+                today,
+                branch.TimeZoneId,
+                nowUtc,
+                request.Source);
 
-            timeKeeping.ClockIn(DateTime.UtcNow);
+            timeKeeping.ClockIn(nowUtc);
 
             await timeKeepingRepository.AddAsync(timeKeeping, cancellationToken);
 

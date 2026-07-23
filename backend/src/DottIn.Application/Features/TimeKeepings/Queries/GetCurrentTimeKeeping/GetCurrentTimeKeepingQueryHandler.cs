@@ -1,4 +1,5 @@
 ﻿using DottIn.Application.Features.TimeKeepings.DTOs;
+using DottIn.Domain.Branches;
 using DottIn.Domain.TimeKeepings;
 using FluentValidation;
 using MediatR;
@@ -15,7 +16,10 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetCurrentTimeKeeping
             var timeKeepings = await timeKeepingRepository.GetActiveByBranchAsync(request.BranchId, cancellationToken);
 
             IEnumerable<TimeKeepingSummaryDto> timeKeepingSummariesDto = timeKeepings
-                .Select(tk => new TimeKeepingSummaryDto(tk.Status, tk.CreatedAt, tk.Entries.Count));
+                .Select(tk => new TimeKeepingSummaryDto(
+                    tk.Status,
+                    BranchTime.ToLocal(tk.CreatedAt, tk.TimeZoneId),
+                    tk.Entries.Count));
 
             return timeKeepingSummariesDto;
         }

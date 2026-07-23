@@ -84,11 +84,6 @@
         animation: logo-pulse 3s ease-in-out infinite;
     }
 
-    @keyframes logo-pulse {
-        0%, 100% { box-shadow: 0 0 30px rgba(37, 99, 235, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4); }
-        50% { box-shadow: 0 0 45px rgba(37, 99, 235, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4); }
-    }
-
     .brand-logo-mark svg {
         width: 28px;
         height: 28px;
@@ -524,9 +519,9 @@
             await SecureStorage.SetAsync("company_code", _companyCode);
             _step = LoginStep.Credentials;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            Snackbar.Add("Empresa não encontrada", Severity.Error);
+            Snackbar.Add(ex.Message, Severity.Error);
         }
         finally
         {

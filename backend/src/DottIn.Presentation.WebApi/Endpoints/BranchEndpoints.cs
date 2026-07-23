@@ -18,6 +18,7 @@ using DottIn.Presentation.WebApi.DTOs.Branches;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -28,7 +29,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/branches")
-                .WithTags(Tag);
+                .WithTags(Tag)
+                .RequireAuthorization()
+                .AddEndpointFilter<TenantAuthorizationFilter>();
 
             group.MapGet("/", HandleGetActiveBranchesAsync)
                 .WithName(nameof(HandleGetActiveBranchesAsync))
@@ -142,11 +145,12 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleGetActiveBranchesAsync(
             [FromServices] IMediator mediator,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
-            var query = new GetActiveBranchesQuery();
+            var query = new GetBranchByOwnerQuery(currentUser.TenantId);
             var branches = await mediator.Send(query, cancellationToken);
-            return Results.Ok(branches);
+            return Results.Ok(branches.Where(x => x.IsActive));
         }
 
         private static async Task<IResult> HandleGetBranchByIdAsync(
@@ -165,8 +169,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleGetBranchByDocumentAsync(
             [FromRoute] string document,
             [FromServices] IMediator mediator,
+            [FromServices] IBranchRepository branchRepository,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
+            var entity = await branchRepository.GetByDocumentAsync(document, cancellationToken);
+            if (entity?.OwnerId != currentUser.TenantId)
+                return Results.NotFound();
+
             var query = new GetBranchByDocumentQuery(document);
             var branch = await mediator.Send(query, cancellationToken);
 
@@ -187,11 +197,12 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleGetHeadquartersAsync(
             [FromServices] IMediator mediator,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
-            var query = new GetBranchHeadquartesQuery();
+            var query = new GetBranchByOwnerQuery(currentUser.TenantId);
             var branches = await mediator.Send(query, cancellationToken);
-            return Results.Ok(branches);
+            return Results.Ok(branches.Where(x => x.IsHeadquarters));
         }
 
         #endregion
@@ -202,8 +213,20 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromBody] CreateBranchCommand command,
             [FromServices] IMediator mediator,
             [FromServices] IBranchRepository branchRepository,
+            [FromServices] CurrentUserContext currentUser,
             CancellationToken cancellationToken)
         {
+            if (!currentUser.IsAdministrator)
+                return Results.Forbid();
+
+            var existingBranches = await branchRepository.GetByOwnerIdAsync(currentUser.TenantId, cancellationToken);
+            var isFirstBranch = !existingBranches.Any();
+            command = command with
+            {
+                OwnerId = currentUser.TenantId,
+                IsHeadQuarters = isFirstBranch
+            };
+
             var branchId = await mediator.Send(command, cancellationToken);
 
             if (branchId == Guid.Empty)

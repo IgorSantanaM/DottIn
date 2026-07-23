@@ -20,7 +20,7 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeeByCPF
             if (!branch.IsActive)
                 throw new DomainException("A empresa não esta ativa.");
 
-            var employee = await employeeRepository.GetByCPFAsync(request.CPF);
+            var employee = await employeeRepository.GetByCPFAsync(request.BranchId, request.CPF, cancellationToken);
 
             if (employee is null)
                 throw NotFoundException.ForEntity(nameof(Employee), request.CPF);

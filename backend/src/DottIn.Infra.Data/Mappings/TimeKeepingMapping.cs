@@ -1,4 +1,6 @@
-﻿using DottIn.Domain.TimeKeepings;
+﻿using DottIn.Domain.Branches;
+using DottIn.Domain.Employees;
+using DottIn.Domain.TimeKeepings;
 using DottIn.Infra.Data.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,7 +11,15 @@ namespace DottIn.Infra.Data.Mappings
     {
         public override void Configure(EntityTypeBuilder<TimeKeeping> builder)
         {
-            builder.ToTable("TimeKeepings");
+            builder.ToTable("TimeKeepings", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_TimeKeepings_Source",
+                    "\"Source\" IN ('Mobile', 'Web', 'Kiosk')");
+                table.HasCheckConstraint(
+                    "CK_TimeKeepings_TimeZoneId",
+                    "length(trim(\"TimeZoneId\")) > 0");
+            });
 
             builder.HasKey(tk => tk.Id);
 
@@ -22,6 +32,11 @@ namespace DottIn.Infra.Data.Mappings
             builder.Property(tk => tk.WorkDate)
                 .IsRequired()
                 .HasColumnType("date");
+
+            builder.Property(tk => tk.TimeZoneId)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasDefaultValue("UTC");
 
             builder.Property(tk => tk.CreatedAt)
                 .IsRequired()
@@ -43,6 +58,10 @@ namespace DottIn.Infra.Data.Mappings
                 .HasConversion<string>()
                 .HasMaxLength(20)
                 .HasDefaultValue(ClockSource.Mobile);
+
+            builder.Property(tk => tk.ConcurrencyToken)
+                .IsRequired()
+                .IsConcurrencyToken();
 
             builder.OwnsMany(tk => tk.Entries, entry =>
             {
@@ -77,6 +96,17 @@ namespace DottIn.Infra.Data.Mappings
             builder.HasIndex(tk => tk.EmployeeId);
 
             builder.HasIndex(tk => tk.BranchId);
+
+            builder.HasOne<Branch>()
+                .WithMany()
+                .HasForeignKey(tk => tk.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(tk => new { tk.BranchId, tk.EmployeeId })
+                .HasPrincipalKey(employee => new { employee.BranchId, employee.Id })
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

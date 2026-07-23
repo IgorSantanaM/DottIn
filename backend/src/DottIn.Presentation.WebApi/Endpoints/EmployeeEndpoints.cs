@@ -13,6 +13,7 @@ using DottIn.Presentation.WebApi.DTOs.Employees;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -23,7 +24,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/branches/{branchId:guid}/employees")
-                .WithTags(Tag);
+                .WithTags(Tag)
+                .RequireAuthorization()
+                .AddEndpointFilter<TenantAuthorizationFilter>();
 
             group.MapGet("/", HandleGetEmployeesByBranchAsync)
                 .WithName(nameof(HandleGetEmployeesByBranchAsync))
@@ -235,7 +238,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
-            var command = new ActivateEmployeeCommand(branchId, employeeId);
+            var command = new ActivateEmployeeCommand(employeeId, branchId);
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
         }
@@ -246,7 +249,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IMediator mediator,
             CancellationToken cancellationToken)
         {
-            var command = new DeactivateEmployeeCommand(branchId, employeeId);
+            var command = new DeactivateEmployeeCommand(employeeId, branchId);
             await mediator.Send(command, cancellationToken);
             return Results.NoContent();
         }

@@ -7,6 +7,7 @@ using DottIn.Domain.Exports;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints;
 
@@ -18,7 +19,8 @@ public class ExportEndpoints : IEndpoint
     {
         var group = app.MapGroup("/api/branches/{branchId}")
             .WithTags(Tag)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .AddEndpointFilter<TenantAuthorizationFilter>();
 
         group.MapGet("/dominio-mappings", HandleGetMappingsAsync);
         group.MapPut("/dominio-mappings", HandleSaveMappingsAsync);

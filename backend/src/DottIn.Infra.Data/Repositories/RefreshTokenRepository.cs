@@ -8,7 +8,7 @@ namespace DottIn.Infra.Data.Repositories
     {
         public async Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
             => await context.RefreshTokens
-                .FirstOrDefaultAsync(r => r.Token == token, cancellationToken);
+                .FirstOrDefaultAsync(r => r.Token == RefreshToken.HashToken(token), cancellationToken);
 
         public async Task<IEnumerable<RefreshToken>> GetActiveByEmployeeAsync(Guid employeeId, CancellationToken cancellationToken = default)
             => await context.RefreshTokens

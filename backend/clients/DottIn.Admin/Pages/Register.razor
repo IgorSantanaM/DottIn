@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject AdminState State
+@inject OperationalAccessService OperationalAccess
 
 <PageTitle>DottIn Admin - Registrar Filial</PageTitle>
 
@@ -451,6 +452,7 @@
                             CompanyCode = result.CompanyCode 
                         };
                         await State.SetAuthenticatedAsync(updatedSession);
+                        await OperationalAccess.RefreshAsync();
                     }
 
                     // Onboarding flow: redirect to success page with CompanyCode
