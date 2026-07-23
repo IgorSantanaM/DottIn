@@ -35,8 +35,6 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
             .GetByBranchAndPeriodAsync(request.BranchId, request.StartDate, request.EndDate, cancellationToken);
 
         var now = DateTime.UtcNow;
-        var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
-
         var holidays = await holidayCalendarRepository.GetHolidaysInRangeAsync(
             request.BranchId, request.StartDate, request.EndDate ?? request.StartDate.AddMonths(1));
         var holidayMap = holidays.ToDictionary(h => h.Date, h => h.Name);
@@ -78,7 +76,7 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
             var isNocturnal = false;
             if (clockIn.HasValue)
             {
-                var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                var localHour = BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId).Hour;
                 isNocturnal = localHour >= 22 || localHour < 6;
             }
 
@@ -87,8 +85,8 @@ public class GetBranchTimeKeepingByPeriodQueryHandler(
                 tk.EmployeeId,
                 employeeName,
                 tk.WorkDate,
-                clockIn,
-                clockOut,
+                clockIn.HasValue ? BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId) : null,
+                clockOut.HasValue ? BranchTime.ToLocal(clockOut.Value, tk.TimeZoneId) : null,
                 totalWorked,
                 totalBreak,
                 tk.Status.ToString(),

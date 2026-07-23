@@ -76,6 +76,12 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
 
             await branchRepository.AddAsync(branch, cancellationToken);
 
+            if (request.IsHeadQuarters && owner is not null && owner.BranchId == Guid.Empty)
+            {
+                owner.AssociateOwnerWithBranch(branch.Id);
+                await employeeRepository.UpdateAsync(owner);
+            }
+
             // If this is a Headquarters with an owner, create Stripe customer and Free subscription
             if (request.IsHeadQuarters && owner != null)
             {

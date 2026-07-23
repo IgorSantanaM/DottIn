@@ -16,6 +16,13 @@ public class AdminState(SessionStorageService storage)
     public bool IsOwner { get; private set; }
     public bool IsDarkMode { get; private set; }
     public string CompanyCode { get; private set; } = "";
+    public bool HasCompletedConfiguration => BranchId != Guid.Empty;
+    public bool HasLinkedPlan { get; private set; }
+    public bool IsOperationalAccessResolved { get; private set; }
+    public bool CanAccessOperationalModules => OperationalAccessPolicy.CanAccessModules(
+        BranchId,
+        HasLinkedPlan,
+        IsOperationalAccessResolved);
 
     public event Action? OnChange;
 
@@ -58,6 +65,13 @@ public class AdminState(SessionStorageService storage)
         OnChange?.Invoke();
     }
 
+    public void SetOperationalAccess(bool hasLinkedPlan)
+    {
+        HasLinkedPlan = hasLinkedPlan;
+        IsOperationalAccessResolved = true;
+        OnChange?.Invoke();
+    }
+
     private void ApplySession(AdminSession session)
     {
         IsAuthenticated = true;
@@ -69,6 +83,8 @@ public class AdminState(SessionStorageService storage)
         BranchId = session.BranchId;
         IsOwner = session.IsOwner;
         CompanyCode = session.CompanyCode;
+        HasLinkedPlan = false;
+        IsOperationalAccessResolved = session.BranchId == Guid.Empty;
     }
 
     private void ResetState()
@@ -82,6 +98,8 @@ public class AdminState(SessionStorageService storage)
         BranchId = Guid.Empty;
         IsOwner = false;
         CompanyCode = "";
+        HasLinkedPlan = false;
+        IsOperationalAccessResolved = false;
     }
 }
 

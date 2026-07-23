@@ -36,8 +36,6 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
             var timeKeepings = await timeKeepingRepository
                 .GetByEmployeeAndPeriodAsync(request.EmployeeId, request.StartDate, request.EndDate);
 
-            var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
-
             var holidays = await holidayCalendarRepository.GetHolidaysInRangeAsync(
                 branch.Id, request.StartDate, request.EndDate ?? request.StartDate.AddMonths(1));
             var holidayMap = holidays.ToDictionary(h => h.Date, h => h.Name);
@@ -78,15 +76,15 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
                 var isNocturnal = false;
                 if (clockIn.HasValue)
                 {
-                    var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                    var localHour = BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId).Hour;
                     isNocturnal = localHour >= 22 || localHour < 6;
                 }
 
                 return new TimeKeepingRecordDto(
                     tk.Id,
                     tk.WorkDate,
-                    clockIn,
-                    clockOut,
+                    clockIn.HasValue ? BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId) : null,
+                    clockOut.HasValue ? BranchTime.ToLocal(clockOut.Value, tk.TimeZoneId) : null,
                     totalWorked,
                     totalBreak,
                     tk.Status.ToString(),

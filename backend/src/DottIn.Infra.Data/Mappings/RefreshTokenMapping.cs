@@ -30,6 +30,12 @@ namespace DottIn.Infra.Data.Mappings
 
             builder.Property(r => r.RevokedAt);
 
+            builder.Property(r => r.ConcurrencyToken)
+                .IsRequired()
+                .IsConcurrencyToken();
+
+            builder.Ignore(r => r.PlainTextToken);
+
             builder.HasIndex(r => r.Token)
                 .IsUnique();
 

@@ -2,7 +2,7 @@ namespace DottIn.Presentation.WebApi.DTOs.Billing
 {
     public record StripeConfigResponse(string PublishableKey);
 
-    public record CreateCheckoutSessionRequest(string PriceId);
+    public record CreateCheckoutSessionRequest(Guid PlanId);
 
     public record CheckoutSessionResponse(string CheckoutUrl);
 

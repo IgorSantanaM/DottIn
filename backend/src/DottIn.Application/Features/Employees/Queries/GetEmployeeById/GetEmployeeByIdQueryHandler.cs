@@ -27,6 +27,9 @@ namespace DottIn.Application.Features.Employees.Queries.GetEmployeeById
             if (employee is null)
                 throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
 
+            if (employee.BranchId != request.BranchId)
+                throw NotFoundException.ForEntity(nameof(Employee), request.EmployeeId);
+
             var employeeSummaryDto = new EmployeeSummaryDto(employee.Id,
                         employee.Name,
                         new DocumentDto(employee.CPF.Value, employee.CPF.Type),

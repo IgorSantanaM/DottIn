@@ -7,12 +7,14 @@ using DottIn.Presentation.WebApi.DTOs.Billing;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
     public class BillingEndpoints : IEndpoint
     {
         private const string Tag = "Billing";
+        private static readonly string[] PublicPlanNames = ["Basic", "Starter", "Pro"];
 
         public static void DefineEndpoints(WebApplication app)
         {
@@ -69,34 +71,27 @@ namespace DottIn.Presentation.WebApi.Endpoints
         {
             var plans = await planRepository.GetAllActiveAsync(cancellationToken);
 
-            var response = plans.Select(p => new SubscriptionPlanResponse(
-                p.Id,
-                p.Name,
-                p.StripePriceId,
-                p.MaxEmployees,
-                p.MaxBranches,
-                p.MonthlyPriceBRL,
-                p.HasUnlimitedEmployees,
-                p.HasUnlimitedBranches));
+            var response = plans
+                .Where(p => PublicPlanNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+                .Select(p => new SubscriptionPlanResponse(
+                    p.Id,
+                    p.Name,
+                    p.StripePriceId,
+                    p.MaxEmployees,
+                    p.MaxBranches,
+                    p.MonthlyPriceBRL,
+                    p.HasUnlimitedEmployees,
+                    p.HasUnlimitedBranches));
 
             return Results.Ok(response);
         }
 
         private static async Task<IResult> HandleGetSubscriptionAsync(
-            ClaimsPrincipal user,
-            [FromServices] IBranchRepository branchRepository,
+            [FromServices] CurrentUserContext currentUser,
             [FromServices] ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken)
         {
-            var branchIdClaim = user.FindFirstValue("BranchId");
-            if (string.IsNullOrEmpty(branchIdClaim) || !Guid.TryParse(branchIdClaim, out var branchId))
-                return Results.Unauthorized();
-
-            var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
-            if (branch?.OwnerId == null)
-                return Results.NotFound(new { Message = "Filial não encontrada ou sem proprietário." });
-
-            var subscription = await subscriptionService.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
+            var subscription = await subscriptionService.GetByOwnerIdAsync(currentUser.TenantId, cancellationToken);
             if (subscription == null)
                 return Results.NotFound(new { Message = "Assinatura não encontrada." });
 
@@ -117,30 +112,31 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleCreateCheckoutSessionAsync(
             [FromBody] CreateCheckoutSessionRequest request,
-            ClaimsPrincipal user,
-            [FromServices] IBranchRepository branchRepository,
+            [FromServices] CurrentUserContext currentUser,
             [FromServices] ITenantSubscriptionRepository subscriptionRepository,
+            [FromServices] ISubscriptionPlanRepository planRepository,
             [FromServices] IStripeService stripeService,
             CancellationToken cancellationToken)
         {
-            var branchIdClaim = user.FindFirstValue("BranchId");
-            if (string.IsNullOrEmpty(branchIdClaim) || !Guid.TryParse(branchIdClaim, out var branchId))
-                return Results.Unauthorized();
+            if (!currentUser.IsAdministrator)
+                return Results.Forbid();
 
-            var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
-            if (branch?.OwnerId == null)
-                return Results.NotFound(new { Message = "Filial não encontrada ou sem proprietário." });
-
-            var subscription = await subscriptionRepository.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
-            if (subscription == null)
+            var subscription = await subscriptionRepository.GetByOwnerIdAsync(currentUser.TenantId, cancellationToken);
+            if (subscription is null)
                 return Results.NotFound(new { Message = "Assinatura não encontrada. Por favor, entre em contato com o suporte." });
 
-            if (string.IsNullOrEmpty(request.PriceId))
-                return Results.BadRequest(new { Message = "PriceId é obrigatório." });
+            if (subscription.IsPaid && !string.IsNullOrWhiteSpace(subscription.StripeSubscriptionId))
+                return Results.Conflict(new { Message = "Use o portal de cobrança para alterar uma assinatura existente." });
+
+            var plan = await planRepository.GetByIdAsync(request.PlanId, cancellationToken);
+            if (plan is null || !plan.IsActive ||
+                !PublicPlanNames.Contains(plan.Name, StringComparer.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(plan.StripePriceId))
+                return Results.BadRequest(new { Message = "Plano indisponível para contratação." });
 
             var checkoutUrl = await stripeService.CreateCheckoutSessionAsync(
                 subscription.StripeCustomerId,
-                request.PriceId,
+                plan.StripePriceId,
                 subscription.HeadquartersId,
                 cancellationToken);
 
@@ -148,22 +144,16 @@ namespace DottIn.Presentation.WebApi.Endpoints
         }
 
         private static async Task<IResult> HandleCreatePortalSessionAsync(
-            ClaimsPrincipal user,
-            [FromServices] IBranchRepository branchRepository,
+            [FromServices] CurrentUserContext currentUser,
             [FromServices] ITenantSubscriptionRepository subscriptionRepository,
             [FromServices] IStripeService stripeService,
             CancellationToken cancellationToken)
         {
-            var branchIdClaim = user.FindFirstValue("BranchId");
-            if (string.IsNullOrEmpty(branchIdClaim) || !Guid.TryParse(branchIdClaim, out var branchId))
-                return Results.Unauthorized();
+            if (!currentUser.IsAdministrator)
+                return Results.Forbid();
 
-            var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
-            if (branch?.OwnerId == null)
-                return Results.NotFound(new { Message = "Filial não encontrada ou sem proprietário." });
-
-            var subscription = await subscriptionRepository.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
-            if (subscription == null)
+            var subscription = await subscriptionRepository.GetByOwnerIdAsync(currentUser.TenantId, cancellationToken);
+            if (subscription is null)
                 return Results.NotFound(new { Message = "Assinatura não encontrada." });
 
             var portalUrl = await stripeService.CreateCustomerPortalSessionAsync(

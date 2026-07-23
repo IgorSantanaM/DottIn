@@ -10,81 +10,99 @@ namespace DottIn.Domain.TimeKeepings
         public Guid BranchId { get; private set; }
         public TimeKeepingStatus Status => GetCurrentStatus();
         public DateOnly WorkDate { get; private set; }
+        public string TimeZoneId { get; private set; } = "UTC";
         public DateTime CreatedAt { get; private set; }
         public Geolocation? Location { get; private set; }
         public ClockSource Source { get; private set; }
+        public Guid ConcurrencyToken { get; private set; } = Guid.NewGuid();
         private readonly List<TimeEntry> _entries = new();
         public IReadOnlyCollection<TimeEntry> Entries => _entries.AsReadOnly();
 
         private TimeKeeping() { }
 
-        public TimeKeeping(Guid branchId, Guid employeeId, Geolocation geolocation, ClockSource source = ClockSource.Mobile)
+        public TimeKeeping(
+            Guid branchId,
+            Guid employeeId,
+            Geolocation geolocation,
+            DateOnly workDate,
+            string timeZoneId,
+            DateTime createdAtUtc,
+            ClockSource source = ClockSource.Mobile)
         {
-            Id = Guid.NewGuid();
-
             if (branchId == Guid.Empty)
-                throw new DomainException("Empresa Invalida.");
-
+                throw new DomainException("Empresa inválida.");
             if (employeeId == Guid.Empty)
-                throw new DomainException("Funcionário Invalido.");
+                throw new DomainException("Funcionário inválido.");
+            if (geolocation is null)
+                throw new DomainException("Geolocalização inválida.");
 
+            BranchTime.Resolve(timeZoneId);
+            BranchTime.NormalizeUtc(createdAtUtc);
+
+            Id = Guid.NewGuid();
             BranchId = branchId;
             EmployeeId = employeeId;
             Location = geolocation;
             Source = source;
-            CreatedAt = DateTime.UtcNow;
-            WorkDate = DateOnly.FromDateTime(CreatedAt);
+            CreatedAt = createdAtUtc;
+            WorkDate = workDate;
+            TimeZoneId = timeZoneId;
         }
 
-        public void ClockIn(DateTime time)
+        public void ClockIn(DateTime timeUtc)
         {
             if (_entries.Any())
-                throw new DomainException("Tempo de serviço ja foi iniciado.");
+                throw new DomainException("A jornada já foi iniciada.");
 
-            AddEntry(time, TimeKeepingType.ClockIn);
+            AddEntry(timeUtc, TimeKeepingType.ClockIn);
         }
 
-        public void StartBreak(DateTime time)
+        public void StartBreak(DateTime timeUtc)
         {
             if (Status != TimeKeepingStatus.Working)
-                throw new DomainException("Não é permitido começar um intervalo se não está em serviço.");
+                throw new DomainException("Só é possível iniciar um intervalo durante a jornada.");
 
-            AddEntry(time, TimeKeepingType.BreakStart);
+            AddEntry(timeUtc, TimeKeepingType.BreakStart);
         }
 
-        public void EndBreak(DateTime time)
+        public void EndBreak(DateTime timeUtc)
         {
             if (Status != TimeKeepingStatus.OnBreak)
-                throw new DomainException("Não é permitido encessar um intervalo se não está em um intervalo.");
+                throw new DomainException("Não há intervalo em andamento para finalizar.");
 
-            AddEntry(time, TimeKeepingType.BreakEnd);
+            AddEntry(timeUtc, TimeKeepingType.BreakEnd);
         }
 
-        public void ClockOut(DateTime time)
+        public void ClockOut(DateTime timeUtc)
         {
+            if (Status == TimeKeepingStatus.NotStarted)
+                throw new DomainException("Registre a entrada antes da saída.");
             if (Status == TimeKeepingStatus.Finished)
-                throw new DomainException("Já Finalizado");
+                throw new DomainException("A jornada já foi finalizada.");
 
             if (Status == TimeKeepingStatus.OnBreak)
-                EndBreak(time);
+                EndBreak(timeUtc);
 
-            AddEntry(time, TimeKeepingType.ClockOut);
+            AddEntry(timeUtc, TimeKeepingType.ClockOut);
         }
 
-        private void AddEntry(DateTime time, TimeKeepingType type)
+        private void AddEntry(DateTime timeUtc, TimeKeepingType type)
         {
-            if (_entries.Any() && time < _entries.Last().Timestamp)
-                throw new DomainException("Não é permitido adicionar uma entrada que é anterior que a última.");
+            BranchTime.NormalizeUtc(timeUtc);
+            if (timeUtc < CreatedAt)
+                throw new DomainException("O registro não pode ser anterior ao início da jornada.");
+            if (_entries.Any() && timeUtc < _entries.Last().Timestamp)
+                throw new DomainException("O registro não pode ser anterior ao último evento da jornada.");
 
-            _entries.Add(new TimeEntry(time, type));
+            _entries.Add(new TimeEntry(timeUtc, type));
+            ConcurrencyToken = Guid.NewGuid();
         }
 
         private TimeKeepingStatus GetCurrentStatus()
         {
             if (!_entries.Any()) return TimeKeepingStatus.NotStarted;
 
-            var lastType = _entries.Last().Type;
-            return lastType switch
+            return _entries.Last().Type switch
             {
                 TimeKeepingType.ClockIn => TimeKeepingStatus.Working,
                 TimeKeepingType.BreakStart => TimeKeepingStatus.OnBreak,

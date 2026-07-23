@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DottIn.Application.Features.Auth.DTOs;
 using DottIn.Application.Features.Employees.Commands.RegisterOwner;
 using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Application.Shared.DTOS;
@@ -9,8 +10,10 @@ using DottIn.Domain.Employees;
 using DottIn.Infra.Services.Auth;
 using DottIn.Presentation.WebApi.DTOs.Auth;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -31,7 +34,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces<LoginResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
-                .AllowAnonymous();
+                .AllowAnonymous()
+                .RequireRateLimiting("public-auth");
 
             group.MapPost("/login/pin", HandlePinLoginAsync)
                 .WithName(nameof(HandlePinLoginAsync))
@@ -40,7 +44,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces<LoginResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
-                .AllowAnonymous();
+                .AllowAnonymous()
+                .RequireRateLimiting("public-auth");
 
             group.MapPost("/login/fingerprint", HandleFingerprintLoginAsync)
                 .WithName(nameof(HandleFingerprintLoginAsync))
@@ -49,7 +54,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces<LoginResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
                 .Produces(StatusCodes.Status404NotFound)
-                .AllowAnonymous();
+                .AllowAnonymous()
+                .RequireRateLimiting("public-auth");
 
             group.MapPost("/refresh", HandleRefreshTokenAsync)
                 .WithName(nameof(HandleRefreshTokenAsync))
@@ -57,7 +63,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Issues a new access token and refresh token using a valid refresh token.")
                 .Produces<RefreshTokenResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
-                .AllowAnonymous();
+                .AllowAnonymous()
+                .RequireRateLimiting("public-auth");
 
             group.MapPost("/register/owner", HandleRegisterOwnerAsync)
                 .WithName(nameof(HandleRegisterOwnerAsync))
@@ -66,7 +73,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces<RegisterOwnerResponse>(StatusCodes.Status201Created)
                 .Produces(StatusCodes.Status400BadRequest)
                 .Produces(StatusCodes.Status409Conflict)
-                .AllowAnonymous();
+                .AllowAnonymous()
+                .RequireRateLimiting("public-auth");
 
             group.MapPost("/logout", HandleLogoutAsync)
                 .WithName(nameof(HandleLogoutAsync))
@@ -133,15 +141,22 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
             [FromServices] ITenantSubscriptionService subscriptionService,
+            [FromServices] IValidator<LoginRequest> validator,
             CancellationToken cancellationToken)
         {
+            await validator.ValidateAndThrowAsync(request);
+
             var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            var employee = await employeeRepository.GetByTenantAndCPFAsync(
+                branch.OwnerId ?? branch.Id, request.Cpf, cancellationToken);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!branch.IsActive || !employee.IsActive)
+                return Results.Unauthorized();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -168,9 +183,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            var employee = await employeeRepository.GetByTenantAndCPFAsync(
+                branch.OwnerId ?? branch.Id, request.Cpf, cancellationToken);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!branch.IsActive || !employee.IsActive)
+                return Results.Unauthorized();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -197,9 +216,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            var employee = await employeeRepository.GetByTenantAndCPFAsync(
+                branch.OwnerId ?? branch.Id, request.Cpf, cancellationToken);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!branch.IsActive || !employee.IsActive)
+                return Results.Unauthorized();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -235,7 +258,17 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (employee == null || !employee.IsActive)
                 return Results.Unauthorized();
 
-            var branch = await branchRepository.GetByIdAsync(existingToken.BranchId, cancellationToken);
+            Branch? branch;
+            if (existingToken.BranchId == Guid.Empty && employee.Role == EmployeeRole.Owner)
+            {
+                var ownerBranches = await branchRepository.GetByOwnerIdAsync(employee.Id, cancellationToken);
+                branch = ownerBranches.FirstOrDefault(x => x.IsHeadquarters) ?? ownerBranches.FirstOrDefault();
+            }
+            else
+            {
+                branch = await branchRepository.GetByIdAsync(existingToken.BranchId, cancellationToken);
+            }
+
             if (branch == null || !branch.IsActive)
                 return Results.Unauthorized();
 
@@ -247,6 +280,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var accessToken = tokenService.GenerateToken(
                 employee.Id,
                 branch.Id,
+                branch.OwnerId ?? employee.Id,
+                employee.Role.ToString(),
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
@@ -254,11 +289,18 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             var newRefreshToken = new RefreshToken(employee.Id, branch.Id);
             await refreshTokenRepository.AddAsync(newRefreshToken, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Unauthorized();
+            }
 
             return Results.Ok(new RefreshTokenResponse(
                 accessToken,
-                newRefreshToken.Token,
+                newRefreshToken.PlainTextToken!,
                 DateTime.UtcNow.AddMinutes(expirationMinutes)));
         }
 
@@ -285,6 +327,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleRegisterFingerprintAsync(
             [FromBody] RegisterFingerprintRequest request,
+            ClaimsPrincipal user,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
             [FromServices] IUnitOfWork unitOfWork,
@@ -294,9 +337,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (branch == null)
                 return Results.NotFound(new { Message = "Empresa não encontrada" });
 
-            var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
+            var employee = await employeeRepository.GetByTenantAndCPFAsync(
+                branch.OwnerId ?? branch.Id, request.Cpf, cancellationToken);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!IsCurrentEmployee(user, employee.Id))
+                return Results.Forbid();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -314,6 +361,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleChangePasswordAsync(
             [FromBody] ChangePasswordRequest request,
+            ClaimsPrincipal user,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
             [FromServices] IUnitOfWork unitOfWork,
@@ -326,6 +374,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!IsCurrentEmployee(user, employee.Id))
+                return Results.Forbid();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -349,6 +400,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task<IResult> HandleChangePinAsync(
             [FromBody] ChangePinRequest request,
+            ClaimsPrincipal user,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] IEmployeeRepository employeeRepository,
             [FromServices] IUnitOfWork unitOfWork,
@@ -361,6 +413,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var employee = await employeeRepository.GetByCPFAsync(request.Cpf);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
+
+            if (!IsCurrentEmployee(user, employee.Id))
+                return Results.Forbid();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
             if (employeeBranch == null)
@@ -388,8 +443,11 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
+            [FromServices] IValidator<RegisterOwnerRequest> validator,
             CancellationToken cancellationToken)
         {
+            await validator.ValidateAndThrowAsync(request);
+
             var documentType = Enum.TryParse<Domain.ValueObjects.DocumentType>(request.Document.Type, true, out var dt)
                 ? dt
                 : Domain.ValueObjects.DocumentType.CPF;
@@ -412,6 +470,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var accessToken = tokenService.GenerateToken(
                 employee.Id,
                 Guid.Empty, // Owner has no branch yet
+                employee.Id,
+                employee.Role.ToString(),
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
@@ -423,7 +483,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             var response = new RegisterOwnerResponse(
                 AccessToken: accessToken,
-                RefreshToken: refreshToken.Token,
+                RefreshToken: refreshToken.PlainTextToken!,
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl));
 
@@ -448,6 +508,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var accessToken = tokenService.GenerateToken(
                 employee.Id,
                 branch.Id,
+                branch.OwnerId ?? employee.Id,
+                employee.Role.ToString(),
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
@@ -457,7 +519,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var isOwner = branch.OwnerId.HasValue && branch.OwnerId.Value == employee.Id;
+            var isOwner = employee.Role == EmployeeRole.Owner;
 
             SubscriptionInfoDto? subscriptionInfo = null;
             if (branch.OwnerId.HasValue)
@@ -477,7 +539,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             var response = new LoginResponse(
                 AccessToken: accessToken,
-                RefreshToken: refreshToken.Token,
+                RefreshToken: refreshToken.PlainTextToken!,
                 ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
                 BranchId: branch.Id,
@@ -487,6 +549,12 @@ namespace DottIn.Presentation.WebApi.Endpoints
             );
 
             return Results.Ok(response);
+        }
+
+        private static bool IsCurrentEmployee(ClaimsPrincipal user, Guid employeeId)
+        {
+            var value = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+            return Guid.TryParse(value, out var authenticatedId) && authenticatedId == employeeId;
         }
     }
 }

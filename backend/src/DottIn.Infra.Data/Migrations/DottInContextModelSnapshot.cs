@@ -18,7 +18,7 @@ namespace DottIn.Infra.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.2")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -30,6 +30,10 @@ namespace DottIn.Infra.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -250,6 +254,13 @@ namespace DottIn.Infra.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Employee");
+
                     b.Property<TimeOnly>("StartWorkTime")
                         .HasColumnType("time without time zone");
 
@@ -282,7 +293,80 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.HasIndex("BranchId", "IsActive");
 
-                    b.ToTable("Employees", (string)null);
+                    b.HasIndex("BranchId", "Role", "IsActive");
+
+                    b.ToTable("Employees", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Employees_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner')");
+                        });
+                });
+
+            modelBuilder.Entity("DottIn.Domain.Employees.EmployeeInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConsumedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InvitedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumedByEmployeeId");
+
+                    b.HasIndex("InvitedByEmployeeId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("BranchId", "ExpiresAt");
+
+                    b.HasIndex("BranchId", "InvitedByEmployeeId");
+
+                    b.ToTable("EmployeeInvitations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeeInvitations_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator')");
+                        });
                 });
 
             modelBuilder.Entity("DottIn.Domain.Exports.DominioEmployeeMapping", b =>
@@ -374,6 +458,58 @@ namespace DottIn.Infra.Data.Migrations
                     b.HasIndex("CountryCode", "RegionCode", "Year");
 
                     b.ToTable("HolidayCalendars", (string)null);
+                });
+
+            modelBuilder.Entity("DottIn.Domain.Subscriptions.StripeWebhookReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EventId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("StripeWebhookReceipts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StripeWebhookReceipts_Status", "\"Status\" IN ('Processing', 'Processed', 'Failed')");
+                        });
                 });
 
             modelBuilder.Entity("DottIn.Domain.Subscriptions.SubscriptionPlan", b =>
@@ -502,6 +638,10 @@ namespace DottIn.Infra.Data.Migrations
                     b.Property<Guid>("BranchId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -514,6 +654,13 @@ namespace DottIn.Infra.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Mobile");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC");
 
                     b.Property<DateOnly>("WorkDate")
                         .HasColumnType("date");
@@ -535,12 +682,19 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.HasIndex("EmployeeId");
 
+                    b.HasIndex("BranchId", "EmployeeId");
+
                     b.HasIndex("BranchId", "WorkDate");
 
                     b.HasIndex("EmployeeId", "WorkDate")
                         .IsUnique();
 
-                    b.ToTable("TimeKeepings", (string)null);
+                    b.ToTable("TimeKeepings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TimeKeepings_Source", "\"Source\" IN ('Mobile', 'Web', 'Kiosk')");
+
+                            t.HasCheckConstraint("CK_TimeKeepings_TimeZoneId", "length(trim(\"TimeZoneId\")) > 0");
+                        });
                 });
 
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.InboxState", b =>
@@ -711,6 +865,27 @@ namespace DottIn.Infra.Data.Migrations
                     b.ToTable("OutboxState");
                 });
 
+            modelBuilder.Entity("DottIn.Domain.Employees.EmployeeInvitation", b =>
+                {
+                    b.HasOne("DottIn.Domain.Branches.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DottIn.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("ConsumedByEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DottIn.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId", "InvitedByEmployeeId")
+                        .HasPrincipalKey("BranchId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DottIn.Domain.HolidayCalendars.HolidayCalendar", b =>
                 {
                     b.OwnsMany("DottIn.Domain.HolidayCalendars.Holiday", "Holidays", b1 =>
@@ -775,6 +950,19 @@ namespace DottIn.Infra.Data.Migrations
 
             modelBuilder.Entity("DottIn.Domain.TimeKeepings.TimeKeeping", b =>
                 {
+                    b.HasOne("DottIn.Domain.Branches.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DottIn.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId", "EmployeeId")
+                        .HasPrincipalKey("BranchId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsMany("DottIn.Domain.TimeKeepings.TimeEntry", "Entries", b1 =>
                         {
                             b1.Property<int>("Id")

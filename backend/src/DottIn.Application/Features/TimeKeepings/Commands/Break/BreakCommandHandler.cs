@@ -27,7 +27,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
             if (!employee.IsActive)
                 throw new DomainException("Funcionário está desativado e não poderá bater ponto.");
 
-            employee.ValidateBreakTime(DateTime.UtcNow);
+            if (employee.BranchId != request.BranchId)
+                throw new DomainException("O funcionário não pertence à filial informada.");
 
             var branch = await branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
 
@@ -35,15 +36,18 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
                 throw NotFoundException.ForEntity(nameof(Branch), request.BranchId);
 
             if (!branch.IsActive)
-                throw new DomainException("A empresa esta desativada e não poderá utilizar o sistem de ponto.");
+                throw new DomainException("A empresa está desativada e não poderá utilizar o sistema de ponto.");
+
+            var nowUtc = DateTime.UtcNow;
+            var localNow = BranchTime.ToLocal(nowUtc, branch.TimeZoneId);
+            employee.ValidateBreakTime(localNow);
 
             if (!request.SkipGeolocationValidation &&
                 !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
                 throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var existingTimeKeeping = await timeKeepingRepository.GetTodayByEmployeeForUpdateAsync(
-                request.EmployeeId, today, cancellationToken);
+            var existingTimeKeeping = await timeKeepingRepository.GetActiveByEmployeeAsync(
+                request.EmployeeId, cancellationToken);
 
             if (existingTimeKeeping is null)
                 throw new NotFoundException("Nenhum registro de ponto encontrado para hoje. Faça o clock-in primeiro.");
@@ -56,15 +60,15 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
 
             if (existingTimeKeeping.Status == TimeKeepingStatus.OnBreak)
             {
-                existingTimeKeeping.EndBreak(DateTime.UtcNow);
+                existingTimeKeeping.EndBreak(nowUtc);
             }
             else
             {
-                existingTimeKeeping.StartBreak(DateTime.UtcNow);
+                existingTimeKeeping.StartBreak(nowUtc);
             }
 
             await timeKeepingRepository.UpdateAsync(existingTimeKeeping);
-            await unitOfWork.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

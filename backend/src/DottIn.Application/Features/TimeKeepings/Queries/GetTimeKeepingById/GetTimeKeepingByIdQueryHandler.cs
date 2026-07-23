@@ -39,8 +39,7 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
             var clockIn = timeKeeping.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
             if (clockIn.HasValue)
             {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId);
-                var localHour = TimeZoneInfo.ConvertTimeFromUtc(clockIn.Value, tz).Hour;
+                var localHour = BranchTime.ToLocal(clockIn.Value, timeKeeping.TimeZoneId).Hour;
                 isNocturnal = localHour >= 22 || localHour < 6;
             }
 
@@ -57,9 +56,11 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
                                                         branch.Name,
                                                         timeKeeping.Status,
                                                         timeKeeping.WorkDate,
-                                                        timeKeeping.CreatedAt,
+                                                        BranchTime.ToLocal(timeKeeping.CreatedAt, timeKeeping.TimeZoneId),
                                                         geolocationDto,
-                                                        timeKeeping.Entries.Select(tke => new TimeEntryDto(tke.Timestamp, tke.Type)),
+                                                        timeKeeping.Entries.Select(tke => new TimeEntryDto(
+                                                            BranchTime.ToLocal(tke.Timestamp, timeKeeping.TimeZoneId),
+                                                            tke.Type)),
                                                         isNocturnal,
                                                         timeKeeping.Source.ToString(),
                                                         isHoliday,

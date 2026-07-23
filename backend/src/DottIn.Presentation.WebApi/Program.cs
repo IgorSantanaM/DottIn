@@ -8,6 +8,8 @@ using DottIn.Presentation.WebApi.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using System.Text.Json.Serialization;
+using DottIn.Presentation.WebApi.Security;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,10 +26,28 @@ builder.Services.AddCors(opt =>
 {
     opt.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyHeader();
-        policy.AllowAnyMethod();
-        policy.AllowAnyOrigin();
+        var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+        if (origins.Length > 0)
+            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
     });
+});
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentUserContext>();
+builder.Services.AddScoped<TenantAccessService>();
+builder.Services.AddScoped<TenantAuthorizationFilter>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("public-auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
 });
 
 builder.Services.RegisterApplication(builder.Configuration);
@@ -61,7 +81,16 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 app.UseCors();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -74,7 +103,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(opt =>
     {
         opt.SwaggerEndpoint("/swagger/v1/swagger.json", "Rental Motorcycle API V1");
-        opt.DocumentTitle = "Rental Motorcycle Documentation";
+        opt.DocumentTitle = "DottIn API";
         opt.DefaultModelExpandDepth(-1);
     });
 }
@@ -86,9 +115,6 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.MigrateAsync();
 }
 
-app.MapGet("/", () => "DottIn API is RUNNING!"); 
-app.UseMiddleware<ErrorHandlingMiddleware>();
- 
-//app.UseHttpsRedirection();
+app.MapGet("/", () => Results.Ok(new { service = "DottIn API", status = "healthy" }));
 
 app.Run();

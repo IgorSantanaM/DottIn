@@ -15,14 +15,17 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
-                    .Where(tk => tk.BranchId == branchId && tk.WorkDate == DateOnly.FromDateTime(DateTime.UtcNow))
+                    .Where(tk => tk.BranchId == branchId &&
+                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
                     .ToListAsync(token);
 
         public async Task<TimeKeeping?> GetActiveByEmployeeAsync(Guid employeeId, CancellationToken token = default)
             => await context.TimeKeepings
-                    .AsNoTracking()
                     .Include(tk => tk.Entries)
-                    .FirstOrDefaultAsync(tk => tk.EmployeeId == employeeId && tk.WorkDate == DateOnly.FromDateTime(DateTime.UtcNow), token);
+                    .Where(tk => tk.EmployeeId == employeeId &&
+                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
+                    .OrderByDescending(tk => tk.CreatedAt)
+                    .FirstOrDefaultAsync(token);
 
         public async Task<IEnumerable<TimeKeeping>> GetByBranchAndDateAsync(Guid branchId, DateOnly workDate, CancellationToken token = default)
             => await context.TimeKeepings
@@ -43,7 +46,8 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
-                    .Where(tk => tk.EmployeeId == employeeId && tk.WorkDate >= startDate && tk.WorkDate <= endDate)
+                    .Where(tk => tk.EmployeeId == employeeId && tk.WorkDate >= startDate &&
+                                 (endDate == null || tk.WorkDate <= endDate))
                     .OrderBy(tk => tk.WorkDate)
                     .ToListAsync(token);
 

@@ -1,4 +1,6 @@
 using DottIn.Domain.Core.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DottIn.Domain.Auth
 {
@@ -10,6 +12,8 @@ namespace DottIn.Domain.Auth
         public DateTime ExpiresAt { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? RevokedAt { get; private set; }
+        public Guid ConcurrencyToken { get; private set; }
+        public string? PlainTextToken { get; private set; }
         public bool IsRevoked => RevokedAt.HasValue;
         public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
         public bool IsActive => !IsRevoked && !IsExpired;
@@ -21,14 +25,23 @@ namespace DottIn.Domain.Auth
             Id = Guid.NewGuid();
             EmployeeId = employeeId;
             BranchId = branchId;
-            Token = GenerateToken();
+            PlainTextToken = GenerateToken();
+            Token = HashToken(PlainTextToken);
             ExpiresAt = DateTime.UtcNow.AddDays(expirationDays);
             CreatedAt = DateTime.UtcNow;
+            ConcurrencyToken = Guid.NewGuid();
         }
 
         public void Revoke()
         {
             RevokedAt = DateTime.UtcNow;
+            ConcurrencyToken = Guid.NewGuid();
+        }
+
+        public static string HashToken(string token)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(token);
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
         }
 
         private static string GenerateToken()

@@ -1,6 +1,5 @@
 namespace DottIn.Presentation.WebApi.DTOs.Auth
 {
-    public record LoginRequest(string Cpf, string Password, string CompanyCode);
     public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
     public record RegisterFingerprintRequest(string CompanyCode, string Cpf, string Password, string FingerprintToken);
     public record FingerprintLoginRequest(string CompanyCode, string Cpf, string FingerprintToken);
@@ -37,8 +36,6 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         bool CanAddBranch);
 
     // Owner Registration
-    public record RegisterOwnerRequest(string Name, RegisterOwnerDocumentDto Document, string Password);
-    public record RegisterOwnerDocumentDto(string Value, string Type);
     public record RegisterOwnerResponse(
         string AccessToken,
         string RefreshToken,

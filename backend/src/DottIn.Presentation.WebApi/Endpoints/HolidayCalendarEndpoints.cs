@@ -15,6 +15,7 @@ using DottIn.Presentation.WebApi.DTOs.HolidayCalendars;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using DottIn.Presentation.WebApi.Security;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -25,7 +26,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/branches/{branchId:guid}/holiday-calendars")
-                .WithTags(Tag);
+                .WithTags(Tag)
+                .RequireAuthorization()
+                .AddEndpointFilter<TenantAuthorizationFilter>();
 
             group.MapGet("/", HandleGetAllCalendarsAsync)
                 .WithName(nameof(HandleGetAllCalendarsAsync))

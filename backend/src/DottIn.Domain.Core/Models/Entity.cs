@@ -11,14 +11,14 @@
             var compareTo = obj as Entity<TId>;
 
             if (ReferenceEquals(this, compareTo)) return true;
-            if (ReferenceEquals(null, compareTo)) return true;
+            if (ReferenceEquals(null, compareTo)) return false;
 
-            return Id!.Equals(compareTo.Id);
+            return EqualityComparer<TId?>.Default.Equals(Id, compareTo.Id);
         }
         public void ClearDomainEvents()
             => _domainEvents.Clear();
 
-        public static bool operator ==(Entity<TId> entityA, Entity<TId> entityB)
+        public static bool operator ==(Entity<TId>? entityA, Entity<TId>? entityB)
         {
             if (ReferenceEquals(entityA, null) && ReferenceEquals(entityB, null))
                 return true;
@@ -29,11 +29,11 @@
             return entityA.Equals(entityB);
         }
 
-        public static bool operator !=(Entity<TId> entityA, Entity<TId> entityB)
+        public static bool operator !=(Entity<TId>? entityA, Entity<TId>? entityB)
             => !(entityA == entityB);
 
         public override int GetHashCode()
-            => (GetType().GetHashCode() * 907) + Id!.GetHashCode();
+            => HashCode.Combine(GetType(), Id);
 
         public override string ToString()
             => $"{GetType().Name} [Id={Id}]";

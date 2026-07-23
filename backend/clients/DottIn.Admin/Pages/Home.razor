@@ -1,6 +1,7 @@
 @page "/"
 @inject AuthService AuthService
 @inject AdminState State
+@inject OperationalAccessService OperationalAccess
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -123,7 +124,10 @@
 
 @if (State.IsAuthenticated)
 {
-    <DottIn.Admin.Pages.Dashboard />
+    @if (State.CanAccessOperationalModules)
+    {
+        <DottIn.Admin.Pages.Dashboard />
+    }
 }
 else
 {
@@ -205,11 +209,16 @@ else
     private bool _showPwd;
     private bool _loading;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (State.IsAuthenticated)
         {
-            Navigation.NavigateTo("/dashboard", replace: true);
+            if (!State.IsOperationalAccessResolved)
+                await OperationalAccess.RefreshAsync();
+
+            Navigation.NavigateTo(
+                OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
+                replace: true);
             return;
         }
 
@@ -229,8 +238,11 @@ else
         var (success, error) = await AuthService.LoginAsync(_cpf, _password, _companyCode);
         if (success)
         {
+            await OperationalAccess.RefreshAsync();
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
-            Navigation.NavigateTo("/dashboard", replace: true);
+            Navigation.NavigateTo(
+                OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
+                replace: true);
         }
         else
         {

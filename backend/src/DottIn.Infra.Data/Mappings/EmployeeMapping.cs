@@ -9,9 +9,13 @@ namespace DottIn.Infra.Data.Mappings
     {
         public override void Configure(EntityTypeBuilder<Employee> builder)
         {
-            builder.ToTable("Employees");
+            builder.ToTable("Employees", table =>
+                table.HasCheckConstraint(
+                    "CK_Employees_Role",
+                    "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner')"));
 
             builder.HasKey(e => e.Id);
+            builder.HasAlternateKey(e => new { e.BranchId, e.Id });
 
             builder.Property(e => e.Name)
                 .IsRequired()
@@ -77,11 +81,21 @@ namespace DottIn.Infra.Data.Mappings
             builder.Property(e => e.AllowOvernightShifts)
                 .IsRequired();
 
+            builder.Property(e => e.Role)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(30)
+                .HasDefaultValue(EmployeeRole.Employee);
+
+            builder.Ignore(e => e.IsSeatBillable);
+
             builder.HasIndex(e => e.BranchId);
 
             builder.HasIndex(e => new { e.BranchId, e.IsActive });
 
             builder.HasIndex(e => e.IsActive);
+
+            builder.HasIndex(e => new { e.BranchId, e.Role, e.IsActive });
         }
     }
 }

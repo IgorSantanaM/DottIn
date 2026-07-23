@@ -28,6 +28,9 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockOut
             if (!employee.IsActive)
                 throw new DomainException("Funcionário está desativado e não pode bater ponto.");
 
+            if (employee.BranchId != request.BranchId)
+                throw new DomainException("O funcionário não pertence à filial informada.");
+
             var branch = await branchRepository.GetByIdAsync(request.BranchId);
 
             if (branch is null)
@@ -40,10 +43,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockOut
                 !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
                 throw new DomainException("Funcionário está fora do raio permitido para bater o ponto.");
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-            var existingTimeKeeping = await timeKeepingRepository.GetTodayByEmployeeForUpdateAsync(
-                request.EmployeeId, today, cancellationToken);
+            var existingTimeKeeping = await timeKeepingRepository.GetActiveByEmployeeAsync(
+                request.EmployeeId, cancellationToken);
 
             if (existingTimeKeeping is null)
                 throw new NotFoundException("Nenhum registro de ponto encontrado para hoje. Faça o clock-in primeiro.");

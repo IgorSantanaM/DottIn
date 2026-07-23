@@ -1,5 +1,8 @@
-using System.Net.Http.Json;
 using DottIn.Admin.Models;
+using Microsoft.AspNetCore.Mvc;
+using MudBlazor;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace DottIn.Admin.Services;
 
@@ -41,10 +44,19 @@ public class AuthService(HttpClient http, AdminState state)
 
             if (!response.IsSuccessStatusCode)
             {
-                var error = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "CPF ou senha incorretos"
-                    : "Empresa não encontrada";
-                return (false, error);
+                var body = await response.Content.ReadAsStringAsync();
+
+                var validation = JsonSerializer.Deserialize<ValidationErrorResponse>(
+                    body,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                var errors = validation?.Errors
+                    .Select(x => x.Error);
+
+                return (false, errors!.FirstOrDefault() ?? "Validation Failed");
             }
 
             var login = await response.Content.ReadFromJsonAsync<LoginResponse>();
@@ -114,6 +126,19 @@ public class AuthService(HttpClient http, AdminState state)
         {
             return (false, null, "Erro de conexão");
         }
+    }
+
+    public sealed class ValidationErrorResponse
+    {
+        public int Status { get; set; }
+        public string? Title { get; set; }
+        public List<FieldError> Errors { get; set; } = [];
+    }
+
+    public sealed class FieldError
+    {
+        public string? Field { get; set; }
+        public string? Error { get; set; }
     }
 
     private async Task<RefreshTokenResponse?> RefreshAsync(string refreshToken)

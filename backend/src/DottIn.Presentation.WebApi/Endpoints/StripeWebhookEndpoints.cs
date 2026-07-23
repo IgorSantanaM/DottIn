@@ -4,6 +4,8 @@ using DottIn.Infra.Services.Stripe;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Stripe;
+using DottIn.Infra.Data.Contexts;
+using Microsoft.EntityFrameworkCore;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -30,6 +32,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] ITenantSubscriptionRepository subscriptionRepository,
             [FromServices] ISubscriptionPlanRepository planRepository,
             [FromServices] IUnitOfWork unitOfWork,
+            [FromServices] DottInContext db,
             [FromServices] ILogger<StripeWebhookEndpoints> logger,
             CancellationToken cancellationToken)
         {
@@ -50,6 +53,34 @@ namespace DottIn.Presentation.WebApi.Endpoints
             }
 
             logger.LogInformation("Processing Stripe webhook event: {EventType}", stripeEvent.Type);
+
+            var receipt = await db.StripeWebhookReceipts
+                .SingleOrDefaultAsync(x => x.EventId == stripeEvent.Id, cancellationToken);
+
+            if (receipt?.Status == WebhookProcessingStatus.Processed)
+                return Results.Ok();
+
+            if (receipt is not null && !receipt.CanRetry(DateTime.UtcNow))
+                return Results.Conflict(new { Message = "Evento já está em processamento." });
+
+            if (receipt is null)
+            {
+                receipt = new StripeWebhookReceipt(stripeEvent.Id, stripeEvent.Type);
+                await db.StripeWebhookReceipts.AddAsync(receipt, cancellationToken);
+            }
+            else
+            {
+                receipt.BeginRetry();
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                return Results.Conflict(new { Message = "Evento concorrente em processamento." });
+            }
 
             try
             {
@@ -80,12 +111,20 @@ namespace DottIn.Presentation.WebApi.Endpoints
                         break;
                 }
 
+                receipt.MarkProcessed();
+                await db.SaveChangesAsync(cancellationToken);
                 return Results.Ok();
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error processing Stripe webhook event: {EventType}", stripeEvent.Type);
-                return Results.BadRequest(new { Message = "Error processing webhook" });
+                await db.StripeWebhookReceipts
+                    .Where(x => x.EventId == stripeEvent.Id)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(x => x.Status, WebhookProcessingStatus.Failed)
+                        .SetProperty(x => x.LastError, ex.GetType().Name)
+                        .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken);
+                return Results.StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
 
