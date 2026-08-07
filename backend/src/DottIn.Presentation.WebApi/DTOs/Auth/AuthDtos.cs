@@ -15,7 +15,8 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         Guid BranchId,
         bool IsOwner,
         bool IsHeadquarters,
-        SubscriptionInfoDto? Subscription);
+        SubscriptionInfoDto? Subscription,
+        string CompanyCode);
 
     public record RefreshTokenResponse(
         string AccessToken,

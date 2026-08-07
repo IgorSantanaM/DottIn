@@ -434,9 +434,9 @@
         CompanyCode = query["code"] ?? State.CompanyCode;
         BranchName = query["name"] ?? "Principal";
 
-        // Build employee login link
+        // Build employee login link. The password-login endpoint resolves the branch from the CPF.
         var baseUri = Navigation.BaseUri.TrimEnd('/');
-        EmployeeLink = $"{baseUri}/?empresa={CompanyCode}";
+        EmployeeLink = $"{baseUri}/";
     }
 
     private async Task CopyLink()

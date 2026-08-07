@@ -146,26 +146,27 @@ namespace DottIn.Presentation.WebApi.Endpoints
         {
             await validator.ValidateAndThrowAsync(request);
 
-            var branch = await branchRepository.GetByCodeAsync(request.CompanyCode);
-            if (branch == null)
-                return Results.NotFound(new { Message = "Empresa não encontrada" });
-
-            var employee = await employeeRepository.GetByTenantAndCPFAsync(
-                branch.OwnerId ?? branch.Id, request.Cpf, cancellationToken);
+            var employee = await employeeRepository.GetByCPFAsync(request.Cpf, cancellationToken);
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
 
-            if (!branch.IsActive || !employee.IsActive)
+            if (!employee.IsActive)
                 return Results.Unauthorized();
-
-            var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
-            if (employeeBranch == null)
-                return Results.NotFound(new { Message = "Funcionário não pertence a esta empresa" });
 
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
+            if (employee.BranchId == Guid.Empty && employee.Role == EmployeeRole.Owner)
+                return await GenerateUnassignedOwnerLoginResponseAsync(employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
+
+            var branch = await branchRepository.GetByIdAsync(employee.BranchId, cancellationToken);
+            if (branch == null)
+                return Results.NotFound(new { Message = "Filial não encontrada" });
+
+            if (!branch.IsActive)
+                return Results.Unauthorized();
+
+            return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
         }
 
         private static async Task<IResult> HandlePinLoginAsync(
@@ -492,6 +493,45 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         #endregion
 
+        private static async Task<IResult> GenerateUnassignedOwnerLoginResponseAsync(
+            Employee employee,
+            ITokenService tokenService,
+            IRefreshTokenRepository refreshTokenRepository,
+            IUnitOfWork unitOfWork,
+            IConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            var jwtSettings = configuration.GetSection("JwtSettings");
+            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
+
+            var accessToken = tokenService.GenerateToken(
+                employee.Id,
+                Guid.Empty,
+                employee.Id,
+                employee.Role.ToString(),
+                jwtSettings["SecretKey"]!,
+                jwtSettings["Issuer"]!,
+                jwtSettings["Audience"]!,
+                expirationMinutes);
+
+            var refreshToken = new RefreshToken(employee.Id, Guid.Empty);
+            await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var response = new LoginResponse(
+                AccessToken: accessToken,
+                RefreshToken: refreshToken.PlainTextToken!,
+                ExpiresAt: DateTime.UtcNow.AddMinutes(expirationMinutes),
+                Employee: new EmployeeInfoDto(employee.Id, employee.Name, employee.CPF.Value, employee.ImageUrl),
+                BranchId: Guid.Empty,
+                IsOwner: true,
+                IsHeadquarters: false,
+                Subscription: null,
+                CompanyCode: string.Empty);
+
+            return Results.Ok(response);
+        }
+
         private static async Task<IResult> GenerateLoginResponseAsync(
             Branch branch,
             Employee employee,
@@ -545,7 +585,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 BranchId: branch.Id,
                 IsOwner: isOwner,
                 IsHeadquarters: branch.IsHeadquarters,
-                Subscription: subscriptionInfo
+                Subscription: subscriptionInfo,
+                CompanyCode: branch.CompanyCode
             );
 
             return Results.Ok(response);

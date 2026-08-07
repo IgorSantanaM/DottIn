@@ -1,6 +1,6 @@
 namespace DottIn.Admin.Models;
 
-public record LoginRequest(string Cpf, string Password, string CompanyCode);
+public record LoginRequest(string Cpf, string Password);
 public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
 public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
 public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
@@ -9,7 +9,7 @@ public record ClockInResponse(Guid TimeKeepingId);
 
 public record LoginResponse(
     string AccessToken, string RefreshToken, DateTime ExpiresAt,
-    EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters);
+    EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters, string CompanyCode);
 
 public record RefreshTokenRequest(string RefreshToken);
 public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);

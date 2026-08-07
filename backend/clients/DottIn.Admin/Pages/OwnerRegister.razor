@@ -344,9 +344,10 @@
                         new EmployeeInfo(result.Employee.Id, result.Employee.Name, result.Employee.Cpf, result.Employee.ImageUrl),
                         Guid.Empty,
                         IsOwner: true,
-                        IsHeadquarters: false);
+                        IsHeadquarters: false,
+                        CompanyCode: string.Empty);
 
-                    await State.SetAuthenticatedAsync(loginResponse, "");
+                    await State.SetAuthenticatedAsync(loginResponse);
                     Http.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.AccessToken);
 
