@@ -6,7 +6,7 @@ public static class OperationalAccessPolicy
         Guid branchId,
         bool hasLinkedPlan,
         bool isResolved)
-        => isResolved && branchId != Guid.Empty && hasLinkedPlan;
+        => branchId != Guid.Empty;
 
     public static string GetAuthenticatedDestination(bool canAccessModules)
         => canAccessModules ? "/dashboard" : "/welcome";

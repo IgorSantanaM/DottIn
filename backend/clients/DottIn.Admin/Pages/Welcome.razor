@@ -13,7 +13,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #0B1120;
+        background: var(--mud-palette-background);
         font-family: 'Inter', sans-serif;
         padding: 16px;
         box-sizing: border-box;
@@ -43,7 +43,7 @@
     .brand-wordmark-text {
         font-size: 24px;
         font-weight: 700;
-        color: #F8FAFC;
+        color: var(--mud-palette-text-primary);
         letter-spacing: -0.5px;
     }
 
@@ -56,15 +56,15 @@
     .brand-subtitle-text {
         font-size: 10px;
         font-weight: 600;
-        color: #475569;
+        color: var(--mud-palette-text-secondary);
         letter-spacing: 1px;
         text-transform: uppercase;
     }
 
     /* Card */
     .welcome-card {
-        background: #111827 !important;
-        border: 1px solid #1E293B !important;
+        background: var(--mud-palette-surface) !important;
+        border: 1px solid var(--mud-palette-lines-default) !important;
         border-radius: 16px !important;
     }
 
@@ -125,19 +125,19 @@
     .step-title {
         font-size: 14px;
         font-weight: 600;
-        color: #F8FAFC;
+        color: var(--mud-palette-text-primary);
         margin-bottom: 2px;
     }
 
     .step-description {
         font-size: 12px;
-        color: #64748B;
+        color: var(--mud-palette-text-secondary);
         line-height: 1.4;
     }
 
     .step-divider {
         height: 1px;
-        background: #1E293B;
+        background: var(--mud-palette-lines-default);
         margin: 0;
     }
 
@@ -158,8 +158,8 @@
         }
 
     .btn-outline {
-        border: 1px solid #1E293B !important;
-        color: #94A3B8 !important;
+        border: 1px solid var(--mud-palette-lines-default) !important;
+        color: var(--mud-palette-text-secondary) !important;
         border-radius: 10px !important;
         font-weight: 500 !important;
         text-transform: none !important;
@@ -169,8 +169,8 @@
     }
 
         .btn-outline:hover {
-            border-color: #334155 !important;
-            color: #F8FAFC !important;
+            border-color: var(--mud-palette-primary) !important;
+            color: var(--mud-palette-text-primary) !important;
         }
 </style>
 
@@ -195,10 +195,10 @@
                     </div>
                 </div>
 
-                <MudText Typo="Typo.h6" Style="color: #F8FAFC; font-weight: 600;" Class="mb-1 text-center">
+                <MudText Typo="Typo.h6" Style="color: var(--mud-palette-text-primary); font-weight: 600;" Class="mb-1 text-center">
                     Bem-vindo, @FirstName!
                 </MudText>
-                <MudText Typo="Typo.body2" Style="color: #475569;" Class="mb-5 text-center">
+                <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);" Class="mb-5 text-center">
                     Sua conta foi criada com sucesso. Veja os próximos passos para configurar seu sistema de ponto.
                 </MudText>
 
@@ -253,7 +253,7 @@
 
         @* Footer *@
         <div style="text-align: center;">
-            <MudText Typo="Typo.caption" Style="color: #334155;">
+            <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">
                 &copy; 2026 DottIn
             </MudText>
         </div>

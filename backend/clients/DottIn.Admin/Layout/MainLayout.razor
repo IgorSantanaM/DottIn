@@ -10,7 +10,8 @@
 else
 {
     <MudLayout>
-        <MudAppBar Elevation="1" Dense="true" Fixed="true">
+        <MudAppBar Elevation="1" Dense="true" Fixed="true"
+                   Style="background-color: var(--mud-palette-appbar-background); color: var(--mud-palette-appbar-text);">
             @if (State.CanAccessOperationalModules)
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
@@ -53,7 +54,7 @@ else
             </MudDrawer>
         }
 
-        <MudMainContent Class="pa-6" Style="min-height: 100vh; background: var(--mud-palette-background);">
+        <MudMainContent Class="pa-6" Style="min-height: 100vh; padding-top: calc(var(--mud-appbar-height) + 24px); background: var(--mud-palette-background);">
             @Body
         </MudMainContent>
     </MudLayout>

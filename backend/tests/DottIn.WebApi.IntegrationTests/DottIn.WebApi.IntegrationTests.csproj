@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\clients\DottIn.Admin\DottIn.Admin.csproj" />
     <ProjectReference Include="..\..\src\DottIn.Infra.Data\DottIn.Infra.Data.csproj" />
     <ProjectReference Include="..\..\src\DottIn.Presentation.WebApi\DottIn.Presentation.WebApi.csproj" />
   </ItemGroup>

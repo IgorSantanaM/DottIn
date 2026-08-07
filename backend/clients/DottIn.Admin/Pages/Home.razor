@@ -146,14 +146,6 @@ else
             <MudCard Class="login-card" Elevation="0">
                 <MudCardContent Class="pa-6">
 
-                    <MudTextField @bind-Value="_companyCode"
-                                  Label="Empresa"
-                                  Variant="Variant.Outlined"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Business"
-                                  FullWidth="true"
-                                  Class="mb-3" />
-
                     <MudTextField @bind-Value="_cpf"
                                   Label="CPF"
                                   Variant="Variant.Outlined"
@@ -203,7 +195,6 @@ else
 }
 
 @code {
-    private string _companyCode = "";
     private string _cpf = "";
     private string _password = "";
     private bool _showPwd;
@@ -222,20 +213,13 @@ else
             return;
         }
 
-        // Auto-fill company code from ?empresa= query parameter (employee login link)
-        var uri = new Uri(Navigation.Uri);
-        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        var empresaParam = query["empresa"];
-        if (!string.IsNullOrWhiteSpace(empresaParam))
-        {
-            _companyCode = empresaParam;
-        }
+
     }
 
     private async Task HandleLogin()
     {
         _loading = true;
-        var (success, error) = await AuthService.LoginAsync(_cpf, _password, _companyCode);
+        var (success, error) = await AuthService.LoginAsync(_cpf, _password);
         if (success)
         {
             await OperationalAccess.RefreshAsync();

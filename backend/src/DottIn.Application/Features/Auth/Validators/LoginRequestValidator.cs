@@ -11,10 +11,6 @@ namespace DottIn.Application.Features.Auth.Validators
     {
         public LoginRequestValidator()
         {
-            RuleFor(x => x.CompanyCode)
-                .NotEmpty()
-                .WithMessage("O código da empresa deve ser informado.");
-
             RuleFor(x => x.Cpf)
                 .NotEmpty()
                 .WithMessage("O CPF deve ser informado.")

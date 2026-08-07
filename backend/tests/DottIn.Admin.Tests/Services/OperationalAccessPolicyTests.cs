@@ -8,10 +8,11 @@ public sealed class OperationalAccessPolicyTests
     [Theory]
     [InlineData(false, false, false, false)]
     [InlineData(false, true, true, false)]
-    [InlineData(true, false, true, false)]
-    [InlineData(true, true, false, false)]
+    [InlineData(true, false, false, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(true, true, false, true)]
     [InlineData(true, true, true, true)]
-    public void CanAccessModules_RequiresConfigurationPlanAndResolvedStatus(
+    public void CanAccessModules_RequiresOnlyAnAssignedBranch(
         bool hasConfiguration,
         bool hasLinkedPlan,
         bool isResolved,
