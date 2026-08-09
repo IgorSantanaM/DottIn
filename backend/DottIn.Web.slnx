@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/1.Presentation/">
+    <Project Path="src/DottIn.Presentation.WebApi/DottIn.Presentation.WebApi.csproj" />
+    <Project Path="clients/DottIn.Admin/DottIn.Admin.csproj" />
+  </Folder>
+  <Folder Name="/2.Application/">
+    <Project Path="src/DottIn.Application/DottIn.Application.csproj" />
+  </Folder>
+  <Folder Name="/3.Domain/">
+    <Project Path="src/DottIn.Domain.Core/DottIn.Domain.Core.csproj" />
+    <Project Path="src/DottIn.Domain/DottIn.Domain.csproj" />
+  </Folder>
+  <Folder Name="/4.Infra/">
+    <Project Path="src/DottIn.Infra.Data/DottIn.Infra.Data.csproj" />
+    <Project Path="src/DottIn.Infra.Services/DottIn.Infra.Services.csproj" />
+    <Project Path="src/DottIn.Infra.Messaging/DottIn.Infra.Messaging.csproj" />
+    <Project Path="src/DottIn.Infra.CrossCutting.IoC/DottIn.Infra.CrossCutting.IoC.csproj" />
+  </Folder>
+  <Folder Name="/5.Tests/">
+    <Project Path="tests/DottIn.Domain.Tests/DottIn.Domain.Tests.csproj" />
+    <Project Path="tests/DottIn.Admin.Tests/DottIn.Admin.Tests.csproj" />
+    <Project Path="tests/DottIn.WebApi.IntegrationTests/DottIn.WebApi.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

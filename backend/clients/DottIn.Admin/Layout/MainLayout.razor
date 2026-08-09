@@ -50,6 +50,11 @@ else
                                 Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
                     <MudNavLink Href="/holidays" Match="NavLinkMatch.Prefix"
                                 Icon="@Icons.Material.Filled.CalendarMonth">Feriados</MudNavLink>
+                    @if (State.IsOwner)
+                    {
+                        <MudNavLink Href="/billing" Match="NavLinkMatch.Prefix"
+                                    Icon="@Icons.Material.Filled.CreditCard">Assinatura</MudNavLink>
+                    }
                 </MudNavMenu>
             </MudDrawer>
         }

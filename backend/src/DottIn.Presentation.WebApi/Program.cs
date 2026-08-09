@@ -1,6 +1,5 @@
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using DottIn.Infra.CrossCutting.IoC;
-using Microsoft.IdentityModel.Tokens.Experimental;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using DottIn.Infra.Data.Contexts;
@@ -12,6 +11,8 @@ using DottIn.Presentation.WebApi.Security;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+ProductionConfigurationValidator.Validate(builder.Configuration, builder.Environment);
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -108,13 +109,24 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-using (var scope = app.Services.CreateScope())
+if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment()))
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<DottInContext>();
 
     await dbContext.Database.MigrateAsync();
 }
 
 app.MapGet("/", () => Results.Ok(new { service = "DottIn API", status = "healthy" }));
+app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }))
+    .AllowAnonymous()
+    .ExcludeFromDescription();
+
+app.MapGet("/health/ready", async (DottInContext dbContext, CancellationToken cancellationToken) =>
+    await dbContext.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ready" })
+        : Results.Json(new { status = "unavailable", dependency = "database" }, statusCode: StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous()
+    .ExcludeFromDescription();
 
 app.Run();

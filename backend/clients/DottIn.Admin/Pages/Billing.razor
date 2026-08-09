@@ -1,0 +1,292 @@
+@page "/billing"
+@page "/billing/success"
+@page "/billing/cancel"
+@attribute [OperationalAccessRequired]
+@inject AdminApiClient Api
+@inject AdminState State
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn Admin - Assinatura</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-6 flex-wrap gap-3">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight: 700;">Assinatura</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Consulte o plano atual e gerencie a cobrança da sua empresa.
+        </MudText>
+    </div>
+
+    @if (_billing is not null && HasCustomerPortal)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.OpenInNew"
+                   Disabled="_redirecting"
+                   OnClick="OpenCustomerPortalAsync">
+            Gerenciar cobrança
+        </MudButton>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="d-flex justify-center pa-12">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </div>
+}
+else if (_loadError is not null)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+        @_loadError
+        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync" Class="ml-2">
+            Tentar novamente
+        </MudButton>
+    </MudAlert>
+}
+else
+{
+    @if (_billing is not null)
+    {
+        <MudPaper Elevation="0" Class="pa-5 mb-6" Style="border-radius: 12px;">
+            <div class="d-flex justify-space-between align-start flex-wrap gap-4">
+                <div>
+                    <MudText Typo="Typo.overline" Color="Color.Secondary">Plano atual</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 700;">@_billing.PlanName</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@StatusColor" Variant="Variant.Filled" Class="mt-2">
+                        @StatusLabel
+                    </MudChip>
+                </div>
+                <div class="text-right">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Próxima renovação</MudText>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">@FormatRenewalDate()</MudText>
+                </div>
+            </div>
+
+            <MudGrid Class="mt-5">
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2">Funcionários</MudText>
+                    <MudProgressLinear Value="@EmployeeUsage" Color="@UsageColor(EmployeeUsage)" Rounded="true" Class="my-2" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @_billing.CurrentEmployeeCount de @FormatLimit(_billing.MaxEmployees)
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2">Filiais</MudText>
+                    <MudProgressLinear Value="@BranchUsage" Color="@UsageColor(BranchUsage)" Rounded="true" Class="my-2" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @_billing.CurrentBranchCount de @FormatLimit(_billing.MaxBranches)
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    <MudText Typo="Typo.h6" Style="font-weight: 700;" Class="mb-4">Planos disponíveis</MudText>
+
+    @if (_plans.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            Nenhum plano está disponível no momento. Entre em contato com o suporte.
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var plan in _plans)
+            {
+                var isCurrent = IsCurrentPlan(plan);
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="@(isCurrent ? 3 : 0)" Class="pa-5 h-100"
+                              Style="@PlanCardStyle(isCurrent)">
+                        <div class="d-flex justify-space-between align-start mb-4">
+                            <div>
+                                <MudText Typo="Typo.h6" Style="font-weight: 700;">@plan.Name</MudText>
+                                <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 800;">
+                                    @FormatPrice(plan.MonthlyPriceBRL)
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">por mês</MudText>
+                            </div>
+                            @if (isCurrent)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">Atual</MudChip>
+                            }
+                        </div>
+
+                        <MudList T="string" Dense="true" Class="mb-4">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Check">
+                                @FormatPlanLimit(plan.MaxEmployees, plan.HasUnlimitedEmployees, "funcionário", "funcionários")
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Check">
+                                @FormatPlanLimit(plan.MaxBranches, plan.HasUnlimitedBranches, "filial", "filiais")
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Check">
+                                Controle de ponto e relatórios
+                            </MudListItem>
+                        </MudList>
+
+                        <MudButton FullWidth="true" Variant="@(isCurrent ? Variant.Outlined : Variant.Filled)"
+                                   Color="Color.Primary"
+                                   Disabled="@(isCurrent || _redirecting || !State.IsOwner)"
+                                   OnClick="@(() => SelectPlanAsync(plan))">
+                            @(isCurrent ? "Plano atual" : ActionLabel)
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+}
+
+@code {
+    private readonly List<SubscriptionPlan> _plans = [];
+    private BillingInfo? _billing;
+    private bool _loading = true;
+    private bool _redirecting;
+    private string? _loadError;
+
+    private bool HasCustomerPortal => _billing?.Status is "Active" or "Trialing" or "PastDue";
+    private string ActionLabel => HasCustomerPortal ? "Alterar no portal" : "Contratar plano";
+
+    private double EmployeeUsage => Usage(_billing?.CurrentEmployeeCount ?? 0, _billing?.MaxEmployees ?? 0);
+    private double BranchUsage => Usage(_billing?.CurrentBranchCount ?? 0, _billing?.MaxBranches ?? 0);
+
+    private string StatusLabel => _billing?.Status switch
+    {
+        "Active" => "Ativa",
+        "Trialing" => "Período de teste",
+        "PastDue" => "Pagamento pendente",
+        "Canceled" => "Cancelada",
+        "Free" => "Gratuita",
+        _ => _billing?.Status ?? "Indefinida"
+    };
+
+    private Color StatusColor => _billing?.Status switch
+    {
+        "Active" or "Trialing" => Color.Success,
+        "PastDue" => Color.Warning,
+        "Canceled" => Color.Error,
+        _ => Color.Default
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!State.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        if (!State.IsOwner)
+        {
+            Navigation.NavigateTo("/dashboard", replace: true);
+            return;
+        }
+
+        ShowCheckoutResult();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+
+        try
+        {
+            var plansTask = Api.GetSubscriptionPlansAsync();
+            var billingTask = Api.GetBillingInfoAsync();
+            await Task.WhenAll(plansTask, billingTask);
+
+            _plans.Clear();
+            _plans.AddRange(await plansTask);
+            _billing = await billingTask;
+        }
+        catch (ApiException ex)
+        {
+            _loadError = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Não foi possível conectar ao serviço de cobrança.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SelectPlanAsync(SubscriptionPlan plan)
+    {
+        if (_redirecting)
+            return;
+
+        if (HasCustomerPortal)
+        {
+            await OpenCustomerPortalAsync();
+            return;
+        }
+
+        await RedirectAsync(() => Api.CreateCheckoutSessionAsync(plan.Id));
+    }
+
+    private Task OpenCustomerPortalAsync()
+        => RedirectAsync(() => Api.CreatePortalSessionAsync());
+
+    private async Task RedirectAsync(Func<Task<string>> createUrl)
+    {
+        _redirecting = true;
+        try
+        {
+            var url = await createUrl();
+            Navigation.NavigateTo(url, forceLoad: true);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            _redirecting = false;
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Não foi possível conectar ao serviço de cobrança.", Severity.Error);
+            _redirecting = false;
+        }
+    }
+
+    private void ShowCheckoutResult()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        if (path.EndsWith("/success", StringComparison.OrdinalIgnoreCase))
+            Snackbar.Add("Pagamento confirmado. A assinatura será atualizada em instantes.", Severity.Success);
+        else if (path.EndsWith("/cancel", StringComparison.OrdinalIgnoreCase))
+            Snackbar.Add("Pagamento cancelado. Nenhuma cobrança foi realizada.", Severity.Info);
+    }
+
+    private bool IsCurrentPlan(SubscriptionPlan plan)
+        => string.Equals(plan.Name, _billing?.PlanName, StringComparison.OrdinalIgnoreCase);
+
+    private string FormatRenewalDate()
+        => _billing is null || _billing.Status is "Free" or "Canceled"
+            ? "Não aplicável"
+            : _billing.CurrentPeriodEnd.ToLocalTime().ToString("dd/MM/yyyy");
+
+    private static string FormatPrice(decimal price)
+        => price.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+
+    private static string FormatLimit(int limit) => limit <= 0 ? "ilimitado" : limit.ToString();
+
+    private static string FormatPlanLimit(int limit, bool unlimited, string singular, string plural)
+        => unlimited || limit <= 0
+            ? $"{plural} ilimitados"
+            : $"Até {limit} {(limit == 1 ? singular : plural)}";
+
+    private static double Usage(int current, int limit)
+        => limit <= 0 ? 0 : Math.Min(100, current * 100d / limit);
+
+    private static Color UsageColor(double usage)
+        => usage >= 90 ? Color.Error : usage >= 70 ? Color.Warning : Color.Primary;
+
+    private static string PlanCardStyle(bool current)
+        => current
+            ? "border: 1px solid var(--mud-palette-primary); border-radius: 12px;"
+            : "border: 1px solid var(--mud-palette-lines-default); border-radius: 12px;";
+}
