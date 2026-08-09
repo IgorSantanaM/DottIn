@@ -118,9 +118,22 @@ public class AdminApiClient(HttpClient http)
         await EnsureSuccessOrThrowAsync(response);
     }
 
-    public async Task<byte[]> ExportDominioAsync(Guid branchId, string month)
+    public async Task<byte[]> ExportDominioAsync(
+        Guid branchId,
+        string month,
+        string companyCode,
+        string normalRubricCode,
+        string nocturnalRubricCode,
+        string holidayRubricCode,
+        string processType)
     {
-        var response = await http.GetAsync($"/api/branches/{branchId}/exports/dominio?month={month}");
+        var response = await http.GetAsync(
+            $"/api/branches/{branchId}/exports/dominio?month={month}" +
+            $"&companyCode={Uri.EscapeDataString(companyCode)}" +
+            $"&normalRubricCode={Uri.EscapeDataString(normalRubricCode)}" +
+            $"&nocturnalRubricCode={Uri.EscapeDataString(nocturnalRubricCode)}" +
+            $"&holidayRubricCode={Uri.EscapeDataString(holidayRubricCode)}" +
+            $"&processType={Uri.EscapeDataString(processType)}");
         await EnsureSuccessOrThrowAsync(response);
         return await response.Content.ReadAsByteArrayAsync();
     }

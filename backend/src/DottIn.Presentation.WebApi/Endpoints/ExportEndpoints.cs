@@ -8,6 +8,7 @@ using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using DottIn.Presentation.WebApi.Security;
+using DottIn.Presentation.WebApi.Exports;
 
 namespace DottIn.Presentation.WebApi.Endpoints;
 
@@ -41,6 +42,7 @@ public class ExportEndpoints : IEndpoint
         var result = employees.Select(e => new DominioMappingDto(
             e.Id,
             e.Name,
+            e.CPF.Value,
             mappingDict.TryGetValue(e.Id, out var code) ? code : ""
         ));
 
@@ -51,17 +53,45 @@ public class ExportEndpoints : IEndpoint
         [FromRoute] Guid branchId,
         [FromBody] IEnumerable<SaveDominioMappingRequest> request,
         [FromServices] IDominioMappingRepository mappingRepo,
+        [FromServices] IEmployeeRepository employeeRepo,
         [FromServices] IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
         var existingMappings = await mappingRepo.GetByBranchAsync(branchId, cancellationToken);
         var existingDict = existingMappings.ToDictionary(m => m.EmployeeId);
+        var employees = await employeeRepo.GetByBranchIdAsync(branchId, cancellationToken);
+        var employeeIds = employees.Select(employee => employee.Id).ToHashSet();
+        var requestedMappings = request
+            .Where(item => !string.IsNullOrWhiteSpace(item.DominioCode))
+            .ToList();
+        var desiredCodes = existingMappings.ToDictionary(mapping => mapping.EmployeeId, mapping => mapping.DominioCode);
 
-        foreach (var item in request)
+        foreach (var item in requestedMappings)
         {
-            if (string.IsNullOrWhiteSpace(item.DominioCode))
-                continue;
+            if (!employeeIds.Contains(item.EmployeeId))
+                return Results.BadRequest(new { Message = "Funcionário não pertence à filial informada." });
 
+            try
+            {
+                desiredCodes[item.EmployeeId] = DominioPayrollLayout.NormalizeNumeric(
+                    item.DominioCode,
+                    10,
+                    "Código do empregado");
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        var duplicateCode = desiredCodes
+            .GroupBy(mapping => mapping.Value)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateCode is not null)
+            return Results.BadRequest(new { Message = $"O código Domínio {duplicateCode.Key.TrimStart('0')} está associado a mais de um funcionário." });
+
+        foreach (var item in requestedMappings)
+        {
             if (existingDict.TryGetValue(item.EmployeeId, out var existing))
             {
                 existing.UpdateCode(item.DominioCode);
@@ -81,12 +111,30 @@ public class ExportEndpoints : IEndpoint
     private static async Task<IResult> HandleExportDominioAsync(
         [FromRoute] Guid branchId,
         [FromQuery] string month,
+        [FromQuery] string companyCode,
+        [FromQuery] string normalRubricCode,
+        [FromQuery] string nocturnalRubricCode,
+        [FromQuery] string holidayRubricCode,
+        [FromQuery] string processType,
         [FromServices] IMediator mediator,
         [FromServices] IDominioMappingRepository mappingRepo,
         CancellationToken cancellationToken)
     {
         if (!DateOnly.TryParseExact(month + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var firstDay))
             return Results.BadRequest("Formato de mês inválido. Use yyyy-MM.");
+
+        try
+        {
+            companyCode = DominioPayrollLayout.NormalizeNumeric(companyCode, 10, "Código da empresa");
+            normalRubricCode = DominioPayrollLayout.NormalizeNumeric(normalRubricCode, 4, "Rubrica de horas normais");
+            nocturnalRubricCode = DominioPayrollLayout.NormalizeNumeric(nocturnalRubricCode, 4, "Rubrica de adicional noturno");
+            holidayRubricCode = DominioPayrollLayout.NormalizeNumeric(holidayRubricCode, 4, "Rubrica de horas em feriado");
+            processType = DominioPayrollLayout.NormalizeNumeric(processType, 2, "Tipo do processo");
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { Message = ex.Message });
+        }
 
         var lastDay = firstDay.AddMonths(1).AddDays(-1);
         var period = firstDay.ToString("yyyyMM");
@@ -96,6 +144,20 @@ public class ExportEndpoints : IEndpoint
 
         var mappings = await mappingRepo.GetByBranchAsync(branchId, cancellationToken);
         var codeMap = mappings.ToDictionary(m => m.EmployeeId, m => m.DominioCode);
+
+        var unmappedEmployees = records
+            .Where(record => !codeMap.ContainsKey(record.EmployeeId))
+            .Select(record => record.EmployeeName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+        if (unmappedEmployees.Count > 0)
+        {
+            return Results.BadRequest(new
+            {
+                Message = "Existem funcionários com registros sem código Domínio: " + string.Join(", ", unmappedEmployees)
+            });
+        }
 
         var sb = new StringBuilder();
 
@@ -109,23 +171,17 @@ public class ExportEndpoints : IEndpoint
             var totalWorkedHours = group.Sum(r => r.TotalWorked.TotalHours);
             var nocturnalHours = group.Where(r => r.IsNocturnal).Sum(r => r.TotalWorked.TotalHours);
             var holidayHours = group.Where(r => r.IsHoliday).Sum(r => r.TotalWorked.TotalHours);
-            var overtimeHours = 0d;
-
-            // Event 0001 - Regular hours (Horas Normais)
+            // Regular hours
             if (totalWorkedHours > 0)
-                sb.AppendLine(BuildDominioLine(dominioCode, period, "0001", 1, (long)Math.Round(totalWorkedHours * 100)));
+                sb.AppendLine(DominioPayrollLayout.BuildLaunchLine(dominioCode, period, normalRubricCode, processType, (long)Math.Round(totalWorkedHours * 100), companyCode));
 
-            // Event 0042 - Overtime (Horas Extras)
-            if (overtimeHours > 0)
-                sb.AppendLine(BuildDominioLine(dominioCode, period, "0042", 1, (long)Math.Round(overtimeHours * 100)));
-
-            // Event 0150 - Nocturnal hours (Adicional Noturno)
+            // Nocturnal hours
             if (nocturnalHours > 0)
-                sb.AppendLine(BuildDominioLine(dominioCode, period, "0150", 1, (long)Math.Round(nocturnalHours * 100)));
+                sb.AppendLine(DominioPayrollLayout.BuildLaunchLine(dominioCode, period, nocturnalRubricCode, processType, (long)Math.Round(nocturnalHours * 100), companyCode));
 
-            // Event 0250 - Holiday hours (Horas em Feriado)
+            // Holiday hours
             if (holidayHours > 0)
-                sb.AppendLine(BuildDominioLine(dominioCode, period, "0250", 1, (long)Math.Round(holidayHours * 100)));
+                sb.AppendLine(DominioPayrollLayout.BuildLaunchLine(dominioCode, period, holidayRubricCode, processType, (long)Math.Round(holidayHours * 100), companyCode));
         }
 
         var content = sb.ToString();
@@ -168,12 +224,6 @@ public class ExportEndpoints : IEndpoint
         return Results.File(bytes, "text/csv", filename);
     }
 
-    private static string BuildDominioLine(string dominioCode, string period, string eventCode, int sign, long value)
-    {
-        // Format: [1:Type][10:Code][6:Period][4:Event][1:RefType=1][1:Sign][10:Value][10:Reference=0]
-        return $"1{dominioCode}{period}{eventCode}1{sign}{value.ToString().PadLeft(10, '0')}{"".PadLeft(10, '0')}";
-    }
-
     private static string EscapeCsv(string value)
     {
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
@@ -182,5 +232,5 @@ public class ExportEndpoints : IEndpoint
     }
 }
 
-public record DominioMappingDto(Guid EmployeeId, string EmployeeName, string DominioCode);
+public record DominioMappingDto(Guid EmployeeId, string EmployeeName, string EmployeeDocument, string DominioCode);
 public record SaveDominioMappingRequest(Guid EmployeeId, string DominioCode);

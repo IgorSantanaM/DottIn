@@ -70,7 +70,7 @@ public record HolidayItemRequest(DateOnly Date, string Name, string Type, bool I
 public record UpdateHolidayRequest(string? NewName, string? NewType, bool? IsOptional);
 
 // Domínio Export models
-public record DominioMappingDto(Guid EmployeeId, string EmployeeName, string DominioCode);
+public record DominioMappingDto(Guid EmployeeId, string EmployeeName, string EmployeeDocument, string DominioCode);
 public record SaveDominioMappingRequest(Guid EmployeeId, string DominioCode);
 
 // Billing models
