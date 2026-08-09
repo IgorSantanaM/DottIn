@@ -11,11 +11,12 @@ namespace DottIn.Infra.Data.Factories
         {
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
+                .AddJsonFile("appsettings.json", optional: true)
                 .Build();
 
             var optionsBuilder = new DbContextOptionsBuilder<DottInContext>();
-            var connectionString = configuration.GetConnectionString("DottInDb");
+            var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DottInDb")
+                ?? configuration.GetConnectionString("DottInDb");
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {

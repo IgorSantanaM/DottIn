@@ -34,5 +34,8 @@ public class DominioEmployeeMappingMapping : EntityTypeConfiguration<DominioEmpl
 
         builder.HasIndex(d => new { d.BranchId, d.EmployeeId })
             .IsUnique();
+
+        builder.HasIndex(d => new { d.BranchId, d.DominioCode })
+            .IsUnique();
     }
 }

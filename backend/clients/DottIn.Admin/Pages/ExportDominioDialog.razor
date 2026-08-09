@@ -12,18 +12,58 @@
     </TitleContent>
     <DialogContent>
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-            Selecione o mês para exportar os registros no formato Domínio Sistemas.
+            Selecione o mês e informe o código interno da empresa no Domínio Folha.
         </MudText>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-4">
+            Importe o arquivo no Domínio em Utilitários &gt; Importação &gt; Importar Lançamentos.
+            Depois, execute o cálculo da folha no Domínio.
+        </MudAlert>
 
         <MudDatePicker @bind-Date="_selectedMonth" Label="Mês de Referência"
                        Variant="Variant.Outlined" FullWidth="true"
                        OpenTo="OpenTo.Month" FixMonth="null"
                        DateFormat="MM/yyyy" />
+
+        <MudTextField @bind-Value="_companyCode" Label="Código da empresa no Domínio"
+                      Variant="Variant.Outlined" Margin="Margin.Normal"
+                      Placeholder="ex: 1" MaxLength="10" InputType="InputType.Number"
+                      HelperText="Use o código interno da empresa, com até 10 dígitos" />
+
+        <MudExpansionPanels Elevation="0" Class="mt-2">
+            <MudExpansionPanel Text="Configuração das rubricas">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_normalRubricCode" Label="Horas normais"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      MaxLength="4" InputType="InputType.Number" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_nocturnalRubricCode" Label="Adicional noturno"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      MaxLength="4" InputType="InputType.Number" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_holidayRubricCode" Label="Horas em feriado"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      MaxLength="4" InputType="InputType.Number" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_processType" Label="Tipo do processo"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      MaxLength="2" InputType="InputType.Number" />
+                    </MudItem>
+                </MudGrid>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Confirme os códigos das rubricas no cadastro do seu Domínio antes da importação.
+                </MudText>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   Disabled="@(_exporting || _selectedMonth is null)" OnClick="Export"
+                   Disabled="@(_exporting || _selectedMonth is null || string.IsNullOrWhiteSpace(_companyCode))" OnClick="Export"
                    StartIcon="@Icons.Material.Filled.FileDownload">
             @if (_exporting) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
             Exportar
@@ -35,6 +75,11 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
 
     private DateTime? _selectedMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private string _companyCode = "";
+    private string _normalRubricCode = "1";
+    private string _nocturnalRubricCode = "150";
+    private string _holidayRubricCode = "250";
+    private string _processType = "11";
     private bool _exporting;
 
     private async Task Export()
@@ -44,7 +89,14 @@
         try
         {
             var month = _selectedMonth.Value.ToString("yyyy-MM");
-            var bytes = await Api.ExportDominioAsync(State.BranchId, month);
+            var bytes = await Api.ExportDominioAsync(
+                State.BranchId,
+                month,
+                _companyCode.Trim(),
+                _normalRubricCode.Trim(),
+                _nocturnalRubricCode.Trim(),
+                _holidayRubricCode.Trim(),
+                _processType.Trim());
 
             if (bytes.Length == 0)
             {

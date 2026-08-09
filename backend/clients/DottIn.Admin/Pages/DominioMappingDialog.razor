@@ -11,8 +11,14 @@
     </TitleContent>
     <DialogContent>
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-            Associe cada funcionário ao seu código no sistema Domínio Sistemas para exportação da folha de pagamento.
+            Confira o CPF e associe cada funcionário ao código interno do empregado no Domínio Folha.
+            O empregado deve estar previamente cadastrado no Domínio.
         </MudText>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-4">
+            O importador de lançamentos do Domínio identifica o empregado pelo código interno, não pelo CPF.
+            O CPF abaixo serve para localizar e conferir o cadastro correto.
+        </MudAlert>
 
         @if (_loading)
         {
@@ -26,6 +32,7 @@
                 <thead>
                     <tr>
                         <th>Funcionário</th>
+                        <th style="width: 150px;">CPF</th>
                         <th style="width: 160px;">Código Domínio</th>
                     </tr>
                 </thead>
@@ -40,9 +47,13 @@
                                 </div>
                             </td>
                             <td>
+                                <MudText Typo="Typo.body2">@FormatCpf(mapping.EmployeeDocument)</MudText>
+                            </td>
+                            <td>
                                 <MudTextField @bind-Value="mapping.Code" Variant="Variant.Outlined"
                                               Margin="Margin.Dense" Placeholder="ex: 1"
                                               MaxLength="10"
+                                              InputType="InputType.Number"
                                               HelperText="Zeros à esquerda são adicionados automaticamente" />
                             </td>
                         </tr>
@@ -78,6 +89,7 @@
             {
                 EmployeeId = d.EmployeeId,
                 EmployeeName = d.EmployeeName,
+                EmployeeDocument = d.EmployeeDocument,
                 Code = string.IsNullOrWhiteSpace(d.DominioCode) || d.DominioCode.Trim('0').Length == 0
                     ? ""
                     : d.DominioCode.TrimStart('0')
@@ -112,10 +124,16 @@
 
     private void Cancel() => MudDialog.Cancel();
 
+    private static string FormatCpf(string cpf)
+        => cpf.Length == 11
+            ? $"{cpf[..3]}.{cpf[3..6]}.{cpf[6..9]}-{cpf[9..]}"
+            : cpf;
+
     private class MappingRow
     {
         public Guid EmployeeId { get; set; }
         public string EmployeeName { get; set; } = "";
+        public string EmployeeDocument { get; set; } = "";
         public string Code { get; set; } = "";
     }
 }
