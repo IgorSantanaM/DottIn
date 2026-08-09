@@ -52,6 +52,7 @@ public sealed class OperationalAccessPolicyTests
         typeof(DottIn.Admin.Pages.Dashboard),
         typeof(DottIn.Admin.Pages.Employees),
         typeof(DottIn.Admin.Pages.TimeKeeping),
-        typeof(DottIn.Admin.Pages.Holidays)
+        typeof(DottIn.Admin.Pages.Holidays),
+        typeof(DottIn.Admin.Pages.Billing)
     };
 }

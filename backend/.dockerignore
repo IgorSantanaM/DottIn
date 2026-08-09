@@ -1,0 +1,8 @@
+**/bin
+**/obj
+**/.vs
+clients/DottIn.Mobile
+tests
+tools
+build*.txt
+*.user

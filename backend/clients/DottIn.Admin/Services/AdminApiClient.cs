@@ -132,6 +132,52 @@ public class AdminApiClient(HttpClient http)
         return await response.Content.ReadAsByteArrayAsync();
     }
 
+    // Billing
+    public async Task<List<SubscriptionPlan>> GetSubscriptionPlansAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await http.GetFromJsonAsync<List<SubscriptionPlan>>(
+            "/api/billing/plans",
+            cancellationToken);
+        return result ?? [];
+    }
+
+    public async Task<BillingInfo?> GetBillingInfoAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await http.GetAsync("/api/billing/subscription", cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<BillingInfo>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<string> CreateCheckoutSessionAsync(Guid planId, CancellationToken cancellationToken = default)
+    {
+        using var response = await http.PostAsJsonAsync(
+            "/api/billing/checkout-session",
+            new CreateCheckoutSessionRequest(planId),
+            cancellationToken);
+        await EnsureSuccessOrThrowAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<CheckoutSessionResponse>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(result?.CheckoutUrl))
+            throw new ApiException("Não foi possível iniciar o pagamento.");
+
+        return result.CheckoutUrl;
+    }
+
+    public async Task<string> CreatePortalSessionAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await http.PostAsync("/api/billing/portal-session", null, cancellationToken);
+        await EnsureSuccessOrThrowAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<PortalSessionResponse>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(result?.PortalUrl))
+            throw new ApiException("Não foi possível abrir o portal de cobrança.");
+
+        return result.PortalUrl;
+    }
+
     public async Task LogoutAsync()
     {
         try
@@ -154,6 +200,15 @@ public class AdminApiClient(HttpClient http)
             });
             if (!string.IsNullOrWhiteSpace(problem?.Title))
                 throw new ApiException(problem.Title);
+
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("message", out var message) ||
+                document.RootElement.TryGetProperty("Message", out message))
+            {
+                var value = message.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                    throw new ApiException(value);
+            }
         }
         catch (JsonException) { }
 

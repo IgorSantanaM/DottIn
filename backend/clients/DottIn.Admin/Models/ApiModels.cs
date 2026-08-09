@@ -72,3 +72,30 @@ public record UpdateHolidayRequest(string? NewName, string? NewType, bool? IsOpt
 // Domínio Export models
 public record DominioMappingDto(Guid EmployeeId, string EmployeeName, string DominioCode);
 public record SaveDominioMappingRequest(Guid EmployeeId, string DominioCode);
+
+// Billing models
+public record SubscriptionPlan(
+    Guid Id,
+    string Name,
+    string? StripePriceId,
+    int MaxEmployees,
+    int MaxBranches,
+    decimal MonthlyPriceBRL,
+    bool HasUnlimitedEmployees,
+    bool HasUnlimitedBranches);
+
+public record BillingInfo(
+    Guid SubscriptionId,
+    string PlanName,
+    string Status,
+    int MaxEmployees,
+    int MaxBranches,
+    int CurrentEmployeeCount,
+    int CurrentBranchCount,
+    DateTime CurrentPeriodEnd,
+    bool CanAddEmployee,
+    bool CanAddBranch);
+
+public record CreateCheckoutSessionRequest(Guid PlanId);
+public record CheckoutSessionResponse(string CheckoutUrl);
+public record PortalSessionResponse(string PortalUrl);
