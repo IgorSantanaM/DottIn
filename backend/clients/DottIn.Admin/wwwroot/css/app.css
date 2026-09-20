@@ -28,6 +28,19 @@ a, .btn-link {
     padding-top: 1.1rem;
 }
 
+/* MudMainContent is rendered by MudBlazor, so this rule must remain global. */
+.dottin-main-content {
+    padding-top: 72px !important;
+}
+
+@media (max-width: 600px) {
+    .dottin-main-content {
+        padding-top: 64px !important;
+        padding-right: 16px !important;
+        padding-left: 16px !important;
+    }
+}
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }

@@ -255,7 +255,7 @@
         !string.IsNullOrWhiteSpace(_name) &&
         !string.IsNullOrWhiteSpace(_document) &&
         !string.IsNullOrWhiteSpace(_password) &&
-        _password.Length >= 6 &&
+        IsSecurePassword(_password) &&
         _password == _confirmPassword;
 
     // Password strength helpers
@@ -273,6 +273,10 @@
             return score;
         }
     }
+
+    private static bool IsSecurePassword(string password) =>
+        password.Length >= 10 && password.Any(char.IsUpper) && password.Any(char.IsLower) &&
+        password.Any(char.IsDigit) && password.Any(c => !char.IsLetterOrDigit(c));
 
     private int PasswordStrengthPercent => PasswordStrengthScore switch
     {
@@ -352,7 +356,7 @@
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.AccessToken);
 
                     Snackbar.Add("Conta criada com sucesso! Bem-vindo ao DottIn.", Severity.Success);
-                    Navigation.NavigateTo("/welcome", replace: true);
+                    Navigation.NavigateTo("/onboarding/plan", replace: true);
                 }
             }
             else

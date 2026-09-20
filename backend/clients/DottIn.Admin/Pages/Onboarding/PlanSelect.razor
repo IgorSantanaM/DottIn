@@ -1,6 +1,8 @@
 @page "/onboarding/plan"
 @inject AdminState State
 @inject NavigationManager Navigation
+@inject AdminApiClient Api
+@inject ISnackbar Snackbar
 
 <PageTitle>Escolha seu Plano – DottIn</PageTitle>
 
@@ -38,10 +40,10 @@ else
         <div class="plan-card">
             <div class="recommended-badge">Recomendado</div>
 
-            <h2 class="plan-name">Plano Pro</h2>
+            <h2 class="plan-name">@SelectedPlan?.Name</h2>
 
             <div class="plan-price">
-                <span class="price-value">R$ 60</span>
+                <span class="price-value">@FormatPrice(SelectedPlan?.MonthlyPriceBRL ?? 0)</span>
                 <span class="price-suffix">/mês</span>
             </div>
 
@@ -52,7 +54,7 @@ else
                 </div>
                 <div class="feature-item">
                     <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
-                    <span>Até 15 funcionários</span>
+                    <span>@EmployeeLimit</span>
                 </div>
                 <div class="feature-item">
                     <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
@@ -60,7 +62,7 @@ else
                 </div>
                 <div class="feature-item">
                     <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
-                    <span>Até 2 filiais</span>
+                    <span>@BranchLimit</span>
                 </div>
                 <div class="feature-item">
                     <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="feature-icon" />
@@ -72,7 +74,9 @@ else
                 </div>
             </div>
 
-            <button class="btn-flat" @onclick="SelectPlan">Selecionar Plano Pro</button>
+            <button class="btn-flat" @onclick="SelectPlan" disabled="@(_loading || SelectedPlan is null)">
+                @(_loading ? "Carregando..." : $"Selecionar {SelectedPlan?.Name}")
+            </button>
         </div>
 
         <!-- Footer -->
@@ -81,18 +85,44 @@ else
 }
 
 @code {
-    protected override void OnInitialized()
+    private List<SubscriptionPlan> _plans = [];
+    private bool _loading = true;
+    private SubscriptionPlan? SelectedPlan => _plans.FirstOrDefault(x => x.Name.Equals("Professional", StringComparison.OrdinalIgnoreCase))
+                                                ?? _plans.FirstOrDefault();
+    private string EmployeeLimit => SelectedPlan?.HasUnlimitedEmployees == true ? "Funcionários ilimitados" : $"Até {SelectedPlan?.MaxEmployees} funcionários";
+    private string BranchLimit => SelectedPlan?.HasUnlimitedBranches == true ? "Filiais ilimitadas" : $"Até {SelectedPlan?.MaxBranches} filiais";
+
+    protected override async Task OnInitializedAsync()
     {
         if (!State.IsAuthenticated)
         {
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        try
+        {
+            _plans = await Api.GetSubscriptionPlansAsync();
+            if (SelectedPlan is null)
+                Snackbar.Add("Não há planos disponíveis para contratação.", Severity.Error);
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
     private void SelectPlan()
     {
-        Navigation.NavigateTo("/onboarding/branch");
+        if (SelectedPlan is not null)
+            Navigation.NavigateTo($"/onboarding/branch?planId={SelectedPlan.Id}");
     }
+
+    private static string FormatPrice(decimal price) => $"R$ {price:N0}";
 }
 
 <style>

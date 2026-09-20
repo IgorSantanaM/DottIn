@@ -48,6 +48,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status404NotFound)
                 .Produces(StatusCodes.Status500InternalServerError);
 
+            group.MapGet("/{branchId:guid}/clock", HandleGetClockAsync)
+                .WithName(nameof(HandleGetClockAsync))
+                .WithSummary("Get the branch local time")
+                .WithDescription("Returns the current server time converted using the branch timezone configuration.")
+                .Produces<BranchClockResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound);
+
             group.MapGet("/document/{document}", HandleGetBranchByDocumentAsync)
                 .WithName(nameof(HandleGetBranchByDocumentAsync))
                 .WithSummary("Get branch by document (CNPJ)")
@@ -164,6 +171,22 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return branch is null
                 ? Results.NotFound($"Branch with ID {branchId} not found.")
                 : Results.Ok(branch);
+        }
+
+        private static async Task<IResult> HandleGetClockAsync(
+            [FromRoute] Guid branchId,
+            [FromServices] IBranchRepository branchRepository,
+            CancellationToken cancellationToken)
+        {
+            var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
+            if (branch is null)
+                return Results.NotFound($"Branch with ID {branchId} not found.");
+
+            var utcNow = DateTime.UtcNow;
+            return Results.Ok(new BranchClockResponse(
+                utcNow,
+                BranchTime.ToLocal(utcNow, branch.TimeZoneId),
+                branch.TimeZoneId));
         }
 
         private static async Task<IResult> HandleGetBranchByDocumentAsync(

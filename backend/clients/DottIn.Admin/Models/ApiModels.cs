@@ -1,6 +1,6 @@
 namespace DottIn.Admin.Models;
 
-public record LoginRequest(string Cpf, string Password);
+public record LoginRequest(string Cpf, string Password, string? CompanyJoinToken = null);
 public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
 public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
 public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
@@ -23,6 +23,8 @@ public record EmployeeInfo(Guid Id, string Name, string Cpf, string? ImageUrl)
 public record BranchSummary(
     Guid Id, string Name, string? Email, string? PhoneNumber,
     bool IsActive, bool IsHeadquarters, string OwnerName);
+
+public record BranchClockResponse(DateTime UtcNow, DateTime LocalNow, string TimeZoneId);
 
 public record EmployeeSummary(
     Guid EmployeeId, string Name, DocumentInfo Document, string? ImageUrl,
@@ -99,3 +101,7 @@ public record BillingInfo(
 public record CreateCheckoutSessionRequest(Guid PlanId);
 public record CheckoutSessionResponse(string CheckoutUrl);
 public record PortalSessionResponse(string PortalUrl);
+public record CompanyJoinLinkResponse(string Token, DateTime ExpiresAt, string CompanyName);
+public record CompanyJoinLinkResolutionResponse(string CompanyName, bool CanJoin);
+public record RegisterFromCompanyJoinLinkRequest(string Token, string Name, string Cpf, string Password);
+public record RegisterFromCompanyJoinLinkResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt, Guid EmployeeId, Guid BranchId);

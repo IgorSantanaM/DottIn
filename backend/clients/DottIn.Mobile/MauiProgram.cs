@@ -51,6 +51,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILocalDatabaseService, LocalDatabaseService>();
 
         builder.Services.AddSingleton<AppState>();
+        builder.Services.AddSingleton<BranchClockService>();
 
         builder.Services.AddTransient<AuthorizationHandler>();
 

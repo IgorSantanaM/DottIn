@@ -72,6 +72,9 @@ public interface IBranchApi
 {
     [Get("/api/branches/owner/{ownerId}")]
     Task<IEnumerable<BranchSummary>> GetByOwnerAsync(Guid ownerId);
+
+    [Get("/api/branches/{branchId}/clock")]
+    Task<BranchClockResponse> GetClockAsync(Guid branchId);
 }
 
 public interface IHolidayCalendarApi
@@ -203,6 +206,8 @@ public record BranchSummary(
     string Name,
     bool IsActive,
     bool IsHeadquarters);
+
+public record BranchClockResponse(DateTime UtcNow, DateTime LocalNow, string TimeZoneId);
 
 public record EmployeeSummaryItem(
     Guid EmployeeId,

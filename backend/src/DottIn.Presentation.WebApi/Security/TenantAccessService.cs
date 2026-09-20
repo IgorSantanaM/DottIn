@@ -16,7 +16,15 @@ public sealed class TenantAccessService(DottInContext db, CurrentUserContext cur
             return false;
 
         var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(x => x.Id == branchId, token);
-        if (branch?.OwnerId != currentUser.TenantId)
+        if (branch is null)
+            return false;
+
+        // Legacy branches can predate the owner association. They are accessible only
+        // by a token issued for that exact branch; this does not grant cross-branch access.
+        if (branch.OwnerId is null && currentUser.BranchId == branchId)
+            return true;
+
+        if (branch.OwnerId != currentUser.TenantId)
             return false;
 
         return currentUser.Role is EmployeeRole.Owner or EmployeeRole.Administrator ||

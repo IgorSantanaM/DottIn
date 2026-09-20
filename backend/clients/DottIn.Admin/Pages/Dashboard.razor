@@ -2,6 +2,7 @@
 @attribute [OperationalAccessRequired]
 @inject AdminApiClient Api
 @inject AdminState State
+@inject BranchClockService BranchClock
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @implements IDisposable
@@ -19,7 +20,7 @@
             <MudText Typo="Typo.h5" Style="font-weight: 700;">Olá, @(State.User?.FirstName ?? "Usuário")!</MudText>
         }
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            @DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
+            @BranchNow.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
         </MudText>
     </div>
     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
@@ -31,7 +32,7 @@
 
 @* Real-time Clock *@
 <div style="text-align: center;" class="mb-4">
-    <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@_currentTime</MudText>
+    <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@BranchNow.ToString("HH:mm:ss")</MudText>
 </div>
 
 @if (State.IsOwner)
@@ -285,7 +286,6 @@ else
     private PersonalStatus _personalStatus = PersonalStatus.NotClocked;
     private bool _loading = true;
     private bool _isProcessing;
-    private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
     private System.Timers.Timer? _timer;
     private string _lastKioskMessage = "";
     private Severity _lastKioskSeverity = Severity.Success;
@@ -294,11 +294,12 @@ else
     protected override async Task OnInitializedAsync()
     {
         _timer = new System.Timers.Timer(1000);
-        _timer.Elapsed += (_, _) => { _currentTime = DateTime.Now.ToString("HH:mm:ss"); InvokeAsync(StateHasChanged); };
+        _timer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
         _timer.Start();
         if (State.IsAuthenticated && State.BranchId != Guid.Empty)
         {
             _loaded = true;
+            await SynchronizeBranchClockAsync();
             await LoadDataAsync();
             return;
         }
@@ -313,6 +314,7 @@ else
 
         _loaded = true;
         State.OnChange -= HandleStateChange;
+        await SynchronizeBranchClockAsync();
         await InvokeAsync(LoadDataAsync);
     }
 
@@ -322,12 +324,28 @@ else
         _timer?.Dispose();
     }
 
+    private async Task SynchronizeBranchClockAsync()
+    {
+        try
+        {
+            await BranchClock.SynchronizeAsync(State.BranchId);
+        }
+        catch (HttpRequestException)
+        {
+            // The dashboard remains usable while a transient connection error is resolved.
+        }
+        catch (ApiException)
+        {
+            // The time is synchronized again on the next dashboard load.
+        }
+    }
+
     private async Task LoadDataAsync()
     {
         _loading = true;
         try
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = BranchClock.Today;
 
             if (State.IsOwner)
             {
@@ -377,7 +395,7 @@ else
         _isProcessing = true;
         try
         {
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = BranchClock.Today;
             var records = await Api.GetEmployeeHistoryAsync(employee.Id, today, today);
             var todayRecord = records.FirstOrDefault();
             var employeeStatus = todayRecord?.Status ?? "NotStarted";
@@ -553,6 +571,8 @@ else
         "Mobile" => "Celular", "Web" => "Website",
         "Kiosk" => "Quiosque", _ => s
     };
+
+    private DateTime BranchNow => BranchClock.Now;
 
     private enum PersonalStatus { NotClocked, Working, OnBreak, Finished }
 }

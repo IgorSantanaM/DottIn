@@ -10,12 +10,24 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.BaseAddress;
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+builder.Services.AddScoped<AdminState>();
+builder.Services.AddScoped<SessionStorageService>();
+builder.Services.AddScoped<BrowserGeolocationService>();
+builder.Services.AddScoped<AdminAuthorizationHandler>();
+builder.Services.AddScoped(sp =>
+{
+    var authorizationHandler = sp.GetRequiredService<AdminAuthorizationHandler>();
+    authorizationHandler.InnerHandler = new HttpClientHandler();
+
+    return new HttpClient(authorizationHandler)
+    {
+        BaseAddress = new Uri(apiBaseUrl)
+    };
+});
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AdminApiClient>();
-builder.Services.AddScoped<AdminState>();
+builder.Services.AddScoped<BranchClockService>();
 builder.Services.AddScoped<OperationalAccessService>();
-builder.Services.AddScoped<SessionStorageService>();
 
 builder.Services.AddMudServices(config =>
 {

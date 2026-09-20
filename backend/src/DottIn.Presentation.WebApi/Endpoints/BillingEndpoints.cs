@@ -14,8 +14,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
     public class BillingEndpoints : IEndpoint
     {
         private const string Tag = "Billing";
-        private static readonly string[] PublicPlanNames = ["Basic", "Starter", "Pro"];
-
         public static void DefineEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api/billing")
@@ -72,7 +70,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var plans = await planRepository.GetAllActiveAsync(cancellationToken);
 
             var response = plans
-                .Where(p => PublicPlanNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+                .Where(p => p.IsActive && !p.IsFree && !string.IsNullOrWhiteSpace(p.StripePriceId))
                 .Select(p => new SubscriptionPlanResponse(
                     p.Id,
                     p.Name,
@@ -129,9 +127,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.Conflict(new { Message = "Use o portal de cobrança para alterar uma assinatura existente." });
 
             var plan = await planRepository.GetByIdAsync(request.PlanId, cancellationToken);
-            if (plan is null || !plan.IsActive ||
-                !PublicPlanNames.Contains(plan.Name, StringComparer.OrdinalIgnoreCase) ||
-                string.IsNullOrWhiteSpace(plan.StripePriceId))
+            if (plan is null || !plan.IsActive || plan.IsFree || string.IsNullOrWhiteSpace(plan.StripePriceId))
                 return Results.BadRequest(new { Message = "Plano indisponível para contratação." });
 
             var checkoutUrl = await stripeService.CreateCheckoutSessionAsync(

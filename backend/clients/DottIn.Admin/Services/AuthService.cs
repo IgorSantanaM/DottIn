@@ -29,15 +29,13 @@ public class AuthService(HttpClient http, AdminState state)
         }
 
         await state.SetAuthenticatedAsync(session);
-        http.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", session.AccessToken);
     }
 
-    public async Task<(bool Success, string? Error)> LoginAsync(string cpf, string password)
+    public async Task<(bool Success, string? Error)> LoginAsync(string cpf, string password, string? companyJoinToken = null)
     {
         try
         {
-            var request = new LoginRequest(cpf, password);
+            var request = new LoginRequest(cpf, password, companyJoinToken);
             var response = await http.PostAsJsonAsync("/api/auth/login", request);
 
             if (!response.IsSuccessStatusCode)
@@ -61,8 +59,6 @@ public class AuthService(HttpClient http, AdminState state)
             if (login is null) return (false, "Resposta inválida do servidor");
 
             await state.SetAuthenticatedAsync(login);
-            http.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", login.AccessToken);
 
             return (true, null);
         }

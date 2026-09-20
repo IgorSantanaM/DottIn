@@ -1,6 +1,4 @@
 @page "/billing"
-@page "/billing/success"
-@page "/billing/cancel"
 @attribute [OperationalAccessRequired]
 @inject AdminApiClient Api
 @inject AdminState State
@@ -182,7 +180,6 @@ else
             return;
         }
 
-        ShowCheckoutResult();
         await LoadAsync();
     }
 
@@ -250,15 +247,6 @@ else
             Snackbar.Add("Não foi possível conectar ao serviço de cobrança.", Severity.Error);
             _redirecting = false;
         }
-    }
-
-    private void ShowCheckoutResult()
-    {
-        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
-        if (path.EndsWith("/success", StringComparison.OrdinalIgnoreCase))
-            Snackbar.Add("Pagamento confirmado. A assinatura será atualizada em instantes.", Severity.Success);
-        else if (path.EndsWith("/cancel", StringComparison.OrdinalIgnoreCase))
-            Snackbar.Add("Pagamento cancelado. Nenhuma cobrança foi realizada.", Severity.Info);
     }
 
     private bool IsCurrentPlan(SubscriptionPlan plan)

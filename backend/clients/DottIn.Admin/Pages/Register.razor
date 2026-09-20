@@ -6,6 +6,8 @@
 @inject ISnackbar Snackbar
 @inject AdminState State
 @inject OperationalAccessService OperationalAccess
+@inject BrowserGeolocationService BrowserGeolocation
+@inject AdminApiClient Api
 
 <PageTitle>DottIn Admin - Registrar Filial</PageTitle>
 
@@ -211,16 +213,11 @@
                         </MudTextField>
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string"
-                                   Value="_documentType"
-                                   ValueChanged="OnDocumentTypeChanged"
-                                   Label="Tipo Doc."
-                                   Variant="Variant.Outlined"
-                                   FullWidth="true"
-                                   PopoverClass="dropdown-dark-popover">
-                            <MudSelectItem Value="@("CPF")">CPF</MudSelectItem>
-                            <MudSelectItem Value="@("CNPJ")">CNPJ</MudSelectItem>
-                        </MudSelect>
+                        <MudTextField Value="_documentType"
+                                      Label="Tipo Doc."
+                                      Variant="Variant.Outlined"
+                                      FullWidth="true"
+                                      ReadOnly="true" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
                         <MudTextField @bind-Value="_document"
@@ -341,7 +338,7 @@
     private string _name = "";
     private string _email = "";
     private string _phone = "";
-    private string _documentType = "";
+    private string _documentType = "CNPJ";
     private string _document = "";
     private TimeSpan? _startWorkTime;
     private TimeSpan? _endWorkTime;
@@ -358,6 +355,7 @@
     private bool _isActive = true;
     private bool _loading;
     private bool _isOnboarding;
+    private Guid? _selectedPlanId;
 
     private string Name { get; set; } = "";
 
@@ -370,19 +368,11 @@
 
         _isOnboarding = Navigation.Uri.Contains("/onboarding/branch", StringComparison.OrdinalIgnoreCase)
                         || (onboardingQuery != null && bool.TryParse(onboardingQuery, out var result) && result);
-    }
-
-    private void OnDocumentTypeChanged(string newType)
-    {
-        _documentType = newType;
-        _document = "";
+        _selectedPlanId = Guid.TryParse(query["planId"], out var planId) ? planId : null;
     }
 
     private IMask GetDocumentMask()
     {
-        if (_documentType == "CPF")
-            return new PatternMask("000.000.000-00");
-
         return new PatternMask("00.000.000/0000-00");
     }
 
@@ -408,12 +398,13 @@
         try
         {
             var cleanDocument = _document.Replace(".", "").Replace("-", "").Replace("/", "");
+            var geolocation = await BrowserGeolocation.GetCurrentPositionAsync();
 
             var request = new
             {
                 Name = Name.Trim(),
                 Document = new { Value = cleanDocument, Type = _documentType },
-                Geolocation = new { Latitude = 0.0, Longitude = 0.0 },
+                Geolocation = geolocation,
                 Address = new
                 {
                     Street = _street,
@@ -455,10 +446,18 @@
                         await OperationalAccess.RefreshAsync();
                     }
 
-                    // Onboarding flow: redirect to success page with CompanyCode
+                    var joinLink = await Api.GetCompanyJoinLinkAsync(result.BranchId);
+                    if (_selectedPlanId.HasValue)
+                    {
+                        var checkoutUrl = await Api.CreateCheckoutSessionAsync(_selectedPlanId.Value);
+                        Navigation.NavigateTo(checkoutUrl, forceLoad: true);
+                        return;
+                    }
+
                     var encodedName = Uri.EscapeDataString(Name.Trim());
+                    var encodedToken = Uri.EscapeDataString(joinLink.Token);
                     Navigation.NavigateTo(
-                        $"/onboarding/success?code={result.CompanyCode}&name={encodedName}",
+                        $"/onboarding/success?code={result.CompanyCode}&name={encodedName}&token={encodedToken}",
                         replace: true);
                 }
                 else
@@ -469,9 +468,12 @@
             }
             else
             {
-                var body = await response.Content.ReadAsStringAsync();
-                Snackbar.Add("Erro ao registrar filial. Tente novamente.", Severity.Error);
+                Snackbar.Add(await GetRegistrationErrorMessageAsync(response), Severity.Error);
             }
+        }
+        catch (BrowserGeolocationException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
         }
         catch (HttpRequestException)
         {
@@ -481,6 +483,12 @@
         {
             _loading = false;
         }
+    }
+
+    private static async Task<string> GetRegistrationErrorMessageAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        return BranchRegistrationErrorFormatter.Format(response.StatusCode, body);
     }
 
     private record CreateBranchResponse(Guid BranchId, string CompanyCode);
