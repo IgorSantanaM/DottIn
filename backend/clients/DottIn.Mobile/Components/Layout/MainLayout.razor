@@ -18,7 +18,7 @@
     {
         <div class="offline-banner">
             <MudIcon Icon="@Icons.Material.Filled.WifiOff" Size="Size.Small" />
-            <span>Modo offline - dados ser„o sincronizados quando conectado</span>
+            <span>Modo offline - dados ser√£o sincronizados quando conectado</span>
         </div>
     }
 
@@ -31,14 +31,18 @@
     @if (AppState.IsAuthenticated)
     {
         <MudPaper Class="bottom-nav" Elevation="8">
+            @if (AppState.IsOwner)
+            {
+                <MudNavLink Href="/management" Icon="@Icons.Material.Filled.BusinessCenter">Gest√£o</MudNavLink>
+            }
             <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Schedule">
                 Ponto
             </MudNavLink>
             <MudNavLink Href="/history" Icon="@Icons.Material.Filled.History">
-                HistÛrico
+                Hist√≥rico
             </MudNavLink>
             <MudNavLink Href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">
-                Calend·rio
+                Calend√°rio
             </MudNavLink>
             <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">
                 Perfil

@@ -1,0 +1,36 @@
+@page "/management"
+@inject AppState State
+@inject MobileSessionService Session
+@inject ISnackbar Snackbar
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Gestão</MudText>
+    <MudText>@State.SelectedBranchName</MudText>
+    @if (State.CanSwitchBranches)
+    {
+        <MudSelect T="Guid" Value="State.BranchId" ValueChanged="SwitchAsync" Label="Filial" Disabled="_busy">
+            @foreach (var branch in State.AvailableBranches)
+            { <MudSelectItem Value="branch.Id">@branch.Name</MudSelectItem> }
+        </MudSelect>
+    }
+    <MudList T="string">
+        <MudListItem Href="/management/branches/new" Icon="@Icons.Material.Filled.AddBusiness">Cadastrar filial</MudListItem>
+        <MudListItem Href="/management/employees" Icon="@Icons.Material.Filled.People">Funcionários</MudListItem>
+        <MudListItem Href="/management/dominio" Icon="@Icons.Material.Filled.SyncAlt">Mapeamento Domínio</MudListItem>
+        <MudListItem Href="/management/reports" Icon="@Icons.Material.Filled.Assessment">Relatórios e exportações</MudListItem>
+        <MudListItem Href="/management/calendars" Icon="@Icons.Material.Filled.CalendarMonth">Calendários de feriados</MudListItem>
+        <MudListItem Href="/management/billing" Icon="@Icons.Material.Filled.CreditCard">Assinatura e cobrança</MudListItem>
+    </MudList>
+    <ManagerOverview @key="State.BranchId" />
+</MudContainer>
+
+@code {
+    private bool _busy;
+    private async Task SwitchAsync(Guid id)
+    {
+        _busy = true;
+        try { await Session.SwitchBranchAsync(id); }
+        catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
+        finally { _busy = false; }
+    }
+}

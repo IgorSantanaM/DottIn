@@ -1,4 +1,5 @@
 @page "/calendar"
+@inject NavigationManager Navigation
 @inject AppState AppState
 @inject IHolidayCalendarApi HolidayApi
 @inject ITimeKeepingApi TimeKeepingApi
@@ -103,7 +104,7 @@
                         var workedOnHoliday = holiday is not null && _workedHolidayDates.Contains(date);
 
                         <div class="day-cell @(isToday ? "today" : "") @(isWeekend ? "weekend" : "") @(holiday is not null ? "has-holiday" : "") @(workedOnHoliday ? "worked-holiday" : "")"
-                             @onclick="@(() => { if (holiday is not null) ShowHolidayDetail(holiday); })">
+                             @onclick="@(async () => { if (holiday is not null) await ShowHolidayDetail(holiday); })">
                             <span class="day-number">@d</span>
                             @if (holiday is not null)
                             {
@@ -144,7 +145,7 @@
             var start = new DateOnly(_selectedYear, 1, 1);
             var end = new DateOnly(_selectedYear, 12, 31);
             var items = await HolidayApi.GetHolidaysInRangeAsync(AppState.BranchId, start, end);
-            _holidays = items.ToDictionary(h => h.Date, h => h);
+            _holidays = items.GroupBy(h => h.Date).ToDictionary(g => g.Key, g => g.First() with { Name = string.Join(", ", g.Select(h => h.Name).Distinct()) });
         }
         catch
         {
@@ -208,9 +209,9 @@
         var parameters = new DialogParameters<HolidayDetailDialog>
         {
             { x => x.Holiday, holiday },
-            { x => x.CanManage, AppState.IsOwner },
+            { x => x.CanManage, false },
             { x => x.WorkedOnHoliday, _workedHolidayDates.Contains(holiday.Date) },
-            { x => x.CalendarId, _calendars.FirstOrDefault()?.Id ?? Guid.Empty },
+            { x => x.CalendarId, Guid.Empty },
             { x => x.BranchId, AppState.BranchId }
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
@@ -220,43 +221,10 @@
             await LoadHolidays();
     }
 
-    private async Task ShowOwnerActions()
+    private Task ShowOwnerActions()
     {
-        if (!_calendars.Any())
-        {
-            var create = await DialogService.ShowMessageBox(
-                "Calendário não encontrado",
-                $"Não existe calendário para {_selectedYear}. Deseja criar um?",
-                yesText: "Criar", cancelText: "Cancelar");
-
-            if (create == true)
-            {
-                var parameters = new DialogParameters<CreateCalendarMobileDialog>
-                {
-                    { x => x.Year, _selectedYear },
-                    { x => x.BranchId, AppState.BranchId }
-                };
-                var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
-                var dialog = await DialogService.ShowAsync<CreateCalendarMobileDialog>("Novo Calendário", parameters, options);
-                var result = await dialog.Result;
-                if (result is not null && !result.Canceled)
-                    await LoadHolidays();
-            }
-            return;
-        }
-
-        var calendarId = _calendars.First().Id;
-        var addParams = new DialogParameters<AddHolidayMobileDialog>
-        {
-            { x => x.CalendarId, calendarId },
-            { x => x.BranchId, AppState.BranchId },
-            { x => x.Year, _selectedYear }
-        };
-        var addOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
-        var addDialog = await DialogService.ShowAsync<AddHolidayMobileDialog>("Adicionar Feriado", addParams, addOptions);
-        var addResult = await addDialog.Result;
-        if (addResult is not null && !addResult.Canceled)
-            await LoadHolidays();
+        Navigation.NavigateTo("/management/calendars");
+        return Task.CompletedTask;
     }
 
     private static string GetHolidayColor(string type) => type switch

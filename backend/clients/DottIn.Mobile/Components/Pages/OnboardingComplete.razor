@@ -1,0 +1,35 @@
+@page "/onboarding/success"
+@inject AppState State
+@inject ISecureStorageService Storage
+@inject ISnackbar Snackbar
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.Small">
+    <MudAlert Severity="Severity.Success">Sua empresa está pronta!</MudAlert>
+    <MudText Typo="Typo.h6" Class="mt-4">@State.SelectedBranchName</MudText>
+    <MudText>Código da empresa: @_code</MudText>
+    <MudText Class="mt-4">Informe o endereço do painel web da sua empresa para compartilhar o acesso dos funcionários.</MudText>
+    <MudTextField @bind-Value="_webUrl" Label="Endereço do painel web" Placeholder="https://…" Immediate="true" />
+    <MudButton OnClick="CopyAsync" Disabled="@(!ValidUrl)">Copiar link de acesso</MudButton>
+    <MudButton Href="/dashboard" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Ir para o painel</MudButton>
+</MudContainer>
+
+@code {
+    private string _code = "", _webUrl = "";
+    private bool ValidUrl => Uri.TryCreate(_webUrl, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http";
+    protected override async Task OnInitializedAsync()
+    {
+        _code = await Storage.GetAsync("company_code") ?? "";
+        _webUrl = await Storage.GetAsync($"web_admin_url_{State.EmployeeId}") ?? "";
+    }
+    private async Task CopyAsync()
+    {
+        try
+        {
+            if (!ValidUrl) return;
+            await Storage.SetAsync($"web_admin_url_{State.EmployeeId}", _webUrl.Trim());
+            await Clipboard.SetTextAsync(_webUrl.Trim());
+            Snackbar.Add("Link copiado!", Severity.Success);
+        }
+        catch { Snackbar.Add("Não foi possível copiar o link.", Severity.Error); }
+    }
+}

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="Refit" Version="8.0.0" />
+  </ItemGroup>
+  <!-- Exercise the actual platform-independent mobile services without requiring an emulator. -->
+  <ItemGroup>
+    <Compile Include="../../clients/DottIn.Mobile/Services/AppState.cs" Link="Mobile/AppState.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/MobileSessionService.cs" Link="Mobile/MobileSessionService.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/MobileRoutePolicy.cs" Link="Mobile/MobileRoutePolicy.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/ManagementRules.cs" Link="Mobile/ManagementRules.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/ExportPayload.cs" Link="Mobile/ExportPayload.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/IApiServices.cs" Link="Mobile/IApiServices.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/IManagementApi.cs" Link="Mobile/IManagementApi.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/ISecureStorageService.cs" Link="Mobile/ISecureStorageService.cs" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

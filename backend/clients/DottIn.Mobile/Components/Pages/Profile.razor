@@ -1,4 +1,5 @@
 @page "/profile"
+@inject MobileSessionService Session
 @inject AppState AppState
 @inject IAuthApi AuthApi
 @inject IEmployeeApi EmployeeApi
@@ -27,7 +28,7 @@
     @* Settings Sections *@
     <MudCard Class="settings-card">
         <MudCardContent>
-            <MudText Typo="Typo.overline" Color="Color.Secondary">SEGURAN«A</MudText>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">SEGURAN√áA</MudText>
 
             <MudList T="string" Dense="true">
                 <MudListItem Icon="@Icons.Material.Filled.Pin" OnClick="ChangePin">
@@ -38,7 +39,7 @@
                         <div>
                             <MudText>Biometria</MudText>
                             <MudText Typo="Typo.caption" Color="@(_hasBiometric ? Color.Success : Color.Secondary)">
-                                @(_hasBiometric ? "Configurada ?" : "N„o configurada")
+                                @(_hasBiometric ? "Configurada ?" : "N√£o configurada")
                             </MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" />
@@ -53,7 +54,7 @@
 
     <MudCard Class="settings-card">
         <MudCardContent>
-            <MudText Typo="Typo.overline" Color="Color.Secondary">PREFER NCIAS</MudText>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">PREFER√äNCIAS</MudText>
 
             <MudList T="string" Dense="true">
                 <MudListItem Icon="@(AppState.IsDarkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)">
@@ -64,7 +65,7 @@
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.Notifications">
                     <div class="list-item-content">
-                        <MudText>NotificaÁıes</MudText>
+                        <MudText>Notifica√ß√µes</MudText>
                         <MudSwitch T="bool" @bind-Value="_notificationsEnabled" Color="Color.Primary" />
                     </div>
                 </MudListItem>
@@ -76,7 +77,7 @@
     {
         <MudCard Class="settings-card">
             <MudCardContent>
-                <MudText Typo="Typo.overline" Color="Color.Secondary">GERENCIAR BIOMETRIA DOS FUNCION¡RIOS</MudText>
+                <MudText Typo="Typo.overline" Color="Color.Secondary">GERENCIAR BIOMETRIA DOS FUNCION√ÅRIOS</MudText>
 
                 @if (_isLoadingEmployees)
                 {
@@ -88,7 +89,7 @@
                 {
                     <div style="text-align: center; padding: 16px;">
                         <MudIcon Icon="@Icons.Material.Filled.GroupOff" Size="Size.Large" Color="Color.Secondary" />
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Nenhum funcion·rio ativo</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Nenhum funcion√°rio ativo</MudText>
                     </div>
                 }
                 else
@@ -107,7 +108,7 @@
                                     <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small"
                                              Color="@(emp.HasFingerprint ? Color.Success : Color.Default)" />
                                     <MudText Typo="Typo.caption" Color="@(emp.HasFingerprint ? Color.Success : Color.Secondary)">
-                                        @(emp.HasFingerprint ? "?" : "ó")
+                                        @(emp.HasFingerprint ? "?" : "‚Äî")
                                     </MudText>
                                 </div>
                             </MudListItem>
@@ -125,7 +126,7 @@
             <MudList T="string" Dense="true">
                 <MudListItem Icon="@Icons.Material.Filled.Info">
                     <div class="list-item-content">
-                        <MudText>Vers„o</MudText>
+                        <MudText>Vers√£o</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">1.0.0</MudText>
                     </div>
                 </MudListItem>
@@ -133,7 +134,7 @@
                     <MudText>Termos de Uso</MudText>
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.PrivacyTip" OnClick="OpenPrivacy">
-                    <MudText>PolÌtica de Privacidade</MudText>
+                    <MudText>Pol√≠tica de Privacidade</MudText>
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.Help" OnClick="OpenSupport">
                     <MudText>Suporte</MudText>
@@ -154,7 +155,7 @@
 
     <div class="footer-info">
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            © 2025 DottIn - Todos os direitos reservados
+            ¬© 2025 DottIn - Todos os direitos reservados
         </MudText>
     </div>
 </div>
@@ -414,7 +415,7 @@
         {
             try { await AuthApi.LogoutAsync(); } catch { }
             await SecureStorage.ClearAllAsync();
-            AppState.Logout();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login", true);
         }
     }

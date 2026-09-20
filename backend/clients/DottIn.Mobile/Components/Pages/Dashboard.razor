@@ -1,4 +1,6 @@
 @page "/dashboard"
+@implements IDisposable
+@inject MobileSessionService Session
 @inject AppState AppState
 @inject ITimeKeepingApi TimeKeepingApi
 @inject IHolidayCalendarApi HolidayApi
@@ -19,7 +21,7 @@
             }
             else
             {
-                <MudText Typo="Typo.h5" Class="font-bold">Ol·, @(AppState.Employee?.FirstName ?? "Usu·rio")!</MudText>
+                <MudText Typo="Typo.h5" Class="font-bold">Ol√°, @(AppState.Employee?.FirstName ?? "Usu√°rio")!</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
             }
         </div>
@@ -52,6 +54,7 @@
     @if (AppState.IsOwner)
     {
         @* ===== KIOSK MODE ===== *@
+        <ManagerOverview @key="AppState.BranchId" @ref="_overview" />
         @if (AppState.CanSwitchBranches)
         {
             <MudSelect T="Guid" Value="AppState.BranchId" ValueChanged="OnBranchChanged"
@@ -72,7 +75,7 @@
                     <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" />
                     <div class="status-info">
                         <MudText Typo="Typo.h6">Ponto Compartilhado</MudText>
-                        <MudText Typo="Typo.body2">Identifique o funcion·rio para registrar</MudText>
+                        <MudText Typo="Typo.body2">Identifique o funcion√°rio para registrar</MudText>
                     </div>
                 </div>
             </MudCardContent>
@@ -159,7 +162,7 @@
                     <div class="summary-item">
                         <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Size="Size.Small" />
                         <div>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">SaÌda</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sa√≠da</MudText>
                             <MudText Typo="Typo.body1" Class="font-semibold">@(_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--")</MudText>
                         </div>
                     </div>
@@ -201,6 +204,7 @@ private bool _isNocturnal = false;
 private string? _todayHolidayName;
 private TodaySummary? _todaySummary;
 private System.Timers.Timer? _timer;
+private ManagerOverview? _overview;
 private string _lastKioskMessage = "";
 private Severity _lastKioskSeverity = Severity.Success;
 
@@ -254,9 +258,10 @@ protected override async Task OnInitializedAsync()
 
     #region Kiosk Mode
 
-    private void OnBranchChanged(Guid branchId)
+    private async Task OnBranchChanged(Guid branchId)
     {
-        AppState.SwitchBranch(branchId);
+        try { await Session.SwitchBranchAsync(branchId); }
+        catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
         _lastKioskMessage = "";
     }
 
@@ -276,7 +281,7 @@ protected override async Task OnInitializedAsync()
             CloseOnEscapeKey = true
         };
 
-        var identifyDialog = await DialogService.ShowAsync<KioskIdentificationDialog>("IdentificaÁ„o", identifyParams, identifyOptions);
+        var identifyDialog = await DialogService.ShowAsync<KioskIdentificationDialog>("Identifica√ß√£o", identifyParams, identifyOptions);
         var identifyResult = await identifyDialog.Result;
 
         if (identifyResult is null || identifyResult.Canceled)
@@ -323,7 +328,7 @@ protected override async Task OnInitializedAsync()
             var location = await LocationService.GetCurrentLocationAsync();
             if (location == null)
             {
-                Snackbar.Add("N„o foi possÌvel obter a localizaÁ„o", Severity.Error);
+                Snackbar.Add("N√£o foi poss√≠vel obter a localiza√ß√£o", Severity.Error);
                 return;
             }
 
@@ -337,7 +342,7 @@ protected override async Task OnInitializedAsync()
 
                 case KioskActionDialog.KioskAction.ClockOut:
                     await TimeKeepingApi.ClockOutAsync(new ClockOutRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
-                    _lastKioskMessage = $"SaÌda registrada para {employee.Name}";
+                    _lastKioskMessage = $"Sa√≠da registrada para {employee.Name}";
                     _lastKioskSeverity = Severity.Success;
                     break;
 
@@ -355,6 +360,7 @@ protected override async Task OnInitializedAsync()
             }
 
             Snackbar.Add(_lastKioskMessage, _lastKioskSeverity);
+            if (_overview is not null) await _overview.RefreshAsync();
             try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
         }
         catch (Exception ex)
@@ -423,7 +429,7 @@ protected override async Task OnInitializedAsync()
 
             if (location == null)
             {
-                Snackbar.Add("N„o foi possÌvel obter sua localizaÁ„o", Severity.Error);
+                Snackbar.Add("N√£o foi poss√≠vel obter sua localiza√ß√£o", Severity.Error);
                 return;
             }
 
@@ -457,7 +463,7 @@ protected override async Task OnInitializedAsync()
         var request = new ClockOutRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
         await TimeKeepingApi.ClockOutAsync(request);
         await LoadTodayState();
-        Snackbar.Add("SaÌda registrada com sucesso!", Severity.Success);
+        Snackbar.Add("Sa√≠da registrada com sucesso!", Severity.Success);
     }
 
     private async Task HandleBreak()
@@ -468,7 +474,7 @@ protected override async Task OnInitializedAsync()
             var location = await LocationService.GetCurrentLocationAsync();
             if (location == null)
             {
-                Snackbar.Add("N„o foi possÌvel obter sua localizaÁ„o", Severity.Error);
+                Snackbar.Add("N√£o foi poss√≠vel obter sua localiza√ß√£o", Severity.Error);
                 return;
             }
 
@@ -516,8 +522,8 @@ protected override async Task OnInitializedAsync()
     private string GetButtonText() => _currentStatus switch
     {
         ClockStatus.NotClocked => "REGISTRAR ENTRADA",
-        ClockStatus.Working => "REGISTRAR SAÕDA",
-        ClockStatus.OnBreak => "REGISTRAR SAÕDA",
+        ClockStatus.Working => "REGISTRAR SA√çDA",
+        ClockStatus.OnBreak => "REGISTRAR SA√çDA",
         ClockStatus.Finished => "JORNADA FINALIZADA",
         _ => "REGISTRAR"
     };
@@ -550,8 +556,8 @@ protected override async Task OnInitializedAsync()
     {
         ClockStatus.Working => $"Desde {_todaySummary?.ClockInTime?.ToString("HH:mm") ?? "--:--"}",
         ClockStatus.OnBreak => "Aproveite seu descanso",
-        ClockStatus.Finished => $"SaÌda ‡s {_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--"}",
-        _ => "Toque no bot„o para registrar"
+        ClockStatus.Finished => $"Sa√≠da √†s {_todaySummary?.ClockOutTime?.ToString("HH:mm") ?? "--:--"}",
+        _ => "Toque no bot√£o para registrar"
     };
 
     public void Dispose()

@@ -17,6 +17,7 @@
     <Project Path="src/DottIn.Infra.CrossCutting.IoC/DottIn.Infra.CrossCutting.IoC.csproj" />
   </Folder>
   <Folder Name="/5.Tests/">
+    <Project Path="tests/DottIn.Mobile.Tests/DottIn.Mobile.Tests.csproj" />
     <Project Path="tests/DottIn.Domain.Tests/DottIn.Domain.Tests.csproj" />
     <Project Path="tests/DottIn.Admin.Tests/DottIn.Admin.Tests.csproj" />
     <Project Path="tests/DottIn.WebApi.IntegrationTests/DottIn.WebApi.IntegrationTests.csproj" />

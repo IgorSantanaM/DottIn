@@ -1,0 +1,47 @@
+@inject IExportApi Api
+@inject AppState State
+@inject ExportFileService Files
+
+<MudDialog>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info">Use os códigos do seu Domínio. Após importar os lançamentos, calcule a folha no Domínio.</MudAlert>
+        @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+        <MudDatePicker @bind-Date="_month" Label="Mês de referência" OpenTo="OpenTo.Month" DateFormat="MM/yyyy" />
+        <MudTextField @bind-Value="_company" Label="Código da empresa no Domínio" MaxLength="10" Immediate="true" />
+        <MudTextField @bind-Value="_normal" Label="Rubrica de horas normais" MaxLength="4" Immediate="true" />
+        <MudTextField @bind-Value="_night" Label="Rubrica de adicional noturno" MaxLength="4" Immediate="true" />
+        <MudTextField @bind-Value="_holiday" Label="Rubrica de horas em feriado" MaxLength="4" Immediate="true" />
+        <MudTextField @bind-Value="_process" Label="Tipo do processo" MaxLength="2" Immediate="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_busy">Cancelar</MudButton>
+        <MudButton OnClick="ExportAsync" Disabled="@(_busy || !Valid)" Color="Color.Primary">Exportar e compartilhar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public DateTime Month { get; set; } = DateTime.Today;
+    private DateTime? _month;
+    private string _company = "", _normal = "1", _night = "150", _holiday = "250", _process = "11";
+    private bool _busy;
+    private string? _error;
+    private bool Valid => _month.HasValue && ManagementRules.NumericCode(_company, 10) && ManagementRules.NumericCode(_normal, 4)
+        && ManagementRules.NumericCode(_night, 4) && ManagementRules.NumericCode(_holiday, 4) && ManagementRules.NumericCode(_process, 2);
+    protected override void OnInitialized() => _month = Month;
+    private async Task ExportAsync()
+    {
+        if (!Valid || _busy || !State.IsOwner) return;
+        _busy = true; _error = null;
+        try
+        {
+            var month = _month!.Value.ToString("yyyy-MM");
+            var response = await Api.ExportDominioAsync(State.BranchId, month, _company, _normal, _night, _holiday, _process);
+            await Files.ShareAsync(response, $"dominio_{_month:yyyyMM}.txt");
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private void Cancel() => Dialog.Cancel();
+}

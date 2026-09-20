@@ -1,0 +1,81 @@
+@page "/management/billing"
+@implements IDisposable
+@inject IBillingApi Api
+@inject AppLifecycleService Lifecycle
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Assinatura e cobrança</MudText>
+    <MudButton OnClick="LoadAsync" Disabled="_busy">Atualizar assinatura</MudButton>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_busy) { <MudProgressLinear Indeterminate="true" /> }
+    @if (_openedBrowser) { <MudAlert Severity="Severity.Info">Após concluir no navegador, volte ao aplicativo. A confirmação depende da atualização da assinatura no servidor.</MudAlert> }
+    @if (_billing is not null)
+    {
+        <MudPaper Class="pa-4 my-3">
+            <MudText Typo="Typo.h6">@_billing.PlanName</MudText>
+            <MudText>Status: @StatusLabel</MudText>
+            <MudText>Renovação: @(_billing.CurrentPeriodEnd > DateTime.MinValue ? _billing.CurrentPeriodEnd.ToString("dd/MM/yyyy") : "—")</MudText>
+            <MudText>Funcionários: @_billing.CurrentEmployeeCount / @ManagementRules.Limit(_billing.MaxEmployees)</MudText>
+            <MudProgressLinear Value="@Usage(_billing.CurrentEmployeeCount, _billing.MaxEmployees)" />
+            <MudText>Filiais: @_billing.CurrentBranchCount / @ManagementRules.Limit(_billing.MaxBranches)</MudText>
+            <MudProgressLinear Value="@Usage(_billing.CurrentBranchCount, _billing.MaxBranches)" />
+            @if (HasPortal) { <MudButton OnClick="PortalAsync" Disabled="_busy">Gerenciar cobrança</MudButton> }
+        </MudPaper>
+    }
+    <MudText Typo="Typo.h6">Planos disponíveis</MudText>
+    @foreach (var plan in _plans)
+    {
+        <MudPaper Class="pa-4 my-3">
+            <MudText Typo="Typo.h6">@plan.Name</MudText>
+            <MudText>@plan.MonthlyPriceBRL.ToString("C", new System.Globalization.CultureInfo("pt-BR")) / mês</MudText>
+            <MudText>Funcionários: @(plan.HasUnlimitedEmployees ? "Ilimitados" : plan.MaxEmployees.ToString())</MudText>
+            <MudText>Filiais: @(plan.HasUnlimitedBranches ? "Ilimitadas" : plan.MaxBranches.ToString())</MudText>
+            <MudButton OnClick="@(() => SelectAsync(plan))" Disabled="@(_busy || _billing is null || IsCurrent(plan))" Variant="Variant.Filled" Color="Color.Primary">
+                @(IsCurrent(plan) ? "Plano atual" : HasPortal ? "Alterar no portal" : "Contratar plano")
+            </MudButton>
+        </MudPaper>
+    }
+    @if (!_busy && !_plans.Any()) { <MudText>Nenhum plano disponível.</MudText> }
+</MudContainer>
+
+@code {
+    private List<SubscriptionPlan> _plans = [];
+    private BillingInfo? _billing;
+    private bool _busy, _openedBrowser, _disposed;
+    private string? _error;
+    private bool HasPortal => _billing?.Status is "Active" or "Trialing" or "PastDue";
+    private string StatusLabel => _billing?.Status switch { "Active" => "Ativa", "Trialing" => "Em avaliação", "PastDue" => "Pagamento pendente", "Canceled" => "Cancelada", "Free" => "Gratuita", _ => _billing?.Status ?? "—" };
+    private bool IsCurrent(SubscriptionPlan plan) => _billing?.PlanName == plan.Name && _billing.Status is "Active" or "Trialing";
+    private static double Usage(int value, int max) => max > 0 ? Math.Clamp(100d * value / max, 0, 100) : 0;
+    protected override async Task OnInitializedAsync() { Lifecycle.Resumed += Resumed; await LoadAsync(); }
+    private void Resumed() { if (!_disposed) _ = InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }); }
+    private async Task LoadAsync()
+    {
+        if (_busy) return;
+        _busy = true; _error = null; _billing = null;
+        try { var plans = Api.GetPlansAsync(); var billing = Api.GetSubscriptionAsync(); await Task.WhenAll(plans, billing); _plans = await plans; _billing = await billing; }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task SelectAsync(SubscriptionPlan plan)
+    {
+        if (HasPortal) { await PortalAsync(); return; }
+        await OpenAsync(async () => (await Api.CheckoutAsync(new(plan.Id))).CheckoutUrl);
+    }
+    private Task PortalAsync() => OpenAsync(async () => (await Api.PortalAsync()).PortalUrl);
+    private async Task OpenAsync(Func<Task<string>> getUrl)
+    {
+        if (_busy) return;
+        _busy = true; _error = null;
+        try
+        {
+            var url = await getUrl();
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https") throw new InvalidOperationException("Endereço de cobrança inválido.");
+            _openedBrowser = true;
+            await Browser.OpenAsync(uri, BrowserLaunchMode.External);
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    public void Dispose() { _disposed = true; Lifecycle.Resumed -= Resumed; }
+}

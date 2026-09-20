@@ -8,20 +8,36 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
-    <Found Context="routeData">
-        <OperationalRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-</Router>
+@if (_initializing)
+{
+    <AppLoadingScreen Message="Verificando sua sessão" />
+}
+else
+{
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+        <Found Context="routeData">
+            <OperationalRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+    </Router>
+}
 
 @code {
+    private bool _initializing = true;
+
     protected override async Task OnInitializedAsync()
     {
         State.OnChange += StateHasChanged;
-        await Auth.InitializeAsync();
-        if (State.IsAuthenticated)
-            await OperationalAccess.RefreshAsync();
+        try
+        {
+            await Auth.InitializeAsync();
+            if (State.IsAuthenticated)
+                await OperationalAccess.RefreshAsync();
+        }
+        finally
+        {
+            _initializing = false;
+        }
     }
 
     public void Dispose() => State.OnChange -= StateHasChanged;

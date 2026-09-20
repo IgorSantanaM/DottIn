@@ -24,6 +24,7 @@ public class AppState
         BranchId = branchId;
         IsOwner = isOwner;
         IsHeadquarters = isHeadquarters;
+        SelectedBranchName = AvailableBranches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "";
         NotifyStateChanged();
     }
 

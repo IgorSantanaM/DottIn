@@ -2,13 +2,17 @@ namespace DottIn.Mobile;
 
 public partial class App : Application
 {
-    public App()
+    private readonly AppLifecycleService _lifecycle;
+    public App(AppLifecycleService lifecycle)
     {
+        _lifecycle = lifecycle;
         InitializeComponent();
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new MainPage()) { Title = "DottIn" };
+        var window = new Window(new MainPage()) { Title = "DottIn" };
+        window.Resumed += (_, _) => _lifecycle.NotifyResumed();
+        return window;
     }
 }

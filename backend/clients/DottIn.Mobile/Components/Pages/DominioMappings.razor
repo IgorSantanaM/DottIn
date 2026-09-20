@@ -1,0 +1,60 @@
+@page "/management/dominio"
+@inject IExportApi Api
+@inject AppState State
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Mapeamento Domínio</MudText>
+    <MudAlert Severity="Severity.Info" Class="my-3">Confira o CPF e informe o código interno do empregado já cadastrado no Domínio. Este processo não cria empregados nem executa pagamentos.</MudAlert>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_saved) { <MudAlert Severity="Severity.Success">Mapeamentos salvos.</MudAlert> }
+    <MudButton OnClick="LoadAsync" Disabled="_busy">Recarregar</MudButton>
+    @if (_busy) { <MudProgressLinear Indeterminate="true" /> }
+    @foreach (var row in _rows)
+    {
+        <MudPaper Class="pa-3 my-2" @key="row.EmployeeId">
+            <MudText>@row.EmployeeName</MudText>
+            <MudText Typo="Typo.caption">CPF: @row.EmployeeDocument</MudText>
+            <MudTextField @bind-Value="row.Code" Label="Código Domínio" MaxLength="10" Immediate="true" Disabled="_busy" />
+        </MudPaper>
+    }
+    <MudText Typo="Typo.caption">Campos vazios não removem mapeamentos existentes. Para corrigir, informe o novo código.</MudText>
+    <MudButton OnClick="SaveAsync" Disabled="@(_busy || !_rows.Any())" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">Salvar</MudButton>
+</MudContainer>
+
+@code {
+    private List<Row> _rows = [];
+    private bool _busy, _saved;
+    private string? _error;
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        _busy = true; _error = null; _saved = false; _rows = [];
+        try { _rows = (await Api.GetDominioMappingsAsync(State.BranchId)).Select(m => new Row(m)).ToList(); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task SaveAsync()
+    {
+        if (_busy) return;
+        _busy = true; _error = null; _saved = false;
+        try
+        {
+            var filled = _rows.Where(r => !string.IsNullOrWhiteSpace(r.Code)).ToList();
+            if (filled.Any(r => !ManagementRules.NumericCode(r.Code.Trim(), 10)))
+                throw new InvalidOperationException("Use códigos numéricos positivos de até 10 dígitos.");
+            if (filled.GroupBy(r => r.Code.Trim().PadLeft(10, '0')).Any(g => g.Count() > 1))
+                throw new InvalidOperationException("O mesmo código não pode ser associado a dois funcionários.");
+            await Api.SaveDominioMappingsAsync(State.BranchId, filled.Select(r => new SaveDominioMappingMobileRequest(r.EmployeeId, r.Code.Trim())));
+            await LoadAsync(); _saved = _error is null;
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private sealed class Row(DominioMappingMobileDto dto)
+    {
+        public Guid EmployeeId { get; } = dto.EmployeeId;
+        public string EmployeeName { get; } = dto.EmployeeName;
+        public string EmployeeDocument { get; } = dto.EmployeeDocument;
+        public string Code { get; set; } = dto.DominioCode.TrimStart('0');
+    }
+}

@@ -1,5 +1,6 @@
 @page "/"
 @page "/login"
+@inject MobileSessionService Session
 @inject IAuthApi AuthApi
 @inject IBranchApi BranchApi
 @inject ISecureStorageService SecureStorage
@@ -273,6 +274,252 @@
     }
 </style>
 
+<style>
+    /* Camada visual 2026: mais limpa, confortável e consistente com o painel web. */
+    .login-container {
+        min-height: 100dvh;
+        height: auto;
+        padding: max(28px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+        background:
+            radial-gradient(circle at 8% 8%, rgba(37, 99, 235, .22), transparent 34%),
+            radial-gradient(circle at 94% 76%, rgba(14, 165, 233, .12), transparent 30%),
+            linear-gradient(155deg, #07101f 0%, #0a1630 48%, #07101f 100%);
+    }
+
+    .login-container::before {
+        background-image:
+            linear-gradient(rgba(148, 163, 184, .045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 163, 184, .045) 1px, transparent 1px);
+        background-size: 32px 32px;
+        mask-image: linear-gradient(to bottom, black, transparent 82%);
+        -webkit-mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+
+    .login-container::after {
+        width: 360px;
+        height: 360px;
+        top: 16%;
+        left: 90%;
+        background: radial-gradient(circle, rgba(37, 99, 235, .15), transparent 68%);
+    }
+
+    .login-content-wrap {
+        max-width: 430px;
+        gap: 18px;
+        animation: auth-enter .55s cubic-bezier(.22, 1, .36, 1) both;
+    }
+
+    .brand-logo-wrap { gap: 8px; }
+    .brand-logo-mark {
+        position: relative;
+        width: 54px;
+        height: 54px;
+        border-radius: 17px;
+        box-shadow: 0 14px 34px rgba(37, 99, 235, .28), inset 0 1px rgba(255, 255, 255, .3);
+        animation: none;
+    }
+    .brand-logo-mark::after {
+        content: '';
+        position: absolute;
+        inset: -7px;
+        border: 1px solid rgba(96, 165, 250, .16);
+        border-radius: 22px;
+    }
+    .brand-wordmark-text, .brand-wordmark-dot { font-size: 27px; }
+    .brand-subtitle-text { color: #7f91ad; letter-spacing: 1.35px; }
+
+    .mobile-auth-kicker {
+        display: inline-flex;
+        align-items: center;
+        align-self: center;
+        gap: 7px;
+        margin-top: 2px;
+        padding: 6px 10px;
+        color: #9fb1ca;
+        background: rgba(15, 29, 55, .66);
+        border: 1px solid rgba(148, 163, 184, .12);
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .mobile-auth-kicker__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        box-shadow: 0 0 0 4px rgba(52, 211, 153, .1);
+    }
+
+    .login-card {
+        background: linear-gradient(155deg, rgba(17, 31, 58, .9), rgba(10, 22, 43, .93)) !important;
+        border-color: rgba(148, 163, 184, .14) !important;
+        border-radius: 26px !important;
+        padding: 8px !important;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, .35), inset 0 1px rgba(255, 255, 255, .035) !important;
+    }
+    .login-card .mud-card-content { padding: 24px !important; }
+    .step-content { animation: step-enter .3s ease-out both; }
+    .step-heading { margin-bottom: 22px; }
+    .step-title {
+        font-size: 23px !important;
+        line-height: 1.2 !important;
+        letter-spacing: -.35px !important;
+    }
+    .step-desc { line-height: 1.55 !important; }
+
+    .mobile-auth-error {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding: 12px 13px;
+        color: #fecaca;
+        background: rgba(239, 68, 68, .09);
+        border: 1px solid rgba(248, 113, 113, .2);
+        border-radius: 13px;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    .mobile-auth-error .mud-icon-root { color: #f87171 !important; font-size: 19px; }
+
+    .login-container .mud-input {
+        min-height: 54px;
+        background: rgba(4, 12, 27, .52) !important;
+    }
+    .login-container .mud-input-outlined-border { border-color: rgba(148, 163, 184, .16) !important; }
+    .login-container .mud-input-control { margin-top: 0 !important; }
+
+    .btn-gradient {
+        min-height: 52px !important;
+        background: linear-gradient(110deg, #2563eb, #1677ee) !important;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, .22) !important;
+    }
+    .btn-gradient .mud-button-label { gap: 8px; }
+    .btn-gradient:disabled {
+        background: linear-gradient(110deg, #2563eb, #1677ee) !important;
+        color: rgba(255, 255, 255, .72) !important;
+        opacity: .78;
+    }
+
+    .mobile-auth-options {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 2px 0 18px;
+    }
+    .mobile-auth-options .mud-checkbox { margin-left: -10px; }
+    .mobile-auth-pin-link {
+        flex: 0 0 auto;
+        color: #7eb6ff !important;
+        font-size: 12px !important;
+        font-weight: 650 !important;
+        text-transform: none !important;
+    }
+    .mobile-auth-pin-link:disabled { color: #53647e !important; }
+
+    .mobile-auth-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 18px 0 2px;
+        color: #607089;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+    }
+    .mobile-auth-divider::before, .mobile-auth-divider::after {
+        content: '';
+        height: 1px;
+        flex: 1;
+        background: rgba(148, 163, 184, .12);
+    }
+    .mobile-auth-security {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 18px;
+        color: #667892;
+        font-size: 11px;
+    }
+    .mobile-auth-security .mud-icon-root { font-size: 15px; color: #6584ad !important; }
+
+    .company-badge-wrap { background: rgba(37, 99, 235, .1); }
+    .pin-keyboard-key { height: 56px !important; border-radius: 16px !important; }
+
+    .auth-progress-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+        background: rgba(4, 10, 22, .78);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        animation: overlay-enter .18s ease-out both;
+    }
+    .auth-progress-card {
+        width: min(100%, 300px);
+        padding: 26px;
+        text-align: center;
+        color: #f8fafc;
+        background: rgba(14, 27, 51, .96);
+        border: 1px solid rgba(148, 163, 184, .14);
+        border-radius: 22px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, .38);
+    }
+    .auth-progress-mark {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 17px;
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
+        border-radius: 16px;
+        box-shadow: 0 12px 28px rgba(37, 99, 235, .28);
+        animation: progress-breathe 1.3s ease-in-out infinite;
+    }
+    .auth-progress-card strong { display: block; font-size: 16px; }
+    .auth-progress-card span { display: block; margin-top: 6px; color: #8293ad; font-size: 12px; }
+    .auth-progress-line {
+        height: 3px;
+        margin-top: 20px;
+        overflow: hidden;
+        background: rgba(148, 163, 184, .12);
+        border-radius: 999px;
+    }
+    .auth-progress-line::after {
+        content: '';
+        display: block;
+        width: 42%;
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb, #38bdf8);
+        border-radius: inherit;
+        animation: progress-slide 1.15s ease-in-out infinite;
+    }
+
+    .login-footer-wrap { padding-top: 2px; }
+
+    @@keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @@keyframes step-enter { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
+    @@keyframes overlay-enter { from { opacity: 0; } to { opacity: 1; } }
+    @@keyframes progress-breathe { 50% { transform: translateY(-3px); box-shadow: 0 18px 34px rgba(37, 99, 235, .36); } }
+    @@keyframes progress-slide { from { transform: translateX(-120%); } to { transform: translateX(340%); } }
+
+    @@media (max-height: 730px) {
+        .login-container { justify-content: flex-start; }
+        .brand-logo-mark { width: 46px; height: 46px; border-radius: 14px; }
+        .brand-subtitle-text { display: none; }
+        .login-card .mud-card-content { padding: 20px !important; }
+    }
+    @@media (prefers-reduced-motion: reduce) {
+        .login-content-wrap, .step-content, .auth-progress-overlay, .auth-progress-mark, .auth-progress-line::after { animation: none !important; }
+    }
+</style>
+
 <div class="login-container">
     <div class="login-content-wrap">
         
@@ -290,11 +537,23 @@
                 </div>
                 <div class="brand-subtitle-text">Controle de Ponto Inteligente</div>
             </div>
+            <div class="mobile-auth-kicker">
+                <span class="mobile-auth-kicker__dot"></span>
+                Ambiente protegido
+            </div>
         </div>
 
         @* Painel de Login Dinâmico *@
         <MudCard Class="login-card" Elevation="0">
             <MudCardContent>
+                @if (!string.IsNullOrWhiteSpace(_formError))
+                {
+                    <div class="mobile-auth-error" role="alert" aria-live="assertive">
+                        <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" />
+                        <span>@_formError</span>
+                    </div>
+                }
+
                 @if (_step == LoginStep.Company)
                 {
                     <div class="step-content">
@@ -315,7 +574,7 @@
                                    Class="btn-gradient"
                                    FullWidth="true"
                                    Size="Size.Large"
-                                   Disabled="@(string.IsNullOrWhiteSpace(_companyCode) || _isLoading)"
+                                   Disabled="@_isLoading"
                                    OnClick="ValidateCompany">
                             @if (_isLoading)
                             {
@@ -328,10 +587,13 @@
                 else if (_step == LoginStep.Credentials)
                 {
                     <div class="step-content">
-                        <div class="company-badge-wrap mb-5">
-                            <span class="company-badge-text">@_companyCode</span>
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Inherit" Style="color: #60A5FA;" OnClick="@(() => _step = LoginStep.Company)" />
-                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_companyCode))
+                        {
+                            <div class="company-badge-wrap mb-5">
+                                <span class="company-badge-text">@_companyCode</span>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Inherit" Style="color: #60A5FA;" OnClick="@(() => ChangeStep(LoginStep.Company))" />
+                            </div>
+                        }
 
                         <MudText Typo="Typo.h6" Class="step-title mb-1">Acessar Conta</MudText>
                         <MudText Typo="Typo.body2" Class="step-desc mb-5">Entre com suas credenciais de acesso.</MudText>
@@ -343,38 +605,46 @@
                                       Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Badge"
                                       InputType="InputType.Text"
-                                      MaxLength="11"
+                                      Immediate="true"
+                                      Disabled="_isLoading"
+                                      Error="@(_attempted && !HasValidCpf)"
+                                      ErrorText="Informe um CPF com 11 dígitos"
                                       FullWidth="true"
-                                      Class="mb-4"
-                                      OnKeyDown="FilterNonNumeric" />
+                                      Class="mb-4" />
 
                         <MudTextField @bind-Value="_password"
                                       Label="Senha"
                                       Placeholder="*********"
                                       Variant="Variant.Outlined"
-                                      Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                      OnAdornmentClick="TogglePassword"
                                       InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                      Immediate="true"
+                                      Disabled="_isLoading"
+                                      Error="@(_attempted && string.IsNullOrWhiteSpace(_password))"
+                                      ErrorText="Informe sua senha"
+                                      OnKeyDown="HandleCredentialKeyDown"
                                       FullWidth="true"
-                                      Class="mb-3">
-                            <AdornmentContent>
-                                <MudIconButton Icon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                                               OnClick="@(() => _showPassword = !_showPassword)"
-                                               Edge="Edge.End" Style="color: #475569;" />
-                            </AdornmentContent>
-                        </MudTextField>
+                                      Class="mb-3" />
 
-                        <div class="remember-me mb-5">
+                        <div class="mobile-auth-options">
                             <MudCheckBox @bind-Value="_rememberMe" Color="Color.Primary" Dense="true" Style="color: #F8FAFC;">
                                 <MudText Typo="Typo.body2" Style="color: #94A3B8;">Manter conectado neste dispositivo</MudText>
                             </MudCheckBox>
+                            <MudButton Variant="Variant.Text"
+                                       Class="mobile-auth-pin-link"
+                                       Disabled="@(!HasPinIdentity)"
+                                       OnClick="@(() => ChangeStep(LoginStep.Pin))">
+                                Usar PIN
+                            </MudButton>
                         </div>
 
                         <MudButton Variant="Variant.Filled"
                                    Class="btn-gradient"
                                    FullWidth="true"
                                    Size="Size.Large"
-                                   Disabled="@(!IsFormValid() || _isLoading)"
+                                   Disabled="@_isLoading"
                                    OnClick="LoginAsync">
                             @if (_isLoading)
                             {
@@ -393,10 +663,19 @@
                         <MudButton Variant="Variant.Text"
                                    Class="btn-text-custom mt-3"
                                    FullWidth="true"
-                                   Disabled="@(string.IsNullOrWhiteSpace(_cpf) || _cpf.Trim().Length < 11)"
-                                   OnClick="@(() => _step = LoginStep.Pin)">
+                                   Disabled="@(string.IsNullOrWhiteSpace(_companyCode) || string.IsNullOrWhiteSpace(_cpf) || _cpf.Trim().Length < 11)"
+                                   Style="display: none;"
+                                   OnClick="@(() => ChangeStep(LoginStep.Pin))">
                             Entrar com PIN rápido
                         </MudButton>
+
+                        @if (string.IsNullOrWhiteSpace(_companyCode))
+                        {
+                            <MudButton Variant="Variant.Text" Class="btn-text-custom" FullWidth="true"
+                                       OnClick="@(() => ChangeStep(LoginStep.Company))">
+                                Configurar empresa para PIN
+                            </MudButton>
+                        }
                     </div>
                 }
                 else if (_step == LoginStep.Pin)
@@ -404,7 +683,7 @@
                     <div class="step-content pin-step">
                         <div class="company-badge-wrap mb-4">
                             <span class="company-badge-text">@_companyCode</span>
-                            <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Inherit" Style="color: #60A5FA;" OnClick="@(() => _step = LoginStep.Company)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Inherit" Style="color: #60A5FA;" OnClick="@(() => ChangeStep(LoginStep.Company))" />
                         </div>
 
                         <MudText Typo="Typo.h6" Class="step-title text-center mb-1">Identificação por PIN</MudText>
@@ -448,7 +727,7 @@
                         <MudButton Variant="Variant.Text"
                                    Class="btn-text-custom mt-5"
                                    FullWidth="true"
-                                   OnClick="@(() => _step = LoginStep.Credentials)">
+                                   OnClick="@(() => ChangeStep(LoginStep.Credentials))">
                             Retornar para senha convencional
                         </MudButton>
                     </div>
@@ -463,10 +742,22 @@
             </MudText>
         </div>
     </div>
+
+    @if (_isLoading)
+    {
+        <div class="auth-progress-overlay" role="status" aria-live="polite">
+            <div class="auth-progress-card">
+                <div class="auth-progress-mark"><MudIcon Icon="@Icons.Material.Filled.LockClock" /></div>
+                <strong>@_loadingMessage</strong>
+                <span>Isso deve levar apenas alguns segundos.</span>
+                <div class="auth-progress-line"></div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
-    private LoginStep _step = LoginStep.Company;
+    private LoginStep _step = LoginStep.Credentials;
     private string _companyCode = "";
     private string _cpf = "";
     private string _password = "";
@@ -474,6 +765,12 @@
     private bool _showPassword = false;
     private bool _rememberMe = true;
     private bool _isLoading = false;
+    private bool _attempted;
+    private string? _formError;
+    private string _loadingMessage = "Validando seu acesso";
+
+    private bool HasValidCpf => ManagementRules.Digits(_cpf).Length == 11;
+    private bool HasPinIdentity => !string.IsNullOrWhiteSpace(_companyCode) && HasValidCpf;
 
     protected override async Task OnInitializedAsync()
     {
@@ -482,7 +779,7 @@
             var token = await SecureStorage.GetAsync("access_token");
             if (!string.IsNullOrEmpty(token) && AppState.IsAuthenticated)
             {
-                Navigation.NavigateTo("/dashboard", replace: true);
+                Navigation.NavigateTo(Session.LandingPage, replace: true);
                 return;
             }
 
@@ -494,7 +791,7 @@
             }
 
             var savedCpf = await SecureStorage.GetAsync("saved_cpf");
-            if (!string.IsNullOrEmpty(savedCpf))
+            if (!string.IsNullOrEmpty(savedCpf) && !string.IsNullOrEmpty(_companyCode))
             {
                 _cpf = savedCpf;
                 _step = LoginStep.Pin;
@@ -508,8 +805,14 @@
 
     private async Task ValidateCompany()
     {
-        if (string.IsNullOrWhiteSpace(_companyCode)) return;
+        _formError = null;
+        if (string.IsNullOrWhiteSpace(_companyCode))
+        {
+            _formError = "Informe o código da empresa para continuar.";
+            return;
+        }
 
+        _loadingMessage = "Preparando o acesso da empresa";
         _isLoading = true;
         try
         {
@@ -531,12 +834,21 @@
 
     private async Task LoginAsync()
     {
-        if (!IsFormValid()) return;
+        if (_isLoading) return;
 
+        _attempted = true;
+        _formError = null;
+        if (!IsFormValid())
+        {
+            _formError = "Revise os campos destacados para continuar.";
+            return;
+        }
+
+        _loadingMessage = "Validando seu acesso";
         _isLoading = true;
         try
         {
-            var request = new LoginRequest(_cpf.Trim(), _password, _companyCode);
+            var request = new LoginRequest(ManagementRules.Digits(_cpf), _password, _companyCode);
             var response = await AuthApi.LoginAsync(request);
 
             await SecureStorage.SetAsync("access_token", response.AccessToken);
@@ -551,24 +863,24 @@
                 await SecureStorage.RemoveAsync("saved_cpf");
             }
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
-
-            if (response.IsOwner)
-                await LoadOwnerBranches(response.Employee.Id);
+            await Session.AcceptAsync(response, _rememberMe);
 
             Snackbar.Add("Login realizado com sucesso!", Severity.Success);
-            Navigation.NavigateTo("/dashboard", replace: true);
+            Navigation.NavigateTo(Session.LandingPage, replace: true);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
+            _formError = "Empresa ou colaborador não encontrado.";
             Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
+            _formError = "CPF ou senha incorretos. Confira os dados e tente novamente.";
             Snackbar.Add("CPF ou senha incorretos", Severity.Error);
         }
         catch (Exception)
         {
+            _formError = "Não foi possível conectar. Verifique sua internet e tente novamente.";
             Snackbar.Add("Erro de conexão. Verifique sua internet.", Severity.Error);
         }
         finally
@@ -579,24 +891,23 @@
 
     private async Task LoginWithPin()
     {
-        if (_pin.Length < 6) return;
+        if (_pin.Length < 6 || _isLoading) return;
 
+        _formError = null;
+        _loadingMessage = "Confirmando seu PIN";
         _isLoading = true;
         try
         {
-            var request = new PinLoginRequest(_cpf.Trim(), _pin, _companyCode);
+            var request = new PinLoginRequest(ManagementRules.Digits(_cpf), _pin, _companyCode);
             var response = await AuthApi.LoginWithPinAsync(request);
 
             await SecureStorage.SetAsync("access_token", response.AccessToken);
             await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
-
-            if (response.IsOwner)
-                await LoadOwnerBranches(response.Employee.Id);
+            await Session.AcceptAsync(response);
 
             TriggerHaptic(HapticFeedbackType.Click);
-            Navigation.NavigateTo("/dashboard", replace: true);
+            Navigation.NavigateTo(Session.LandingPage, replace: true);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
@@ -647,6 +958,10 @@
 
     private async Task UseBiometric()
     {
+        if (_isLoading) return;
+
+        _formError = null;
+        _loadingMessage = "Confirmando sua biometria";
         _isLoading = true;
         try
         {
@@ -667,13 +982,10 @@
             await SecureStorage.SetAsync("refresh_token", response.RefreshToken);
             await SecureStorage.SetAsync("company_code", savedCompany);
 
-            AppState.SetAuthenticated(response.Employee, response.BranchId, response.IsOwner, response.IsHeadquarters);
-
-            if (response.IsOwner)
-                await LoadOwnerBranches(response.Employee.Id);
+            await Session.AcceptAsync(response);
 
             TriggerHaptic(HapticFeedbackType.Click);
-            Navigation.NavigateTo("/dashboard", replace: true);
+            Navigation.NavigateTo(Session.LandingPage, replace: true);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -695,6 +1007,22 @@
         }
     }
 
+    private void TogglePassword() => _showPassword = !_showPassword;
+
+    private async Task HandleCredentialKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !_isLoading)
+            await LoginAsync();
+    }
+
+    private void ChangeStep(LoginStep step)
+    {
+        _formError = null;
+        _attempted = false;
+        _pin = "";
+        _step = step;
+    }
+
     private void FilterNonNumeric(KeyboardEventArgs e)
     {
         if (e.Key.Length == 1 && !char.IsDigit(e.Key[0]) && e.Key != "Backspace" && e.Key != "Delete" && e.Key != "Tab")
@@ -703,14 +1031,11 @@
         }
     }
 
-    private bool IsFormValid() => 
-        !string.IsNullOrWhiteSpace(_cpf) && 
-        _cpf.Trim().Length == 11 &&
-        !string.IsNullOrWhiteSpace(_password);
+    private bool IsFormValid() => HasValidCpf && !string.IsNullOrWhiteSpace(_password);
 
     private string MaskCpf(string cpf)
     {
-        var digits = cpf.Trim();
+        var digits = ManagementRules.Digits(cpf);
         return digits.Length >= 11 ? $"***.***.{digits.Substring(6, 3)}-**" : digits;
     }
 

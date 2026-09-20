@@ -51,6 +51,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILocalDatabaseService, LocalDatabaseService>();
 
         builder.Services.AddSingleton<AppState>();
+        builder.Services.AddSingleton<MobileSessionService>();
+        builder.Services.AddSingleton<ExportFileService>();
+        builder.Services.AddSingleton<AppLifecycleService>();
+        builder.Services.AddRefitClient<IBillingApi>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
+            .AddHttpMessageHandler<AuthorizationHandler>();
 
         builder.Services.AddTransient<AuthorizationHandler>();
 

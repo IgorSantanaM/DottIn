@@ -1,0 +1,79 @@
+@page "/management/calendars"
+@inject AppState State
+@inject IHolidayCalendarApi Api
+@inject IDialogService Dialogs
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Calendários de feriados</MudText>
+    <MudNumericField T="int" @bind-Value="_year" Label="Ano" Min="1" Max="9999" Disabled="_busy" />
+    <MudButton OnClick="LoadAsync" Disabled="_busy">Buscar</MudButton>
+    <MudButton OnClick="CreateAsync" Disabled="_busy" Color="Color.Primary">Novo calendário</MudButton>
+    <MudButton Href="/management/reports?holidays=true">Quem trabalhou em feriados</MudButton>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_busy) { <MudProgressLinear Indeterminate="true" /> }
+    @foreach (var calendar in _calendars)
+    {
+        <MudPaper Class="pa-3 my-3" @key="calendar.Id">
+            <MudText Typo="Typo.h6">@calendar.Name</MudText>
+            <MudText>@calendar.Year · @calendar.CountryCode / @calendar.RegionCode · @(calendar.IsActive ? "Ativo" : "Inativo") · @calendar.HolidayCount feriado(s)</MudText>
+            <MudButton OnClick="@(() => SelectAsync(calendar.Id))" Disabled="_busy">Ver feriados</MudButton>
+            <MudButton OnClick="@(() => AddAsync(calendar))" Disabled="_busy">Adicionar feriado</MudButton>
+            @if (_selected?.Id == calendar.Id)
+            {
+                @foreach (var holiday in _selected.Holidays.OrderBy(h => h.Date))
+                {
+                    <div class="d-flex align-center justify-space-between my-2">
+                        <div><MudText>@holiday.Date.ToString("dd/MM/yyyy") — @holiday.Name</MudText>
+                            <MudText Typo="Typo.caption">@holiday.Type · @(holiday.IsOptional ? "Opcional" : "Obrigatório")</MudText></div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="_busy" OnClick="@(() => RemoveAsync(calendar.Id, holiday))" />
+                    </div>
+                }
+                @if (!_selected.Holidays.Any()) { <MudText>Nenhum feriado cadastrado.</MudText> }
+            }
+        </MudPaper>
+    }
+    @if (!_busy && !_calendars.Any() && _error is null) { <MudText>Nenhum calendário neste ano.</MudText> }
+</MudContainer>
+
+@code {
+    private int _year = DateTime.Today.Year;
+    private List<HolidayCalendarSummary> _calendars = [];
+    private HolidayCalendarDetails? _selected;
+    private bool _busy;
+    private string? _error;
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        _busy = true; _error = null; _calendars = []; _selected = null;
+        try { _calendars = (await Api.GetAllAsync(State.BranchId)).Where(c => c.Year == _year).ToList(); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task SelectAsync(Guid id)
+    {
+        _busy = true; _error = null; _selected = null;
+        try { _selected = await Api.GetByIdAsync(State.BranchId, id); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task CreateAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<CreateCalendarMobileDialog>("Novo calendário", new DialogParameters<CreateCalendarMobileDialog>
+            { { x => x.BranchId, State.BranchId }, { x => x.Year, _year } });
+        if (await dialog.Result is { Canceled: false }) await LoadAsync();
+    }
+    private async Task AddAsync(HolidayCalendarSummary calendar)
+    {
+        var dialog = await Dialogs.ShowAsync<AddHolidayMobileDialog>("Adicionar feriado", new DialogParameters<AddHolidayMobileDialog>
+            { { x => x.BranchId, State.BranchId }, { x => x.CalendarId, calendar.Id }, { x => x.Year, calendar.Year } });
+        if (await dialog.Result is { Canceled: false }) { await LoadAsync(); await SelectAsync(calendar.Id); }
+    }
+    private async Task RemoveAsync(Guid id, HolidayItemDto holiday)
+    {
+        if (await Dialogs.ShowMessageBox("Remover feriado", $"Remover {holiday.Name} deste calendário?", yesText: "Remover", cancelText: "Cancelar") != true) return;
+        _busy = true; _error = null;
+        try { await Api.DeleteHolidayAsync(State.BranchId, id, holiday.Date.ToString("yyyy-MM-dd")); await LoadAsync(); await SelectAsync(id); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+}
