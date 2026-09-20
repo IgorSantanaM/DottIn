@@ -3,235 +3,289 @@
 @inject AdminState State
 @inject OperationalAccessService OperationalAccess
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
 
-<PageTitle>DottIn Admin - Login</PageTitle>
-
-<style>
-    .admin-login-container {
-        position: relative;
-        height: 100vh;
-        width: 100vw;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #0B1120;
-        font-family: 'Inter', sans-serif;
-        padding: 16px;
-    }
-
-    .login-content-wrap {
-        width: 100%;
-        max-width: 360px; /* Corrigido de max-w para max-width */
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    /* Header Minimalista */
-    .brand-logo-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .brand-wordmark {
-        display: flex;
-        align-items: baseline;
-    }
-
-    .brand-wordmark-text {
-        font-size: 24px;
-        font-weight: 700;
-        color: #F8FAFC;
-        letter-spacing: -0.5px;
-    }
-
-    .brand-wordmark-dot {
-        font-size: 24px;
-        font-weight: 800;
-        color: #2563EB;
-    }
-
-    .brand-subtitle-text {
-        font-size: 10px;
-        font-weight: 600;
-        color: #475569;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-
-    /* Card Sóbrio e Compacto */
-    .login-card {
-        background: #111827 !important;
-        border: 1px solid #1E293B !important;
-        border-radius: 16px !important;
-    }
-
-    /* Customização Clean dos Inputs MudBlazor */
-    .admin-login-container .mud-input {
-        color: #F8FAFC !important;
-        background: #0B1120 !important;
-    }
-
-    .admin-login-container .mud-input-outlined-border {
-        border-color: #1E293B !important;
-        border-radius: 10px !important;
-    }
-
-    .admin-login-container .mud-input-control:hover .mud-input-outlined-border {
-        border-color: #334155 !important;
-    }
-
-    .admin-login-container .mud-focused .mud-input-outlined-border {
-        border-color: #2563EB !important;
-        border-width: 1px !important;
-    }
-
-    .admin-login-container .mud-input-label {
-        color: #475569 !important;
-    }
-
-    .admin-login-container .mud-focused .mud-input-label {
-        color: #38BDF8 !important;
-    }
-
-    .admin-login-container .mud-input-adornment .mud-icon-root {
-        color: #334155 !important;
-    }
-
-    .admin-login-container .mud-focused .mud-input-adornment .mud-icon-root {
-        color: #2563EB !important;
-    }
-
-    /* Botão Sólido Minimalista */
-    .btn-flat {
-        background: #2563EB !important;
-        color: #FFFFFF !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        text-transform: none !important;
-        height: 44px !important;
-        box-shadow: none !important;
-        transition: background-color 0.2s ease;
-    }
-
-        .btn-flat:hover:not(:disabled) {
-            background: #1D4ED8 !important;
-        }
-</style>
+<PageTitle>DottIn — Acessar painel</PageTitle>
 
 @if (State.IsAuthenticated)
 {
-    @if (State.CanAccessOperationalModules)
-    {
-        <DottIn.Admin.Pages.Dashboard />
-    }
+    <AppLoadingScreen Message="Abrindo seu painel" />
 }
 else
 {
-    <div class="admin-login-container">
-        <div class="login-content-wrap">
+    <main class="admin-auth-shell">
+        <div class="admin-auth-aurora admin-auth-aurora--one"></div>
+        <div class="admin-auth-aurora admin-auth-aurora--two"></div>
 
-            @* Identidade Visual Superior *@
-            <div class="brand-logo-wrap">
-                <div class="brand-wordmark">
-                    <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
+        <section class="admin-auth-layout">
+            <aside class="admin-auth-story" aria-label="Apresentação do DottIn">
+                <a class="admin-auth-brand" href="/" aria-label="DottIn, página inicial">
+                    <span class="admin-auth-brand__mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="8.5" />
+                            <path d="M12 7.5v4.8l3.3 2" />
+                        </svg>
+                    </span>
+                    <span class="admin-auth-brand__name">Dott<span>In</span></span>
+                </a>
+
+                <div class="admin-auth-story__body">
+                    <div class="admin-auth-eyebrow"><span></span> Controle de jornada inteligente</div>
+                    <h1>Seu time no ritmo certo.</h1>
+                    <p>Controle horas, acompanhe a operação e prepare a folha em um só lugar — com clareza para gestores e simplicidade para a equipe.</p>
+
+                    <div class="admin-auth-benefits">
+                        <div class="admin-auth-benefit">
+                            <span class="admin-auth-benefit__icon"><MudIcon Icon="@Icons.Material.Filled.Bolt" /></span>
+                            <div><strong>Visão em tempo real</strong><small>Saiba quem está trabalhando, em pausa ou finalizou.</small></div>
+                        </div>
+                        <div class="admin-auth-benefit">
+                            <span class="admin-auth-benefit__icon"><MudIcon Icon="@Icons.Material.Filled.VerifiedUser" /></span>
+                            <div><strong>Dados protegidos</strong><small>Sessões seguras e acesso separado por empresa.</small></div>
+                        </div>
+                        <div class="admin-auth-benefit">
+                            <span class="admin-auth-benefit__icon"><MudIcon Icon="@Icons.Material.Filled.AutoGraph" /></span>
+                            <div><strong>Folha sem retrabalho</strong><small>Relatórios e exportação preparados para o Domínio.</small></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="brand-subtitle-text">Painel Administrativo</div>
-            </div>
 
-            @* Formulário Corporativo *@
-            <MudCard Class="login-card" Elevation="0">
-                <MudCardContent Class="pa-6">
+                <div class="admin-auth-story__footer">
+                    <span class="admin-auth-live-dot"></span>
+                    Plataforma disponível para sua equipe
+                </div>
+            </aside>
 
-                    <MudTextField @bind-Value="_cpf"
-                                  Label="CPF"
-                                  Variant="Variant.Outlined"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Badge"
-                                  FullWidth="true"
-                                  Class="mb-3" />
+            <section class="admin-auth-panel" aria-labelledby="login-title">
+                <div class="admin-auth-mobile-brand">
+                    <span class="admin-auth-brand__mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="8.5" />
+                            <path d="M12 7.5v4.8l3.3 2" />
+                        </svg>
+                    </span>
+                    <span class="admin-auth-brand__name">Dott<span>In</span></span>
+                </div>
 
-                    <MudTextField @bind-Value="_password"
-                                  Label="Senha"
-                                  Variant="Variant.Outlined"
-                                  InputType="@(_showPwd? InputType.Text: InputType.Password)"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@(_showPwd? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                                  OnAdornmentClick="() => _showPwd = !_showPwd"
-                                  FullWidth="true"
-                                  Class="mb-5" />
+                <MudPaper Class="admin-auth-card" Elevation="0">
+                    <div class="admin-auth-card__header">
+                        <div class="admin-auth-card__eyebrow">Painel administrativo</div>
+                        <h2 id="login-title">Bem-vindo de volta</h2>
+                        <p>Entre com seus dados para acessar sua operação.</p>
+                    </div>
 
-                    <MudButton Variant="Variant.Filled"
-                               Class="btn-flat"
-                               FullWidth="true"
-                               Disabled="_loading"
-                               OnClick="HandleLogin">
-                        @if (_loading)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        }
-                        Acessar Painel
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="admin-auth-error" role="alert" aria-live="assertive">
+                            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" />
+                            <span>@_formError</span>
+                        </div>
+                    }
+
+                    <div class="admin-auth-form">
+                        <MudTextField @bind-Value="_cpf"
+                                      Label="CPF"
+                                      Placeholder="000.000.000-00"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Badge"
+                                      InputType="InputType.Text"
+                                      Immediate="true"
+                                      Disabled="_loading"
+                                      Error="@(_attempted && !HasValidCpf)"
+                                      ErrorText="Informe um CPF com 11 dígitos"
+                                      OnKeyDown="HandleKeyDown"
+                                      FullWidth="true" />
+
+                        <MudTextField @bind-Value="_password"
+                                      Label="Senha"
+                                      Placeholder="Digite sua senha"
+                                      Variant="Variant.Outlined"
+                                      InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                      OnAdornmentClick="TogglePassword"
+                                      Immediate="true"
+                                      Disabled="_loading"
+                                      Error="@(_attempted && string.IsNullOrWhiteSpace(_password))"
+                                      ErrorText="Informe sua senha"
+                                      OnKeyDown="HandleKeyDown"
+                                      FullWidth="true" />
+
+                        <div class="admin-auth-form__meta">
+                            <span><MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" /> Conexão protegida</span>
+                            <span>Use o CPF cadastrado pela sua empresa</span>
+                        </div>
+
+                        <MudButton Variant="Variant.Filled"
+                                   Class="admin-auth-submit"
+                                   FullWidth="true"
+                                   Size="Size.Large"
+                                   Disabled="_loading"
+                                   OnClick="HandleLogin">
+                            @if (_loading)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>Validando acesso...</span>
+                            }
+                            else
+                            {
+                                <span>Acessar painel</span>
+                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ml-2" />
+                            }
+                        </MudButton>
+                    </div>
+
+                    <div class="admin-auth-divider"><span>Primeiro acesso?</span></div>
+
+                    <MudButton Href="/register" Variant="Variant.Outlined" Class="admin-auth-register" FullWidth="true" Disabled="_loading">
+                        Criar conta de proprietário
                     </MudButton>
 
-                    <div style="text-align: center; margin-top: 16px;">
-                        <MudText Typo="Typo.body2" Style="color: #64748B;">
-                            Não tem uma conta ainda? <MudLink Href="/register" Style="color: #2563EB; font-weight: 600; text-decoration: none;">Registre-se</MudLink>
-                        </MudText>
-                    </div>
-                </MudCardContent>
-            </MudCard>
+                    <p class="admin-auth-legal">Ao continuar, você acessa um ambiente corporativo protegido.</p>
+                </MudPaper>
 
-            @* Rodapé *@
-            <div style="text-align: center;">
-                <MudText Typo="Typo.caption" Style="color: #334155;">
-                    &copy; 2026 DottIn
-                </MudText>
-            </div>
-        </div>
-    </div>
+                <footer class="admin-auth-panel__footer">© 2026 DottIn · Controle de ponto inteligente</footer>
+            </section>
+        </section>
+    </main>
 }
 
 @code {
     private string _cpf = "";
     private string _password = "";
-    private bool _showPwd;
+    private string? _formError;
+    private bool _showPassword;
     private bool _loading;
+    private bool _attempted;
+
+    private bool HasValidCpf => Digits(_cpf).Length == 11;
 
     protected override async Task OnInitializedAsync()
     {
-        if (State.IsAuthenticated)
-        {
-            if (!State.IsOperationalAccessResolved)
-                await OperationalAccess.RefreshAsync();
+        if (!State.IsAuthenticated) return;
 
-            Navigation.NavigateTo(
-                OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
-                replace: true);
-            return;
-        }
+        if (!State.IsOperationalAccessResolved)
+            await OperationalAccess.RefreshAsync();
 
+        Navigation.NavigateTo(
+            OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
+            replace: true);
+    }
 
+    private void TogglePassword() => _showPassword = !_showPassword;
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !_loading)
+            await HandleLogin();
     }
 
     private async Task HandleLogin()
     {
-        _loading = true;
-        var (success, error) = await AuthService.LoginAsync(_cpf, _password);
-        if (success)
+        if (_loading) return;
+
+        _attempted = true;
+        _formError = null;
+        if (!HasValidCpf || string.IsNullOrWhiteSpace(_password))
         {
+            _formError = "Revise os campos destacados para continuar.";
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var (success, error) = await AuthService.LoginAsync(Digits(_cpf), _password);
+            if (!success)
+            {
+                _formError = error ?? "Não foi possível entrar. Confira seus dados e tente novamente.";
+                return;
+            }
+
             await OperationalAccess.RefreshAsync();
-            Snackbar.Add("Login realizado com sucesso!", Severity.Success);
             Navigation.NavigateTo(
                 OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
                 replace: true);
         }
-        else
+        catch
         {
-            Snackbar.Add(error ?? "Erro ao fazer login", Severity.Error);
+            _formError = "Ocorreu um problema inesperado. Tente novamente em alguns instantes.";
         }
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
     }
+
+    private static string Digits(string value) => new(value.Where(char.IsDigit).ToArray());
 }
+
+<style>
+    .admin-auth-shell { position:fixed; inset:0; min-height:100dvh; overflow:auto; color:#f8fafc; background:linear-gradient(145deg,#07101f 0%,#0b1326 52%,#101a33 100%); font-family:Inter,system-ui,sans-serif; }
+    .admin-auth-shell::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.32; background-image:linear-gradient(rgba(148,163,184,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.07) 1px,transparent 1px); background-size:58px 58px; mask-image:radial-gradient(circle at 50% 40%,#000,transparent 78%); }
+    .admin-auth-aurora { position:fixed; pointer-events:none; border-radius:50%; filter:blur(100px); opacity:.2; }
+    .admin-auth-aurora--one { width:520px; height:520px; top:-210px; right:4%; background:#2563eb; }
+    .admin-auth-aurora--two { width:420px; height:420px; bottom:-220px; left:7%; background:#0ea5e9; opacity:.1; }
+    .admin-auth-layout { position:relative; z-index:1; width:min(1180px,calc(100% - 48px)); min-height:100dvh; margin:0 auto; display:grid; grid-template-columns:minmax(0,1.06fr) minmax(390px,.72fr); align-items:center; gap:clamp(56px,8vw,120px); padding:48px 0; }
+    .admin-auth-story { min-height:min(680px,calc(100dvh - 96px)); display:flex; flex-direction:column; justify-content:space-between; padding:8px 0; }
+    .admin-auth-brand { width:max-content; display:flex; align-items:center; gap:13px; color:inherit; text-decoration:none; }
+    .admin-auth-brand__mark { width:46px; height:46px; display:grid; place-items:center; border:1px solid rgba(147,197,253,.28); border-radius:15px; color:#fff; background:linear-gradient(145deg,#3b82f6,#1d4ed8); box-shadow:0 14px 38px rgba(37,99,235,.32); }
+    .admin-auth-brand__mark svg { width:25px; height:25px; }
+    .admin-auth-brand__name { font-size:24px; font-weight:750; letter-spacing:-.04em; }
+    .admin-auth-brand__name span { color:#60a5fa; }
+    .admin-auth-story__body { max-width:610px; padding:48px 0; }
+    .admin-auth-eyebrow { display:flex; align-items:center; gap:10px; color:#93c5fd; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+    .admin-auth-eyebrow span { width:26px; height:1px; background:#60a5fa; }
+    .admin-auth-story h1 { max-width:580px; margin:22px 0 20px; font-size:clamp(44px,5vw,70px); line-height:.98; letter-spacing:-.055em; font-weight:760; }
+    .admin-auth-story__body>p { max-width:560px; margin:0; color:#94a3b8; font-size:17px; line-height:1.7; }
+    .admin-auth-benefits { margin-top:42px; display:grid; gap:20px; }
+    .admin-auth-benefit { display:flex; align-items:flex-start; gap:15px; }
+    .admin-auth-benefit__icon { flex:0 0 auto; width:40px; height:40px; display:grid; place-items:center; border:1px solid rgba(96,165,250,.18); border-radius:12px; color:#60a5fa; background:rgba(37,99,235,.09); }
+    .admin-auth-benefit__icon .mud-icon-root { font-size:20px; }
+    .admin-auth-benefit strong,.admin-auth-benefit small { display:block; }
+    .admin-auth-benefit strong { margin:1px 0 4px; color:#e2e8f0; font-size:14px; }
+    .admin-auth-benefit small { color:#64748b; font-size:12px; line-height:1.45; }
+    .admin-auth-story__footer { display:flex; align-items:center; gap:9px; color:#64748b; font-size:12px; }
+    .admin-auth-live-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 5px rgba(34,197,94,.1); }
+    .admin-auth-panel { width:100%; max-width:460px; justify-self:end; }
+    .admin-auth-mobile-brand { display:none; }
+    .admin-auth-card { padding:clamp(28px,4vw,44px) !important; border:1px solid rgba(148,163,184,.16) !important; border-radius:28px !important; color:#e2e8f0 !important; background:rgba(15,23,42,.82) !important; backdrop-filter:blur(24px); box-shadow:0 30px 80px rgba(0,0,0,.34) !important; }
+    .admin-auth-card__header { margin-bottom:28px; }
+    .admin-auth-card__eyebrow { margin-bottom:10px; color:#60a5fa; font-size:11px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; }
+    .admin-auth-card h2 { margin:0; color:#f8fafc; font-size:30px; letter-spacing:-.035em; }
+    .admin-auth-card__header p { margin:9px 0 0; color:#94a3b8; font-size:14px; }
+    .admin-auth-error { display:flex; align-items:flex-start; gap:10px; margin:-6px 0 20px; padding:12px 14px; border:1px solid rgba(248,113,113,.22); border-radius:13px; color:#fecaca; background:rgba(127,29,29,.16); font-size:12px; line-height:1.5; }
+    .admin-auth-error .mud-icon-root { flex:0 0 auto; margin-top:1px; font-size:18px; color:#f87171; }
+    .admin-auth-form { display:grid; gap:18px; }
+    .admin-auth-shell .mud-input { color:#f8fafc !important; background:rgba(2,6,23,.38) !important; }
+    .admin-auth-shell .mud-input-outlined-border { border-color:rgba(148,163,184,.2) !important; border-radius:14px !important; transition:border-color .2s ease,box-shadow .2s ease !important; }
+    .admin-auth-shell .mud-input-control:hover .mud-input-outlined-border { border-color:rgba(96,165,250,.5) !important; }
+    .admin-auth-shell .mud-focused .mud-input-outlined-border { border-color:#3b82f6 !important; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+    .admin-auth-shell .mud-input-label { color:#94a3b8 !important; }
+    .admin-auth-shell .mud-input-adornment .mud-icon-root { color:#64748b !important; }
+    .admin-auth-form__meta { display:flex; justify-content:space-between; gap:12px; margin-top:-5px; color:#64748b; font-size:10.5px; }
+    .admin-auth-form__meta span:first-child { display:flex; align-items:center; gap:5px; color:#94a3b8; }
+    .admin-auth-form__meta .mud-icon-root { font-size:14px; }
+    .admin-auth-submit { height:52px !important; margin-top:2px !important; border-radius:14px !important; color:#fff !important; font-weight:700 !important; text-transform:none !important; background:linear-gradient(100deg,#2563eb,#3b82f6) !important; box-shadow:0 14px 30px rgba(37,99,235,.25) !important; transition:transform .18s ease,box-shadow .18s ease !important; }
+    .admin-auth-submit:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 18px 36px rgba(37,99,235,.34) !important; }
+    .admin-auth-divider { display:flex; align-items:center; gap:12px; margin:26px 0 18px; color:#64748b; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; }
+    .admin-auth-divider::before,.admin-auth-divider::after { content:""; flex:1; height:1px; background:rgba(148,163,184,.13); }
+    .admin-auth-register { height:47px !important; border-color:rgba(148,163,184,.22) !important; border-radius:14px !important; color:#cbd5e1 !important; font-weight:650 !important; text-transform:none !important; }
+    .admin-auth-register:hover { border-color:rgba(96,165,250,.45) !important; background:rgba(37,99,235,.08) !important; }
+    .admin-auth-legal { margin:20px 0 0; color:#475569; font-size:10.5px; line-height:1.5; text-align:center; }
+    .admin-auth-panel__footer { margin-top:20px; color:#475569; font-size:11px; text-align:center; }
+
+    @@media(max-width:900px) {
+        .admin-auth-layout { width:min(100% - 32px,480px); grid-template-columns:1fr; padding:28px 0; }
+        .admin-auth-story { display:none; }
+        .admin-auth-panel { justify-self:center; }
+        .admin-auth-mobile-brand { display:flex; justify-content:center; align-items:center; gap:12px; margin:0 0 22px; }
+    }
+    @@media(max-width:520px) {
+        .admin-auth-layout { width:100%; padding:20px 16px; }
+        .admin-auth-card { padding:28px 22px !important; border-radius:24px !important; }
+        .admin-auth-card h2 { font-size:27px; }
+        .admin-auth-form__meta { flex-direction:column; gap:5px; }
+    }
+    @@media(prefers-reduced-motion:reduce) { .admin-auth-submit { transition:none !important; } }
+</style>

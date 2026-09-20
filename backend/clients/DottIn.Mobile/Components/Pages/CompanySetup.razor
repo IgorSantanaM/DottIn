@@ -1,0 +1,105 @@
+@page "/onboarding/company"
+@page "/management/branches/new"
+@inject IBranchApi BranchApi
+@inject MobileSessionService Session
+@inject AppState State
+@inject ILocationService LocationService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="pa-4">
+    <MudText Typo="Typo.h5">@(_newBranch ? "Cadastrar filial" : "Bem-vindo! Cadastre sua empresa")</MudText>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_created is not null)
+    {
+        <MudAlert Severity="Severity.Success">Empresa criada. Código: @_created.CompanyCode</MudAlert>
+        <MudButton OnClick="FinishAsync" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary">Continuar</MudButton>
+    }
+    else
+    {
+        <MudTextField @bind-Value="_name" Label="Nome da empresa" Variant="Variant.Outlined" Immediate="true" />
+        <MudTextField @bind-Value="_document" Label="CNPJ" HelperText="O cadastro de empresas exige CNPJ válido." Immediate="true" />
+        <MudTextField @bind-Value="_email" Label="E-mail" InputType="InputType.Email" Immediate="true" />
+        <MudTextField @bind-Value="_phone" Label="Telefone" Immediate="true" />
+        <MudTextField @bind-Value="_street" Label="Rua" Immediate="true" />
+        <MudTextField @bind-Value="_number" Label="Número" Immediate="true" />
+        <MudTextField @bind-Value="_complement" Label="Complemento" />
+        <MudTextField @bind-Value="_city" Label="Cidade" Immediate="true" />
+        <MudTextField @bind-Value="_region" Label="UF" MaxLength="2" Immediate="true" />
+        <MudTextField @bind-Value="_zip" Label="CEP" Immediate="true" />
+        <MudTextField @bind-Value="_timeZone" Label="Fuso horário" HelperText="Mesmo identificador usado pelo painel web." Immediate="true" />
+        <MudTimePicker @bind-Time="_start" Label="Entrada prevista" />
+        <MudTimePicker @bind-Time="_end" Label="Saída prevista" />
+        <MudNumericField T="int" @bind-Value="_tolerance" Label="Tolerância (minutos)" Min="0" Max="60" />
+        <MudAlert Severity="Severity.Info" Class="mt-3">Confirme a localização da empresa. O ponto mobile usa GPS e raio de 100 metros.</MudAlert>
+        <MudNumericField T="double?" @bind-Value="_latitude" Label="Latitude" Min="-90" Max="90" />
+        <MudNumericField T="double?" @bind-Value="_longitude" Label="Longitude" Min="-180" Max="180" />
+        <MudButton OnClick="UseLocationAsync" Disabled="_busy">Usar localização atual</MudButton>
+        <MudButton OnClick="CreateAsync" Disabled="@(_busy || !Valid)" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4">
+            @(_busy ? "Salvando…" : "Criar empresa")
+        </MudButton>
+    }
+    <MudButton OnClick="LogoutAsync" Disabled="_busy">Sair e continuar depois</MudButton>
+</MudContainer>
+
+@code {
+    private string _name = "", _document = "", _email = "", _phone = "";
+    private string _street = "", _number = "", _complement = "", _city = "", _region = "", _zip = "";
+    private string _timeZone = "E. South America Standard Time";
+    private TimeSpan? _start = TimeSpan.FromHours(8), _end = TimeSpan.FromHours(18);
+    private int _tolerance = 10;
+    private double? _latitude, _longitude;
+    private bool _busy;
+    private bool _newBranch;
+    private string? _error;
+    private CreateBranchResponse? _created;
+    private bool Valid => _name.Trim().Length >= 2 && ManagementRules.Digits(_document).Length == 14
+        && new[] { _street, _number, _city, _region, _email, _phone, _timeZone }.All(s => !string.IsNullOrWhiteSpace(s))
+        && int.TryParse(_number, out var number) && number >= 0 && _region.Length == 2
+        && ManagementRules.Digits(_zip).Length == 8 && _start.HasValue && _end.HasValue
+        && _latitude is >= -90 and <= 90 && _longitude is >= -180 and <= 180
+        && !(_latitude == 0 && _longitude == 0) && _tolerance is >= 0 and <= 60;
+    protected override void OnInitialized()
+    {
+        _newBranch = Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("management/branches/new", StringComparison.OrdinalIgnoreCase);
+        if (!_newBranch && State.BranchId != Guid.Empty) Navigation.NavigateTo("/onboarding/success", replace: true);
+    }
+    private async Task UseLocationAsync()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            var location = await LocationService.GetCurrentLocationAsync();
+            if (location is null) throw new InvalidOperationException("Localização indisponível. Informe as coordenadas da empresa.");
+            _latitude = location.Latitude; _longitude = location.Longitude;
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task CreateAsync()
+    {
+        if (_busy || !Valid) return;
+        _busy = true; _error = null;
+        try
+        {
+            _created = await BranchApi.CreateAsync(new(_name.Trim(), new(ManagementRules.Digits(_document), "CNPJ"),
+                new(_latitude!.Value, _longitude!.Value), new(_street, int.Parse(_number), _city, _region.ToUpperInvariant(), ManagementRules.Digits(_zip), _complement),
+                _timeZone, _start!.Value.ToString(@"hh\:mm\:ss"), _end!.Value.ToString(@"hh\:mm\:ss"), _email, _phone, State.EmployeeId, true, 100, _tolerance));
+            await CompleteAsync();
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task FinishAsync()
+    {
+        _busy = true; _error = null;
+        try { await CompleteAsync(); } catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task CompleteAsync()
+    {
+        if (_created is null) return;
+        await Session.CompanyCreatedAsync(_created);
+        Navigation.NavigateTo("/onboarding/success", replace: true);
+    }
+    private async Task LogoutAsync() { await Session.ClearAsync(); Navigation.NavigateTo("/login", replace: true); }
+}

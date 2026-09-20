@@ -1,0 +1,51 @@
+@page "/management/employees"
+@inject IEmployeeApi Api
+@inject AppState State
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Funcionários</MudText>
+    <MudButton Href="/management/dominio">Mapeamento Domínio</MudButton>
+    <MudTextField @bind-Value="_search" Label="Buscar por nome ou CPF" Immediate="true" Clearable="true" />
+    <MudSelect T="string" @bind-Value="_filter" Label="Status">
+        <MudSelectItem Value="@("all")">Todos</MudSelectItem>
+        <MudSelectItem Value="@("active")">Ativos</MudSelectItem>
+        <MudSelectItem Value="@("inactive")">Inativos</MudSelectItem>
+    </MudSelect>
+    <MudButton OnClick="LoadAsync" Disabled="_loading">Atualizar</MudButton>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    <MudDataGrid T="EmployeeDirectoryItem" Items="Filtered" Loading="_loading" SortMode="SortMode.Multiple" Dense="true">
+        <Columns>
+            <PropertyColumn Property="x => x.Name" Title="Nome" />
+            <PropertyColumn Property="x => x.Document.Value" Title="CPF" />
+            <PropertyColumn Property="x => x.BranchName" Title="Filial" />
+            <PropertyColumn Property="x => x.StartWorkTime" Title="Horário">
+                <CellTemplate>@context.Item.StartWorkTime.ToString("HH:mm") – @context.Item.EndWorkTime.ToString("HH:mm")</CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="x => x.HasFingerprint" Title="Biometria"><CellTemplate>@(context.Item.HasFingerprint ? "Cadastrada" : "Não cadastrada")</CellTemplate></PropertyColumn>
+            <PropertyColumn Property="x => x.IsActive" Title="Status"><CellTemplate>@(context.Item.IsActive ? "Ativo" : "Inativo")</CellTemplate></PropertyColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nenhum funcionário encontrado.</MudText></NoRecordsContent>
+        <PagerContent><MudDataGridPager T="EmployeeDirectoryItem" /></PagerContent>
+    </MudDataGrid>
+    <MudButton Href="/profile">Configurar biometria no perfil</MudButton>
+</MudContainer>
+
+@code {
+    private List<EmployeeDirectoryItem> _employees = [];
+    private string _search = "", _filter = "all";
+    private bool _loading;
+    private string? _error;
+    private IEnumerable<EmployeeDirectoryItem> Filtered => _employees
+        .Where(e => _filter == "all" || e.IsActive == (_filter == "active"))
+        .Where(e => string.IsNullOrWhiteSpace(_search) || e.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (ManagementRules.Digits(_search).Length > 0 && e.Document.Value.Contains(ManagementRules.Digits(_search))));
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        _loading = true; _error = null; _employees = [];
+        var branch = State.BranchId;
+        try { var items = await Api.GetByBranchAsync(branch); if (branch == State.BranchId) _employees = items.ToList(); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _loading = false; }
+    }
+}

@@ -1,0 +1,96 @@
+@page "/management/reports"
+@inject AppState State
+@inject ITimeKeepingApi TimeApi
+@inject IExportApi ExportApi
+@inject IHolidayCalendarApi Holidays
+@inject ExportFileService Files
+@inject IDialogService Dialogs
+
+<MudContainer Class="pa-4">
+    <MudText Typo="Typo.h5">Relatórios de ponto</MudText>
+    <MudDatePicker @bind-Date="_start" Label="Data inicial" DateFormat="dd/MM/yyyy" />
+    <MudDatePicker @bind-Date="_end" Label="Data final" DateFormat="dd/MM/yyyy" />
+    <MudButton OnClick="ThisMonthAsync" Disabled="_busy">Este mês</MudButton>
+    <MudButton OnClick="LoadAsync" Disabled="@(_busy || !Valid)" Color="Color.Primary">Buscar</MudButton>
+    <MudButton OnClick="CsvAsync" Disabled="@(_busy || !CurrentResults || !_records.Any())">Exportar CSV</MudButton>
+    <MudButton OnClick="DominioAsync" Disabled="_busy">Exportar Domínio</MudButton>
+    <MudSwitch T="bool" @bind-Value="_holidaysOnly" Color="Color.Primary">Somente trabalho em feriados</MudSwitch>
+    @if (!Valid) { <MudAlert Severity="Severity.Warning">Informe um período válido, com início anterior ou igual ao fim.</MudAlert> }
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (!CurrentResults && _loadedStart.HasValue) { <MudAlert Severity="Severity.Info">Filtros alterados. Toque em Buscar para atualizar.</MudAlert> }
+    @if (CurrentResults)
+    {
+        <MudText Class="my-3">Registros: @Visible.Count() · Funcionários: @Visible.Select(r => r.EmployeeId).Distinct().Count() · Horas: @ManagementRules.Hours(TimeSpan.FromTicks(Visible.Sum(r => r.TotalWorked.Ticks))) · Turnos noturnos: @Visible.Count(r => r.IsNocturnal)</MudText>
+        <MudDataGrid T="BranchTimeKeepingRecord" Items="Visible" Dense="true" SortMode="SortMode.Multiple" RowClick="@(e => DetailsAsync(e.Item.Id))">
+            <Columns>
+                <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário" />
+                <PropertyColumn Property="x => x.WorkDate" Title="Data" Format="dd/MM/yyyy" />
+                <PropertyColumn Property="x => x.ClockIn" Title="Entrada" Format="HH:mm" />
+                <PropertyColumn Property="x => x.ClockOut" Title="Saída" Format="HH:mm" />
+                <PropertyColumn Property="x => x.TotalWorked" Title="Horas"><CellTemplate>@ManagementRules.Hours(context.Item.TotalWorked)</CellTemplate></PropertyColumn>
+                <PropertyColumn Property="x => x.Status" Title="Status" />
+                <PropertyColumn Property="x => x.Source" Title="Origem" />
+                <PropertyColumn Property="x => x.IsNocturnal" Title="Noturno" />
+                <PropertyColumn Property="x => x.HolidayName" Title="Feriado" />
+            </Columns>
+            <NoRecordsContent><MudText>Nenhum registro neste período.</MudText></NoRecordsContent>
+            <PagerContent><MudDataGridPager T="BranchTimeKeepingRecord" /></PagerContent>
+        </MudDataGrid>
+    }
+    @if (_busy) { <MudProgressLinear Indeterminate="true" /> }
+    @if (_holidaysOnly) { <MudText Typo="Typo.caption">O filtro de feriados altera a visualização. O CSV exporta todos os registros do período consultado.</MudText> }
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "holidays")] public bool HolidayReport { get; set; }
+    private DateTime? _start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1), _end = DateTime.Today;
+    private DateTime? _loadedStart, _loadedEnd;
+    private List<BranchTimeKeepingRecord> _records = [];
+    private bool _busy, _holidaysOnly;
+    private string? _error;
+    private bool Valid => ManagementRules.ValidPeriod(_start, _end);
+    private bool CurrentResults => _loadedStart.HasValue && _start == _loadedStart && _end == _loadedEnd;
+    private IEnumerable<BranchTimeKeepingRecord> Visible => _records.Where(r => !_holidaysOnly || r.IsHoliday);
+    protected override async Task OnInitializedAsync() { _holidaysOnly = HolidayReport; await LoadAsync(); }
+    private async Task ThisMonthAsync() { _start = new(DateTime.Today.Year, DateTime.Today.Month, 1); _end = DateTime.Today; await LoadAsync(); }
+    private async Task LoadAsync()
+    {
+        if (_busy || !Valid) return;
+        _busy = true; _error = null; _records = []; _loadedStart = null;
+        var branch = State.BranchId;
+        var start = _start!.Value; var end = _end!.Value;
+        try
+        {
+            var recordsTask = TimeApi.GetBranchHistoryAsync(branch, DateOnly.FromDateTime(start), DateOnly.FromDateTime(end));
+            var holidaysTask = Holidays.GetHolidaysInRangeAsync(branch, DateOnly.FromDateTime(start), DateOnly.FromDateTime(end));
+            await Task.WhenAll(recordsTask, holidaysTask);
+            var dates = (await holidaysTask).GroupBy(h => h.Date).ToDictionary(g => g.Key, g => string.Join(", ", g.Select(h => h.Name).Distinct()));
+            if (branch != State.BranchId) return;
+            _records = (await recordsTask).Select(r => dates.TryGetValue(r.WorkDate, out var name)
+                ? r with { IsHoliday = true, HolidayName = r.HolidayName ?? name } : r).ToList();
+            _loadedStart = start; _loadedEnd = end;
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task CsvAsync()
+    {
+        if (_busy || !CurrentResults) return;
+        _busy = true; _error = null;
+        try
+        {
+            var start = DateOnly.FromDateTime(_loadedStart!.Value); var end = DateOnly.FromDateTime(_loadedEnd!.Value);
+            await Files.ShareAsync(await ExportApi.ExportCsvAsync(State.BranchId, start, end), $"registros_{start:yyyyMMdd}_{end:yyyyMMdd}.csv");
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _busy = false; }
+    }
+    private async Task DominioAsync() => await Dialogs.ShowAsync<ExportDominioMobileDialog>("Exportar Domínio",
+        new DialogParameters<ExportDominioMobileDialog> { { x => x.Month, _start ?? DateTime.Today } },
+        new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+    private async Task DetailsAsync(Guid id)
+    {
+        try { await Dialogs.ShowAsync<TimeKeepingDetailDialog>("Detalhes", new DialogParameters<TimeKeepingDetailDialog> { { x => x.Details, await TimeApi.GetByIdAsync(id) } }); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+    }
+}

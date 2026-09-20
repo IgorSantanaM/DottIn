@@ -1,0 +1,84 @@
+<div class="app-loading" role="status" aria-live="polite" aria-label="@Message">
+    <div class="app-loading__glow"></div>
+    <div class="app-loading__content">
+        <div class="app-loading__brand" aria-hidden="true">
+            <div class="app-loading__orbit"></div>
+            <div class="app-loading__mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 7.5v4.8l3.3 2" />
+                </svg>
+            </div>
+        </div>
+        <div class="app-loading__wordmark">Dott<span>In</span></div>
+        <div class="app-loading__message">@Message</div>
+        <div class="app-loading__track"><span></span></div>
+        <div class="app-loading__hint">Isso leva apenas alguns segundos</div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Message { get; set; } = "Preparando seu acesso";
+}
+
+<style>
+    .app-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #f8fafc;
+        background:
+            radial-gradient(circle at 50% 32%, rgba(59, 130, 246, .18), transparent 34rem),
+            linear-gradient(145deg, #07101f 0%, #0b1326 55%, #101a33 100%);
+        font-family: Inter, system-ui, sans-serif;
+    }
+
+    .app-loading::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: .32;
+        background-image: linear-gradient(rgba(148, 163, 184, .08) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(148, 163, 184, .08) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: radial-gradient(circle at center, #000, transparent 72%);
+    }
+
+    .app-loading__glow {
+        position: absolute;
+        width: min(72vw, 620px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, .08);
+        filter: blur(70px);
+        animation: app-loading-breathe 2.8s ease-in-out infinite;
+    }
+
+    .app-loading__content {
+        position: relative;
+        width: min(86vw, 340px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .app-loading__brand { position: relative; display: grid; place-items: center; width: 86px; height: 86px; }
+    .app-loading__orbit { position: absolute; inset: 0; border: 1px solid rgba(96, 165, 250, .22); border-top-color: #60a5fa; border-radius: 50%; animation: app-loading-spin 1.6s linear infinite; }
+    .app-loading__mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; color: white; background: linear-gradient(145deg, #3b82f6, #1d4ed8); box-shadow: 0 18px 50px rgba(37, 99, 235, .38); }
+    .app-loading__mark svg { width: 30px; height: 30px; }
+    .app-loading__wordmark { margin-top: 22px; font-size: 28px; font-weight: 750; letter-spacing: -.04em; }
+    .app-loading__wordmark span { color: #60a5fa; }
+    .app-loading__message { margin-top: 12px; color: #cbd5e1; font-size: 14px; font-weight: 500; }
+    .app-loading__track { width: 100%; height: 4px; margin-top: 30px; overflow: hidden; border-radius: 999px; background: rgba(148, 163, 184, .12); }
+    .app-loading__track span { display: block; width: 42%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, transparent, #60a5fa, #2563eb, transparent); animation: app-loading-slide 1.45s ease-in-out infinite; }
+    .app-loading__hint { margin-top: 13px; color: #64748b; font-size: 11px; letter-spacing: .02em; }
+
+    @@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+    @@keyframes app-loading-slide { from { transform: translateX(-110%); } to { transform: translateX(240%); } }
+    @@keyframes app-loading-breathe { 50% { transform: scale(1.08); opacity: .72; } }
+    @@media (prefers-reduced-motion: reduce) { .app-loading__orbit, .app-loading__track span, .app-loading__glow { animation: none; } }
+</style>

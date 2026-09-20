@@ -48,10 +48,11 @@
     private bool _isOptional;
     private bool _saving;
 
-    private bool IsValid() => _date.HasValue && !string.IsNullOrWhiteSpace(_name);
+    private bool IsValid() => _date.HasValue && _date.Value.Year == Year && !string.IsNullOrWhiteSpace(_name);
 
     private async Task Add()
     {
+        if (_saving || !IsValid()) return;
         _saving = true;
         try
         {

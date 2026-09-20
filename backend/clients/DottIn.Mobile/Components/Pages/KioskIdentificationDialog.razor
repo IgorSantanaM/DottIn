@@ -126,6 +126,12 @@
         {
             var request = new LoginRequest(_cpf.Trim(), _password, CompanyCode);
             var response = await AuthApi.LoginAsync(request);
+            if (!string.Equals(response.CompanyCode, CompanyCode, StringComparison.OrdinalIgnoreCase))
+            {
+                _errorMessage = "Funcionário não pertence a esta empresa";
+                _password = "";
+                return;
+            }
             MudDialog.Close(DialogResult.Ok(response.Employee));
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -157,6 +163,12 @@
         {
             var request = new PinLoginRequest(_cpf.Trim(), _pin, CompanyCode);
             var response = await AuthApi.LoginWithPinAsync(request);
+            if (!string.Equals(response.CompanyCode, CompanyCode, StringComparison.OrdinalIgnoreCase))
+            {
+                _errorMessage = "Funcionário não pertence a esta empresa";
+                _pin = "";
+                return;
+            }
             MudDialog.Close(DialogResult.Ok(response.Employee));
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)

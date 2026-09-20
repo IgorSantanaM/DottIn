@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07101F" />
     <title>DottIn Admin</title>
     <base href="/" />
     <link rel="preload" id="webassembly" />
@@ -114,6 +115,15 @@
             text-transform: uppercase;
         }
 
+        .loading-message {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 16px;
+            color: #CBD5E1;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
         .loading-bar-track {
             position: relative;
             z-index: 1;
@@ -220,12 +230,13 @@
             </div>
             <div>
                 <div class="loading-wordmark">
-                    <span class="loading-wordmark-text">DottIn</span>
+                    <span class="loading-wordmark-text">Dott</span><span class="loading-wordmark-dot">In</span>
                 </div>
                 <div class="loading-subtitle">Painel Administrativo</div>
             </div>
         </div>
 
+        <div class="loading-message">Preparando seu ambiente</div>
         <div class="loading-bar-track">
             <div class="loading-bar-fill"></div>
         </div>

@@ -1,4 +1,6 @@
 @page "/dashboard"
+@implements IDisposable
+@inject MobileSessionService Session
 @inject AppState AppState
 @inject BranchClockService BranchClock
 @inject ITimeKeepingApi TimeKeepingApi
@@ -53,6 +55,7 @@
     @if (AppState.IsOwner)
     {
         @* ===== KIOSK MODE ===== *@
+        <ManagerOverview @key="AppState.BranchId" @ref="_overview" />
         @if (AppState.CanSwitchBranches)
         {
             <MudSelect T="Guid" Value="AppState.BranchId" ValueChanged="OnBranchChanged"
@@ -200,6 +203,7 @@ private bool _isNocturnal = false;
 private string? _todayHolidayName;
 private TodaySummary? _todaySummary;
 private System.Timers.Timer? _timer;
+private ManagerOverview? _overview;
 private string _lastKioskMessage = "";
 private Severity _lastKioskSeverity = Severity.Success;
 
@@ -253,7 +257,8 @@ protected override async Task OnInitializedAsync()
 
     private async Task OnBranchChanged(Guid branchId)
     {
-        AppState.SwitchBranch(branchId);
+        try { await Session.SwitchBranchAsync(branchId); }
+        catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
         _lastKioskMessage = "";
         await SynchronizeBranchClockAsync();
         await CheckTodayHoliday();
@@ -354,6 +359,7 @@ protected override async Task OnInitializedAsync()
             }
 
             Snackbar.Add(_lastKioskMessage, _lastKioskSeverity);
+            if (_overview is not null) await _overview.RefreshAsync();
             try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
         }
         catch (Exception ex)

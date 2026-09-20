@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#2563EB" />
+    <meta name="theme-color" content="#07101F" />
     <title>DottIn</title>
     <base href="/" />
     
@@ -13,26 +13,103 @@
     
     <style>
         .splash-loading {
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            background: #F8FAFC;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: max(28px, env(safe-area-inset-top)) 28px max(24px, env(safe-area-inset-bottom));
+            overflow: hidden;
+            color: #f8fafc;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 14% 12%, rgba(37, 99, 235, .24), transparent 34%),
+                radial-gradient(circle at 88% 82%, rgba(14, 165, 233, .12), transparent 30%),
+                linear-gradient(155deg, #07101f, #0a1630 50%, #07101f);
         }
-        .splash-logo { margin-bottom: 24px; }
-        .splash-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #E2E8F0;
-            border-top-color: #2563EB;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .splash-loading::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: .7;
+            background-image:
+                linear-gradient(rgba(148, 163, 184, .045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, .045) 1px, transparent 1px);
+            background-size: 32px 32px;
+            mask-image: linear-gradient(to bottom, #000, transparent 84%);
+            -webkit-mask-image: linear-gradient(to bottom, #000, transparent 84%);
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .splash-content {
+            position: relative;
+            z-index: 1;
+            width: min(100%, 320px);
+            text-align: center;
+            animation: splash-enter .55s cubic-bezier(.22, 1, .36, 1) both;
+        }
+        .splash-logo-wrap {
+            position: relative;
+            display: inline-grid;
+            place-items: center;
+            width: 76px;
+            height: 76px;
+            margin-bottom: 22px;
+        }
+        .splash-logo-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(96, 165, 250, .22);
+            border-radius: 25px;
+            animation: splash-orbit 2.4s ease-in-out infinite;
+        }
+        .splash-logo {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #2563eb, #0ea5e9);
+            box-shadow: 0 18px 38px rgba(37, 99, 235, .3), inset 0 1px rgba(255,255,255,.28);
+        }
+        .splash-wordmark { font-size: 29px; font-weight: 760; letter-spacing: -.7px; }
+        .splash-wordmark span { color: #60a5fa; }
+        .splash-subtitle { margin-top: 4px; color: #778ba8; font-size: 11px; font-weight: 650; letter-spacing: 1.35px; text-transform: uppercase; }
+        .splash-message { margin-top: 38px; color: #bcc9db; font-size: 13px; font-weight: 600; }
+        .splash-progress {
+            height: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+            background: rgba(148, 163, 184, .12);
+            border-radius: 999px;
+        }
+        .splash-progress::after {
+            content: "";
+            display: block;
+            width: 38%;
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #38bdf8);
+            border-radius: inherit;
+            animation: splash-progress 1.2s ease-in-out infinite;
+        }
+        .splash-hint { margin-top: 12px; color: #566983; font-size: 11px; }
+        @keyframes splash-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes splash-orbit { 50% { transform: scale(1.06) rotate(4deg); border-color: rgba(96, 165, 250, .4); } }
+        @keyframes splash-progress { from { transform: translateX(-120%); } to { transform: translateX(360%); } }
+        @media (prefers-reduced-motion: reduce) {
+            .splash-content, .splash-logo-wrap::before, .splash-progress::after { animation: none; }
+        }
         #blazor-error-ui {
-            background: #FEE2E2;
-            color: #DC2626;
+            position: fixed;
+            right: 16px;
+            bottom: max(16px, env(safe-area-inset-bottom));
+            left: 16px;
+            z-index: 100;
+            background: #3f1720;
+            color: #fecaca;
+            border: 1px solid rgba(248, 113, 113, .3);
+            border-radius: 14px;
             padding: 16px;
             text-align: center;
             display: none;
@@ -43,12 +120,21 @@
 <body>
     <div id="app">
         <div class="splash-loading">
-            <div class="splash-logo">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="#2563EB">
-                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z" />
-                </svg>
+            <div class="splash-content" role="status" aria-live="polite">
+                <div class="splash-logo-wrap">
+                    <div class="splash-logo">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="8.5"></circle>
+                            <path d="M12 7.5v4.8l3.3 2"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="splash-wordmark">Dott<span>In</span></div>
+                <div class="splash-subtitle">Controle de ponto inteligente</div>
+                <div class="splash-message">Preparando seu ambiente</div>
+                <div class="splash-progress"></div>
+                <div class="splash-hint">Carregando recursos essenciais</div>
             </div>
-            <div class="splash-spinner"></div>
         </div>
     </div>
 

@@ -34,6 +34,9 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
             var skip = ReadArgumentBool(context.Arguments, "SkipGeolocationValidation");
             if (!access.CanActFor(employeeId.Value, skip))
                 return Results.Forbid();
+            if (employeeId.Value != currentUser.EmployeeId &&
+                !await access.CanAccessEmployeeAsync(employeeId.Value, mutation: false, http.RequestAborted))
+                return Results.Forbid();
         }
         else if (employeeId.HasValue && !await access.CanAccessEmployeeAsync(employeeId.Value, mutation, http.RequestAborted))
         {

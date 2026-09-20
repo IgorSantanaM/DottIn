@@ -1,13 +1,5 @@
 namespace DottIn.Mobile.Services.Interfaces;
 
-public interface ISecureStorageService
-{
-    Task<string?> GetAsync(string key);
-    Task SetAsync(string key, string value);
-    Task RemoveAsync(string key);
-    Task ClearAllAsync();
-}
-
 public interface ILocationService
 {
     Task<PermissionStatus> CheckPermissionAsync();

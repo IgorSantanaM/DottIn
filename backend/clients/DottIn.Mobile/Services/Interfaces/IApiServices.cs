@@ -4,6 +4,9 @@ namespace DottIn.Mobile.Services.Interfaces;
 
 public interface IAuthApi
 {
+    [Post("/api/auth/register/owner")]
+    Task<OwnerRegistrationResponse> RegisterOwnerAsync([Body] OwnerRegistrationRequest request);
+
     [Post("/api/auth/login")]
     Task<LoginResponse> LoginAsync([Body] LoginRequest request);
 
@@ -43,8 +46,8 @@ public interface ITimeKeepingApi
     [Get("/api/timekeeping/employee/{employeeId}/history")]
     Task<IEnumerable<TimeKeepingRecord>> GetHistoryAsync(
         Guid employeeId,
-        [Query] DateOnly startDate,
-        [Query] DateOnly? endDate = null);
+        [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
+        [Query(Format = "yyyy-MM-dd")] DateOnly? endDate = null);
 
     [Get("/api/timekeeping/{timeKeepingId}")]
     Task<TimeKeepingDetails> GetByIdAsync(Guid timeKeepingId);
@@ -55,12 +58,15 @@ public interface ITimeKeepingApi
     [Get("/api/timekeeping/branch/{branchId}/history")]
     Task<IEnumerable<BranchTimeKeepingRecord>> GetBranchHistoryAsync(
         Guid branchId,
-        [Query] DateOnly startDate,
-        [Query] DateOnly? endDate = null);
+        [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
+        [Query(Format = "yyyy-MM-dd")] DateOnly? endDate = null);
 }
 
 public interface IEmployeeApi
 {
+    [Get("/api/branches/{branchId}/employees")]
+    Task<IEnumerable<EmployeeDirectoryItem>> GetByBranchAsync(Guid branchId);
+
     [Get("/api/branches/{branchId}/employees/{employeeId}")]
     Task<EmployeeDetails> GetByIdAsync(Guid branchId, Guid employeeId);
 
@@ -70,6 +76,12 @@ public interface IEmployeeApi
 
 public interface IBranchApi
 {
+    [Post("/api/branches")]
+    Task<CreateBranchResponse> CreateAsync([Body] CreateBranchRequest request);
+
+    [Get("/api/branches/{branchId}")]
+    Task<BranchContext> GetByIdAsync(Guid branchId);
+
     [Get("/api/branches/owner/{ownerId}")]
     Task<IEnumerable<BranchSummary>> GetByOwnerAsync(Guid ownerId);
 
@@ -88,8 +100,8 @@ public interface IHolidayCalendarApi
     [Get("/api/branches/{branchId}/holiday-calendars/holidays/range")]
     Task<IEnumerable<HolidayItemDto>> GetHolidaysInRangeAsync(
         Guid branchId,
-        [Query] DateOnly startDate,
-        [Query] DateOnly endDate);
+        [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
+        [Query(Format = "yyyy-MM-dd")] DateOnly endDate);
 
     [Post("/api/branches/{branchId}/holiday-calendars")]
     Task<Guid> CreateCalendarAsync(Guid branchId, [Body] CreateCalendarApiRequest request);
@@ -110,10 +122,12 @@ public interface IExportApi
     Task SaveDominioMappingsAsync(Guid branchId, [Body] IEnumerable<SaveDominioMappingMobileRequest> mappings);
 
     [Get("/api/branches/{branchId}/exports/dominio")]
-    Task<HttpResponseMessage> ExportDominioAsync(Guid branchId, [Query] string month);
+    Task<HttpResponseMessage> ExportDominioAsync(Guid branchId, [Query] string month,
+        [Query] string companyCode, [Query] string normalRubricCode,
+        [Query] string nocturnalRubricCode, [Query] string holidayRubricCode, [Query] string processType);
 
     [Get("/api/branches/{branchId}/exports/csv")]
-    Task<HttpResponseMessage> ExportCsvAsync(Guid branchId, [Query] DateOnly startDate, [Query] DateOnly endDate);
+    Task<HttpResponseMessage> ExportCsvAsync(Guid branchId, [Query(Format = "yyyy-MM-dd")] DateOnly startDate, [Query(Format = "yyyy-MM-dd")] DateOnly endDate);
 }
 
 // Request Models
@@ -136,7 +150,8 @@ public record LoginResponse(
     EmployeeInfo Employee,
     Guid BranchId,
     bool IsOwner,
-    bool IsHeadquarters);
+    bool IsHeadquarters,
+    string CompanyCode = "");
 
 public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
 public record ClockInResponse(Guid TimeKeepingId);
@@ -237,6 +252,6 @@ public record AddHolidaysApiRequest(IEnumerable<AddHolidayItemRequest> Holidays)
 public record AddHolidayItemRequest(DateOnly Date, string Name, string Type, bool IsOptional);
 
 // Domínio Export Models
-public record DominioMappingMobileDto(Guid EmployeeId, string EmployeeName, string DominioCode);
+public record DominioMappingMobileDto(Guid EmployeeId, string EmployeeName, string EmployeeDocument, string DominioCode);
 public record SaveDominioMappingMobileRequest(Guid EmployeeId, string DominioCode);
 

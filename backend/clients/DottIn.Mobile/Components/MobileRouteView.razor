@@ -1,0 +1,54 @@
+@implements IDisposable
+@inject MobileSessionService Session
+@inject AppState State
+@inject NavigationManager Navigation
+
+@if (_loading)
+{
+    <AppLoadingScreen Message="Verificando sua sessão" />
+}
+else if (_error is not null)
+{
+    <div class="route-error-shell">
+        <div class="route-error-card" role="alert">
+            <div class="route-error-icon"><MudIcon Icon="@Icons.Material.Filled.CloudOff" /></div>
+            <MudText Typo="Typo.h6">Não foi possível preparar seu acesso</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@_error</MudText>
+            <MudButton OnClick="InitializeAsync" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Tentar novamente</MudButton>
+            <MudButton OnClick="SignInAsync" Variant="Variant.Text" FullWidth="true">Entrar com outra conta</MudButton>
+        </div>
+    </div>
+}
+
+<style>
+    .route-error-shell { position:fixed; inset:0; display:grid; place-items:center; padding:24px; background:linear-gradient(160deg,#07101f,#0b1530 68%,#111d3b); }
+    .route-error-card { width:min(100%,380px); display:flex; flex-direction:column; gap:14px; padding:28px; border:1px solid rgba(148,163,184,.15); border-radius:24px; background:rgba(15,23,42,.88); box-shadow:0 24px 64px rgba(0,0,0,.34); text-align:center; }
+    .route-error-icon { width:52px; height:52px; margin:0 auto 4px; display:grid; place-items:center; border-radius:16px; color:#f87171; background:rgba(239,68,68,.12); }
+</style>
+else if (Redirect is null)
+{
+    <RouteView @key="(State.EmployeeId, State.BranchId, RouteData.PageType)" RouteData="RouteData" DefaultLayout="@typeof(Layout.MainLayout)" />
+}
+
+@code {
+    [Parameter, EditorRequired] public RouteData RouteData { get; set; } = default!;
+    private bool _loading = true;
+    private string? _error;
+    private string Path => "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').ToLowerInvariant();
+    private string? Redirect => MobileRoutePolicy.Redirect(Path, State.IsAuthenticated, State.IsOwner, State.BranchId);
+    protected override async Task OnInitializedAsync() { State.OnChange += Changed; await InitializeAsync(); }
+    private async Task InitializeAsync()
+    {
+        _loading = true; _error = null;
+        try { await Session.RestoreAsync(); }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _loading = false; }
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!_loading && _error is null && Redirect is { } destination) Navigation.NavigateTo(destination, replace: true);
+    }
+    private async Task SignInAsync() { await Session.ClearAsync(); _error = null; Navigation.NavigateTo("/login"); }
+    private void Changed() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => State.OnChange -= Changed;
+}

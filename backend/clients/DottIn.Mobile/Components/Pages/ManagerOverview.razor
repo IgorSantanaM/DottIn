@@ -1,0 +1,69 @@
+@inject AppState State
+@inject IEmployeeApi Employees
+@inject ITimeKeepingApi TimeApi
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-3 my-3" Elevation="0">
+    <MudText Typo="Typo.h6">Atividade de hoje</MudText>
+    <MudButton OnClick="LoadAsync" Disabled="_loading" StartIcon="@Icons.Material.Filled.Refresh">Atualizar</MudButton>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+    else if (_error is null)
+    {
+        <MudGrid Class="my-2">
+            <MudItem xs="6"><MudText>Ativos: @_active</MudText></MudItem>
+            <MudItem xs="6"><MudText>Trabalhando: @_records.Count(r => r.Status == "Working")</MudText></MudItem>
+            <MudItem xs="6"><MudText>Em intervalo: @_records.Count(r => r.Status == "OnBreak")</MudText></MudItem>
+            <MudItem xs="6"><MudText>Finalizaram: @_records.Count(r => r.Status == "Finished")</MudText></MudItem>
+        </MudGrid>
+        <MudDataGrid T="BranchTimeKeepingRecord" Items="_records" Dense="true" SortMode="SortMode.Multiple"
+                     RowClick="@(e => DetailsAsync(e.Item.Id))">
+            <Columns>
+                <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário" />
+                <PropertyColumn Property="x => x.ClockIn" Title="Entrada" Format="HH:mm" />
+                <PropertyColumn Property="x => x.ClockOut" Title="Saída" Format="HH:mm" />
+                <PropertyColumn Property="x => x.TotalWorked" Title="Horas"><CellTemplate>@ManagementRules.Hours(context.Item.TotalWorked)</CellTemplate></PropertyColumn>
+                <PropertyColumn Property="x => x.Status" Title="Status" />
+                <PropertyColumn Property="x => x.Source" Title="Origem" />
+            </Columns>
+            <NoRecordsContent><MudText>Nenhum registro hoje.</MudText></NoRecordsContent>
+        </MudDataGrid>
+    }
+</MudPaper>
+
+@code {
+    private bool _loading;
+    private int _active;
+    private string? _error;
+    private List<BranchTimeKeepingRecord> _records = [];
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    public async Task RefreshAsync() { await LoadAsync(); await InvokeAsync(StateHasChanged); }
+    private async Task LoadAsync()
+    {
+        if (!State.IsOwner || State.BranchId == Guid.Empty) return;
+        _loading = true; _error = null; _records = []; _active = 0;
+        var branch = State.BranchId;
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var employees = Employees.GetActiveByBranchAsync(branch);
+            var records = TimeApi.GetBranchHistoryAsync(branch, today, today);
+            await Task.WhenAll(employees, records);
+            if (branch != State.BranchId) return;
+            _active = (await employees).Count(e => e.IsActive);
+            _records = (await records).ToList();
+        }
+        catch (Exception ex) { _error = ManagementRules.Error(ex); }
+        finally { _loading = false; }
+    }
+    private async Task DetailsAsync(Guid id)
+    {
+        try
+        {
+            var details = await TimeApi.GetByIdAsync(id);
+            await Dialogs.ShowAsync<TimeKeepingDetailDialog>("Detalhes", new DialogParameters<TimeKeepingDetailDialog> { { x => x.Details, details } });
+        }
+        catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
+    }
+}
