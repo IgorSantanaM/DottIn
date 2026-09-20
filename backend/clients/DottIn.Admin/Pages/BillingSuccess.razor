@@ -1,0 +1,43 @@
+@page "/billing/success"
+@inject AdminState State
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<PageTitle>Pagamento em confirmação – DottIn</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Class="pa-6 text-center" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.HourglassTop" Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h5" Class="mt-3">Pagamento recebido</MudText>
+        <MudText Color="Color.Secondary" Class="mb-4">Estamos confirmando sua assinatura com a Stripe. O acesso é liberado somente após a confirmação do webhook.</MudText>
+        @if (!string.IsNullOrWhiteSpace(_link))
+        {
+            <MudText Typo="Typo.subtitle2">Link para convidar funcionários</MudText>
+            <MudTextField Value="@_link" ReadOnly="true" Variant="Variant.Outlined" FullWidth="true" Class="mt-2" />
+            <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="CopyAsync">Copiar link</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Href="/dashboard">Ir para o painel</MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string? _link;
+    protected override async Task OnInitializedAsync()
+    {
+        if (!State.IsAuthenticated || State.BranchId == Guid.Empty) return;
+        try
+        {
+            var invitation = await Api.GetCompanyJoinLinkAsync(State.BranchId);
+            _link = $"{Navigation.BaseUri.TrimEnd('/')}/join?token={Uri.EscapeDataString(invitation.Token)}";
+        }
+        catch { }
+    }
+    private async Task CopyAsync()
+    {
+        if (_link is null) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _link);
+        Snackbar.Add("Link copiado.", Severity.Success);
+    }
+}

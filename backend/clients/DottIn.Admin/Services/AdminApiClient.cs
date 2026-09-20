@@ -12,6 +12,12 @@ public class AdminApiClient(HttpClient http)
         return result ?? [];
     }
 
+    public async Task<BranchClockResponse> GetBranchClockAsync(Guid branchId, CancellationToken cancellationToken = default)
+        => await http.GetFromJsonAsync<BranchClockResponse>(
+               $"/api/branches/{branchId}/clock",
+               cancellationToken)
+           ?? throw new ApiException("Não foi possível obter o horário da filial.");
+
     public async Task<List<EmployeeSummary>> GetEmployeesByBranchAsync(Guid branchId)
     {
         var result = await http.GetFromJsonAsync<List<EmployeeSummary>>($"/api/branches/{branchId}/employees");
@@ -189,6 +195,39 @@ public class AdminApiClient(HttpClient http)
             throw new ApiException("Não foi possível abrir o portal de cobrança.");
 
         return result.PortalUrl;
+    }
+
+    public async Task<CompanyJoinLinkResponse> GetCompanyJoinLinkAsync(Guid branchId, CancellationToken cancellationToken = default)
+    {
+        var response = await http.GetAsync($"/api/branches/{branchId}/company-join-link", cancellationToken);
+        await EnsureSuccessOrThrowAsync(response);
+        return (await response.Content.ReadFromJsonAsync<CompanyJoinLinkResponse>(cancellationToken: cancellationToken))
+            ?? throw new ApiException("Não foi possível obter o link de convite.");
+    }
+
+    public async Task<CompanyJoinLinkResolutionResponse?> ResolveCompanyJoinLinkAsync(string token, CancellationToken cancellationToken = default)
+    {
+        var response = await http.GetAsync($"/api/company-join-links/resolve?token={Uri.EscapeDataString(token)}", cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadFromJsonAsync<CompanyJoinLinkResolutionResponse>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<(bool Success, string? Error)> RegisterFromCompanyJoinLinkAsync(
+        RegisterFromCompanyJoinLinkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await http.PostAsJsonAsync("/api/company-join-links/register", request, cancellationToken);
+        if (response.IsSuccessStatusCode) return (true, null);
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("message", out var message) && !string.IsNullOrWhiteSpace(message.GetString()))
+                return (false, message.GetString());
+        }
+        catch (JsonException) { }
+        return (false, "Não foi possível criar a conta.");
     }
 
     public async Task LogoutAsync()

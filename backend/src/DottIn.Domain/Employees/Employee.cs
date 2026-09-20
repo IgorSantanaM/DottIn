@@ -133,6 +133,27 @@ namespace DottIn.Domain.Employees
             UpdatedAt = DateTime.UtcNow;
         }
 
+        public void JoinInvitedBranch(
+            Guid branchId,
+            TimeOnly startWorkTime,
+            TimeOnly endWorkTime,
+            TimeOnly intervalStart,
+            TimeOnly intervalEnd)
+        {
+            if (BranchId != Guid.Empty)
+                throw new DomainException("O usuário já pertence a uma empresa.");
+            if (branchId == Guid.Empty)
+                throw new DomainException("A empresa é obrigatória.");
+
+            SetScheduleInternal(startWorkTime, endWorkTime, intervalStart, intervalEnd);
+            BranchId = branchId;
+            // An unassigned owner who accepts a company link becomes a member. This is
+            // intentional: ownership is granted only by the company-creation flow.
+            if (Role == EmployeeRole.Owner)
+                Role = EmployeeRole.Employee;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void SetRole(EmployeeRole role)
         {
             if (role == EmployeeRole.Owner)

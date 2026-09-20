@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject MobileSessionService Session
 @inject AppState AppState
+@inject BranchClockService BranchClock
 @inject ITimeKeepingApi TimeKeepingApi
 @inject IHolidayCalendarApi HolidayApi
 @inject ILocationService LocationService
@@ -17,12 +18,12 @@
             @if (AppState.IsOwner)
             {
                 <MudText Typo="Typo.h5" Class="font-bold">Modo Empresa</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@CurrentDate</MudText>
             }
             else
             {
                 <MudText Typo="Typo.h5" Class="font-bold">Olá, @(AppState.Employee?.FirstName ?? "Usuário")!</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">@_currentDate</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@CurrentDate</MudText>
             }
         </div>
         <MudAvatar Size="Size.Large" Color="@(AppState.IsOwner ? Color.Warning : Color.Primary)">
@@ -39,7 +40,7 @@
 
     @* Real-time Clock *@
     <div class="clock-display">
-        <MudText Typo="Typo.h2" Class="clock-time">@_currentTime</MudText>
+        <MudText Typo="Typo.h2" Class="clock-time">@BranchNow.ToString("HH:mm:ss")</MudText>
     </div>
 
     @* Holiday Banner *@
@@ -195,8 +196,6 @@
 </div>
 
 @code {
-private string _currentTime = DateTime.Now.ToString("HH:mm:ss");
-private string _currentDate = DateTime.Now.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("pt-BR"));
 private ClockStatus _currentStatus = ClockStatus.NotClocked;
 private bool _isProcessing = false;
 private bool _gpsEnabled = false;
@@ -218,12 +217,10 @@ protected override async Task OnInitializedAsync()
 
     try
     {
+        await SynchronizeBranchClockAsync();
+
         _timer = new System.Timers.Timer(1000);
-        _timer.Elapsed += (s, e) =>
-        {
-            _currentTime = DateTime.Now.ToString("HH:mm:ss");
-            InvokeAsync(StateHasChanged);
-        };
+        _timer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
         _timer.Start();
 
         await CheckGpsStatus();
@@ -249,7 +246,7 @@ protected override async Task OnInitializedAsync()
     {
         try
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = BranchClock.Today;
             var holidays = await HolidayApi.GetHolidaysInRangeAsync(AppState.BranchId, today, today);
             _todayHolidayName = holidays.FirstOrDefault()?.Name;
         }
@@ -263,6 +260,8 @@ protected override async Task OnInitializedAsync()
         try { await Session.SwitchBranchAsync(branchId); }
         catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
         _lastKioskMessage = "";
+        await SynchronizeBranchClockAsync();
+        await CheckTodayHoliday();
     }
 
     private async Task HandleKioskAction()
@@ -294,7 +293,7 @@ protected override async Task OnInitializedAsync()
         _isProcessing = true;
         try
         {
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = BranchClock.Today;
             var records = await TimeKeepingApi.GetHistoryAsync(employee.Id, today, today);
             var todayRecord = records.FirstOrDefault();
             var employeeStatus = todayRecord?.Status ?? "NotStarted";
@@ -383,7 +382,7 @@ protected override async Task OnInitializedAsync()
     {
         try
         {
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = BranchClock.Today;
             var records = await TimeKeepingApi.GetHistoryAsync(AppState.EmployeeId, today, today);
             var todayRecord = records.FirstOrDefault();
 
@@ -571,7 +570,7 @@ protected override async Task OnInitializedAsync()
         if (_todaySummary is null) return "00:00";
         if (_currentStatus == ClockStatus.Working && _todaySummary.ClockInTime.HasValue)
         {
-            var elapsed = DateTime.Now - _todaySummary.ClockInTime.Value - (_todaySummary?.TotalBreak ?? TimeSpan.Zero);
+            var elapsed = BranchNow - _todaySummary.ClockInTime.Value - (_todaySummary?.TotalBreak ?? TimeSpan.Zero);
             if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
             return elapsed.ToString(@"hh\:mm");
         }
@@ -589,6 +588,21 @@ protected override async Task OnInitializedAsync()
     }
 
     private enum ClockStatus { NotClocked, Working, OnBreak, Finished }
+
+    private DateTime BranchNow => BranchClock.Now;
+    private string CurrentDate => BranchNow.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("pt-BR"));
+
+    private async Task SynchronizeBranchClockAsync()
+    {
+        try
+        {
+            await BranchClock.SynchronizeAsync(AppState.BranchId);
+        }
+        catch
+        {
+            // The API remains the source of truth for timekeeping timestamps.
+        }
+    }
 
     private record TodaySummary
     {

@@ -1,0 +1,11 @@
+@page "/billing/cancel"
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Class="pa-6 text-center" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Large" Color="Color.Warning" />
+        <MudText Typo="Typo.h5" Class="mt-3">Pagamento cancelado</MudText>
+        <MudText Color="Color.Secondary" Class="mb-4">Nenhuma assinatura foi ativada. Você pode tentar novamente quando estiver pronto.</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/onboarding/plan">Voltar aos planos</MudButton>
+    </MudPaper>
+</MudContainer>

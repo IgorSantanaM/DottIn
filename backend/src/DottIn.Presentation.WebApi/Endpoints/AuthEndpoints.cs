@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Data;
 using DottIn.Application.Features.Auth.DTOs;
 using DottIn.Application.Features.Employees.Commands.RegisterOwner;
 using DottIn.Application.Features.Subscriptions.Services;
@@ -8,8 +9,10 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
 using DottIn.Infra.Services.Auth;
+using DottIn.Infra.Data.Contexts;
 using DottIn.Presentation.WebApi.DTOs.Auth;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
+using DottIn.Presentation.WebApi.Security;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -142,6 +145,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IConfiguration configuration,
             [FromServices] ITenantSubscriptionService subscriptionService,
             [FromServices] IValidator<LoginRequest> validator,
+            [FromServices] DottInContext db,
+            [FromServices] ICompanyJoinLinkTokenService companyJoinLinkTokenService,
             CancellationToken cancellationToken)
         {
             await validator.ValidateAndThrowAsync(request);
@@ -156,6 +161,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
+            if (employee.BranchId == Guid.Empty && !string.IsNullOrWhiteSpace(request.CompanyJoinToken))
+            {
+                var joinError = await JoinCompanyFromLinkAsync(employee, request.CompanyJoinToken, db,
+                    companyJoinLinkTokenService, cancellationToken);
+                if (joinError is not null)
+                    return joinError;
+            }
+
             if (employee.BranchId == Guid.Empty && employee.Role == EmployeeRole.Owner)
                 return await GenerateUnassignedOwnerLoginResponseAsync(employee, tokenService, refreshTokenRepository, unitOfWork, configuration, cancellationToken);
 
@@ -167,6 +180,42 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.Unauthorized();
 
             return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, cancellationToken);
+        }
+
+        private static async Task<IResult?> JoinCompanyFromLinkAsync(
+            Employee employee,
+            string token,
+            DottInContext db,
+            ICompanyJoinLinkTokenService tokenService,
+            CancellationToken cancellationToken)
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            var validation = await CompanyJoinLinkEndpoints.ValidateAsync(token, db, tokenService, cancellationToken);
+            if (validation is null)
+                return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
+
+            var (_, branch, subscription) = validation.Value;
+            if (employee.BranchId != Guid.Empty)
+                return null;
+
+            if (!await CompanyJoinLinkEndpoints.HasSeatAvailableAsync(db, branch.OwnerId!.Value, subscription, cancellationToken))
+                return Results.Conflict(new { Message = "Não há assentos disponíveis nesta empresa." });
+
+            try
+            {
+                var (intervalStart, intervalEnd) = CompanyJoinLinkEndpoints.DefaultInterval(branch);
+                employee.JoinInvitedBranch(branch.Id, branch.StartWorkTime, branch.EndWorkTime, intervalStart, intervalEnd);
+                db.Employees.Update(employee);
+                await db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Results.Conflict(new { Message = "Não foi possível associar a conta à empresa." });
+            }
+
+            return null;
         }
 
         private static async Task<IResult> HandlePinLoginAsync(
@@ -559,7 +608,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var isOwner = employee.Role == EmployeeRole.Owner;
+            var isOwner = branch.OwnerId == employee.Id;
 
             SubscriptionInfoDto? subscriptionInfo = null;
             if (branch.OwnerId.HasValue)

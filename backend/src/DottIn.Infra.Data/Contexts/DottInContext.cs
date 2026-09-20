@@ -15,6 +15,7 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<Branch> Branches { get; set; }
         public DbSet<Employee> Employees { get; set; }
         public DbSet<EmployeeInvitation> EmployeeInvitations { get; set; }
+        public DbSet<CompanyJoinLink> CompanyJoinLinks { get; set; }
         public DbSet<TimeKeeping> TimeKeepings { get; set; }
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }

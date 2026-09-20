@@ -1,0 +1,114 @@
+@page "/join"
+@using System.Net.Http.Json
+@inject AdminApiClient Api
+@inject AuthService Auth
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Entrar na empresa – DottIn</PageTitle>
+
+<div class="join-page">
+    <MudPaper Class="pa-6 join-card" Elevation="2">
+        @if (_loadingLink)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else if (_company is null)
+        {
+            <MudText Color="Color.Error">Este link de convite é inválido ou expirou.</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.h5" Class="mb-1">Entrar em @_company.CompanyName</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Se já possui conta, faça login. Caso contrário, crie somente sua conta de funcionário.
+            </MudText>
+
+            <MudTabs Rounded="true" Elevation="0" @bind-ActivePanelIndex="_tab">
+                <MudTabPanel Text="Já tenho conta">
+                    <MudTextField @bind-Value="_cpf" Label="CPF" Variant="Variant.Outlined" Class="mb-3" FullWidth="true" />
+                    <MudTextField @bind-Value="_password" Label="Senha" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-3" FullWidth="true" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@_submitting" OnClick="LoginAsync">
+                        Entrar
+                    </MudButton>
+                </MudTabPanel>
+                <MudTabPanel Text="Criar conta">
+                    @if (!_company.CanJoin)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">Não há assentos disponíveis para novos funcionários.</MudAlert>
+                    }
+                    <MudTextField @bind-Value="_name" Label="Nome completo" Variant="Variant.Outlined" Class="mb-3" FullWidth="true" />
+                    <MudTextField @bind-Value="_cpf" Label="CPF" Variant="Variant.Outlined" Class="mb-3" FullWidth="true" />
+                    <MudTextField @bind-Value="_password" Label="Senha" HelperText="10+ caracteres com maiúscula, minúscula, número e símbolo" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-3" FullWidth="true" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(_submitting || !_company.CanJoin)" OnClick="RegisterAsync">
+                        Criar conta e entrar
+                    </MudButton>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    private string _token = "";
+    private string _name = "";
+    private string _cpf = "";
+    private string _password = "";
+    private int _tab;
+    private bool _loadingLink = true;
+    private bool _submitting;
+    private CompanyJoinLinkResolutionResponse? _company;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query);
+        _token = query["token"] ?? "";
+        _company = await Api.ResolveCompanyJoinLinkAsync(_token);
+        _loadingLink = false;
+    }
+
+    private async Task LoginAsync()
+    {
+        _submitting = true;
+        var (success, error) = await Auth.LoginAsync(CleanCpf(), _password, _token);
+        _submitting = false;
+        if (!success)
+        {
+            Snackbar.Add(error ?? "Não foi possível entrar.", Severity.Error);
+            return;
+        }
+        Navigation.NavigateTo("/dashboard", replace: true);
+    }
+
+    private async Task RegisterAsync()
+    {
+        _submitting = true;
+        try
+        {
+            var response = await Api.RegisterFromCompanyJoinLinkAsync(
+                new RegisterFromCompanyJoinLinkRequest(_token, _name.Trim(), CleanCpf(), _password));
+            if (!response.Success)
+            {
+                Snackbar.Add(response.Error ?? "Não foi possível criar a conta.", Severity.Error);
+                return;
+            }
+
+            var (success, error) = await Auth.LoginAsync(CleanCpf(), _password);
+            if (!success)
+                Snackbar.Add(error ?? "A conta foi criada, mas o login não pôde ser concluído.", Severity.Error);
+            else
+                Navigation.NavigateTo("/dashboard", replace: true);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private string CleanCpf() => new string(_cpf.Where(char.IsDigit).ToArray());
+}
+
+<style>
+    .join-page { min-height: 100vh; display: grid; place-items: center; padding: 1rem; background: var(--mud-palette-background); }
+    .join-card { width: min(100%, 480px); }
+</style>

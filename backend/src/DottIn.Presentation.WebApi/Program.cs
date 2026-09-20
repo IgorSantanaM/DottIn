@@ -34,9 +34,11 @@ builder.Services.AddCors(opt =>
 });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 builder.Services.AddScoped<CurrentUserContext>();
 builder.Services.AddScoped<TenantAccessService>();
 builder.Services.AddScoped<TenantAuthorizationFilter>();
+builder.Services.AddScoped<ICompanyJoinLinkTokenService, CompanyJoinLinkTokenService>();
 
 builder.Services.AddRateLimiter(options =>
 {

@@ -15,13 +15,20 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         public static void DefineEndpoints(WebApplication app)
         {
-            app.MapPost("/api/webhooks/stripe", HandleStripeWebhookAsync)
+            var webhook = app.MapPost("/api/webhooks/stripe", HandleStripeWebhookAsync)
                 .WithTags(Tag)
                 .WithName(nameof(HandleStripeWebhookAsync))
                 .WithSummary("Stripe webhook endpoint")
                 .WithDescription("Handles incoming Stripe webhook events for subscription management.")
                 .Produces(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status400BadRequest)
+                .AllowAnonymous()
+                .DisableAntiforgery();
+
+            // Stripe CLI examples commonly forward to /webhook. Keep this alias so
+            // local verification uses the same signed-event handler as production.
+            app.MapPost("/webhook", HandleStripeWebhookAsync)
+                .WithTags(Tag)
                 .AllowAnonymous()
                 .DisableAntiforgery();
         }
@@ -87,7 +94,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 switch (stripeEvent.Type)
                 {
                     case "checkout.session.completed":
-                        await HandleCheckoutSessionCompleted(stripeEvent, subscriptionRepository, planRepository, unitOfWork, logger, cancellationToken);
+                        await HandleCheckoutSessionCompleted(stripeEvent, stripeService, subscriptionRepository, planRepository, unitOfWork, logger, cancellationToken);
                         break;
 
                     case "customer.subscription.updated":
@@ -130,6 +137,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         private static async Task HandleCheckoutSessionCompleted(
             Event stripeEvent,
+            IStripeService stripeService,
             ITenantSubscriptionRepository subscriptionRepository,
             ISubscriptionPlanRepository planRepository,
             IUnitOfWork unitOfWork,
@@ -152,6 +160,13 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return;
             }
 
+            if (session.PaymentStatus is not ("paid" or "no_payment_required"))
+            {
+                logger.LogInformation("checkout.session.completed: Payment for session {SessionId} is {PaymentStatus}; waiting for Stripe subscription events.",
+                    session.Id, session.PaymentStatus);
+                return;
+            }
+
             var tenantSubscription = await subscriptionRepository.GetByStripeCustomerIdAsync(customerId, cancellationToken);
             if (tenantSubscription is null)
             {
@@ -159,8 +174,12 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return;
             }
 
-            var subscriptionService = new SubscriptionService();
-            var stripeSubscription = await subscriptionService.GetAsync(subscriptionId, cancellationToken: cancellationToken);
+            var stripeSubscription = await stripeService.GetSubscriptionAsync(subscriptionId, cancellationToken);
+            if (stripeSubscription is null || stripeSubscription.Status is not ("active" or "trialing"))
+            {
+                logger.LogInformation("checkout.session.completed: Stripe subscription {SubscriptionId} is not active yet.", subscriptionId);
+                return;
+            }
 
             var firstItem = stripeSubscription.Items.Data.FirstOrDefault();
             var priceId = firstItem?.Price.Id;
@@ -204,6 +223,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             }
 
             var tenantSubscription = await subscriptionRepository.GetByStripeSubscriptionIdAsync(stripeSubscription.Id, cancellationToken);
+            tenantSubscription ??= await subscriptionRepository.GetByStripeCustomerIdAsync(stripeSubscription.CustomerId, cancellationToken);
             if (tenantSubscription is null)
             {
                 logger.LogWarning("customer.subscription.updated: No tenant subscription found for {SubscriptionId}", stripeSubscription.Id);
@@ -217,21 +237,28 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return;
             }
 
-            var priceId = firstItem.Price.Id;
-            if (!string.IsNullOrEmpty(priceId))
+            if (stripeSubscription.Status is "active" or "trialing")
             {
-                var plan = await planRepository.GetByStripePriceIdAsync(priceId, cancellationToken);
-                if (plan is not null && plan.Id != tenantSubscription.SubscriptionPlanId)
+                var priceId = firstItem.Price.Id;
+                var plan = string.IsNullOrWhiteSpace(priceId)
+                    ? null
+                    : await planRepository.GetByStripePriceIdAsync(priceId, cancellationToken);
+                if (plan is null)
                 {
-                    tenantSubscription.UpdatePlan(plan.Id, firstItem.CurrentPeriodStart, firstItem.CurrentPeriodEnd);
-                    logger.LogInformation("customer.subscription.updated: Updated plan to {PlanName} for subscription {SubscriptionId}",
-                        plan.Name, stripeSubscription.Id);
+                    logger.LogWarning("customer.subscription.updated: No plan found for price {PriceId}", priceId);
+                    return;
                 }
-            }
 
-            if (stripeSubscription.Status == "active" && tenantSubscription.Status != SubscriptionStatus.Active)
-            {
-                tenantSubscription.MarkActive();
+                if (string.IsNullOrWhiteSpace(tenantSubscription.StripeSubscriptionId))
+                    tenantSubscription.Activate(stripeSubscription.Id, plan.Id,
+                        firstItem.CurrentPeriodStart, firstItem.CurrentPeriodEnd);
+                else
+                {
+                    if (plan.Id != tenantSubscription.SubscriptionPlanId)
+                        tenantSubscription.UpdatePlan(plan.Id, firstItem.CurrentPeriodStart, firstItem.CurrentPeriodEnd);
+                    if (tenantSubscription.Status != SubscriptionStatus.Active)
+                        tenantSubscription.MarkActive();
+                }
             }
             else if (stripeSubscription.Status == "past_due")
             {
