@@ -1,0 +1,77 @@
+@using DottIn.Admin.Models
+@inject AdminApiClient Api
+@inject AdminState State
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (_items.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">Nenhuma correção pendente.</MudAlert>
+        }
+        else
+        {
+            <MudList T="TimeKeepingAdjustmentItem">
+                @foreach (var item in _items)
+                {
+                    <MudListItem>
+                        <div style="width: 100%;">
+                            <MudText Typo="Typo.subtitle2">@item.EmployeeName · @EntryLabel(item.EntryType)</MudText>
+                            <MudText Typo="Typo.body2">Novo horário: @item.ProposedTimestamp.ToString("dd/MM/yyyy HH:mm")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Reason</MudText>
+                            <div style="display:flex; gap:8px; margin-top:10px;">
+                                <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                                           OnClick="@(() => ReviewAsync(item, true))">Aprovar</MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                           OnClick="@(() => ReviewAsync(item, false))">Rejeitar</MudButton>
+                            </div>
+                        </div>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    private List<TimeKeepingAdjustmentItem> _items = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _items = await Api.GetTimeKeepingAdjustmentsAsync(State.BranchId, "Pending"); }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task ReviewAsync(TimeKeepingAdjustmentItem item, bool approve)
+    {
+        try
+        {
+            await Api.ReviewTimeKeepingAdjustmentAsync(State.BranchId, item.Id, approve);
+            Snackbar.Add(approve ? "Correção aprovada." : "Correção rejeitada.", Severity.Success);
+            _items.Remove(item);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private static string EntryLabel(string type) => type switch
+    {
+        "ClockIn" => "Entrada", "BreakStart" => "Início do intervalo",
+        "BreakEnd" => "Fim do intervalo", "ClockOut" => "Saída", _ => type
+    };
+
+    private void Close() => MudDialog.Close();
+}

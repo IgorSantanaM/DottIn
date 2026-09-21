@@ -17,6 +17,7 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<EmployeeInvitation> EmployeeInvitations { get; set; }
         public DbSet<CompanyJoinLink> CompanyJoinLinks { get; set; }
         public DbSet<TimeKeeping> TimeKeepings { get; set; }
+        public DbSet<TimeKeepingAdjustment> TimeKeepingAdjustments { get; set; }
         public DbSet<HolidayCalendar> HolidayCalendars { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<DominioEmployeeMapping> DominioEmployeeMappings { get; set; }

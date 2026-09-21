@@ -2,34 +2,50 @@
 @inject AppState State
 @inject ISecureStorageService Storage
 @inject ISnackbar Snackbar
+@inject IBranchApi BranchApi
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.Small">
     <MudAlert Severity="Severity.Success">Sua empresa está pronta!</MudAlert>
     <MudText Typo="Typo.h6" Class="mt-4">@State.SelectedBranchName</MudText>
     <MudText>Código da empresa: @_code</MudText>
-    <MudText Class="mt-4">Informe o endereço do painel web da sua empresa para compartilhar o acesso dos funcionários.</MudText>
-    <MudTextField @bind-Value="_webUrl" Label="Endereço do painel web" Placeholder="https://…" Immediate="true" />
-    <MudButton OnClick="CopyAsync" Disabled="@(!ValidUrl)">Copiar link de acesso</MudButton>
+    <MudText Class="mt-4">Informe o endereço do painel web. O aplicativo vai montar um convite seguro para os funcionários.</MudText>
+    <MudTextField @bind-Value="_webUrl" Label="Endereço do painel web" Placeholder="https://app.suaempresa.com" Immediate="true" />
+    <MudButton OnClick="CopyAsync" Disabled="@(!ValidUrl || _loadingInvite)">
+        @(_loadingInvite ? "Gerando convite..." : "Copiar convite")
+    </MudButton>
     <MudButton Href="/dashboard" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Ir para o painel</MudButton>
 </MudContainer>
 
 @code {
     private string _code = "", _webUrl = "";
+    private bool _loadingInvite;
     private bool ValidUrl => Uri.TryCreate(_webUrl, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http";
+
     protected override async Task OnInitializedAsync()
     {
         _code = await Storage.GetAsync("company_code") ?? "";
         _webUrl = await Storage.GetAsync($"web_admin_url_{State.EmployeeId}") ?? "";
     }
+
     private async Task CopyAsync()
     {
         try
         {
             if (!ValidUrl) return;
+            _loadingInvite = true;
             await Storage.SetAsync($"web_admin_url_{State.EmployeeId}", _webUrl.Trim());
-            await Clipboard.SetTextAsync(_webUrl.Trim());
-            Snackbar.Add("Link copiado!", Severity.Success);
+            var invitation = await BranchApi.GetCompanyJoinLinkAsync(State.BranchId);
+            var link = $"{_webUrl.Trim().TrimEnd('/')}/join?token={Uri.EscapeDataString(invitation.Token)}";
+            await Clipboard.SetTextAsync(link);
+            Snackbar.Add($"Convite copiado. Válido até {invitation.ExpiresAt:dd/MM HH:mm}.", Severity.Success);
         }
-        catch { Snackbar.Add("Não foi possível copiar o link.", Severity.Error); }
+        catch
+        {
+            Snackbar.Add("Não foi possível gerar o convite.", Severity.Error);
+        }
+        finally
+        {
+            _loadingInvite = false;
+        }
     }
 }

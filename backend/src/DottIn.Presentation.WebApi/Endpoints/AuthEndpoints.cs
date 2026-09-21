@@ -50,16 +50,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .AllowAnonymous()
                 .RequireRateLimiting("public-auth");
 
-            group.MapPost("/login/fingerprint", HandleFingerprintLoginAsync)
-                .WithName(nameof(HandleFingerprintLoginAsync))
-                .WithSummary("Login with Fingerprint")
-                .WithDescription("Authenticates an employee using CPF, CompanyCode, and Fingerprint Token.")
-                .Produces<LoginResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status401Unauthorized)
-                .Produces(StatusCodes.Status404NotFound)
-                .AllowAnonymous()
-                .RequireRateLimiting("public-auth");
-
             group.MapPost("/refresh", HandleRefreshTokenAsync)
                 .WithName(nameof(HandleRefreshTokenAsync))
                 .WithSummary("Refresh Access Token")
@@ -85,14 +75,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Revokes all refresh tokens for the authenticated employee.")
                 .Produces(StatusCodes.Status204NoContent)
                 .Produces(StatusCodes.Status401Unauthorized);
-
-            group.MapPost("/register-fingerprint", HandleRegisterFingerprintAsync)
-                .WithName(nameof(HandleRegisterFingerprintAsync))
-                .WithSummary("Register Fingerprint Token")
-                .WithDescription("Registers a device's fingerprint token using password authentication.")
-                .Produces(StatusCodes.Status204NoContent)
-                .Produces(StatusCodes.Status401Unauthorized)
-                .Produces(StatusCodes.Status404NotFound);
 
             group.MapPut("/change-password", HandleChangePasswordAsync)
                 .WithName(nameof(HandleChangePasswordAsync))

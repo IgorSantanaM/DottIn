@@ -4,6 +4,8 @@
 @inject AdminState State
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>DottIn Admin - Funcionários</PageTitle>
 
@@ -16,10 +18,16 @@
     </div>
     @if (State.IsOwner)
     {
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.SyncAlt" OnClick="ShowDominioMapping">
-            Mapeamento Domínio
-        </MudButton>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="CopyInviteLinkAsync">
+                Copiar convite
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.SyncAlt" OnClick="ShowDominioMapping">
+                Mapeamento Domínio
+            </MudButton>
+        </div>
     }
 </div>
 
@@ -130,5 +138,20 @@
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
         await DialogService.ShowAsync<DominioMappingDialog>("Mapeamento Domínio", options);
+    }
+
+    private async Task CopyInviteLinkAsync()
+    {
+        try
+        {
+            var invitation = await Api.GetCompanyJoinLinkAsync(State.BranchId);
+            var link = $"{Navigation.BaseUri.TrimEnd('/')}/join?token={Uri.EscapeDataString(invitation.Token)}";
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", link);
+            Snackbar.Add($"Convite copiado. Válido até {invitation.ExpiresAt:dd/MM HH:mm}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
     }
 }

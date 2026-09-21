@@ -60,6 +60,20 @@ public interface ITimeKeepingApi
         Guid branchId,
         [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
         [Query(Format = "yyyy-MM-dd")] DateOnly? endDate = null);
+
+    [Post("/api/timekeeping/{timeKeepingId}/adjustments")]
+    Task<TimeKeepingAdjustmentItem> CreateAdjustmentAsync(
+        Guid timeKeepingId,
+        [Body] CreateTimeKeepingAdjustmentRequest request);
+
+    [Get("/api/branches/{branchId}/timekeeping-adjustments")]
+    Task<IEnumerable<TimeKeepingAdjustmentItem>> GetAdjustmentsAsync(Guid branchId, [Query] string? status = null);
+
+    [Put("/api/branches/{branchId}/timekeeping-adjustments/{adjustmentId}/decision")]
+    Task<TimeKeepingAdjustmentItem> ReviewAdjustmentAsync(
+        Guid branchId,
+        Guid adjustmentId,
+        [Body] ReviewTimeKeepingAdjustmentRequest request);
 }
 
 public interface IEmployeeApi
@@ -87,6 +101,9 @@ public interface IBranchApi
 
     [Get("/api/branches/{branchId}/clock")]
     Task<BranchClockResponse> GetClockAsync(Guid branchId);
+
+    [Get("/api/branches/{branchId}/company-join-link")]
+    Task<CompanyJoinLinkResponse> GetCompanyJoinLinkAsync(Guid branchId);
 }
 
 public interface IHolidayCalendarApi
@@ -141,6 +158,9 @@ public record RefreshTokenRequest(string RefreshToken);
 public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
 public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
 public record BreakRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
+public record CreateTimeKeepingAdjustmentRequest(
+    string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp, string Reason);
+public record ReviewTimeKeepingAdjustmentRequest(bool Approve, string? ReviewNote);
 
 // Response Models
 public record LoginResponse(
@@ -167,7 +187,12 @@ public record TimeKeepingRecord(
     bool IsNocturnal,
     string Source = "Mobile",
     bool IsHoliday = false,
-    string? HolidayName = null);
+    string? HolidayName = null,
+    TimeSpan NocturnalWorked = default,
+    TimeSpan ExpectedWorked = default,
+    TimeSpan Late = default,
+    TimeSpan EarlyDeparture = default,
+    TimeSpan Overtime = default);
 
 public record BranchTimeKeepingRecord(
     Guid Id,
@@ -182,7 +207,12 @@ public record BranchTimeKeepingRecord(
     bool IsNocturnal,
     string Source = "Mobile",
     bool IsHoliday = false,
-    string? HolidayName = null);
+    string? HolidayName = null,
+    TimeSpan NocturnalWorked = default,
+    TimeSpan ExpectedWorked = default,
+    TimeSpan Late = default,
+    TimeSpan EarlyDeparture = default,
+    TimeSpan Overtime = default);
 
 public record TimeKeepingSummary(
     Guid EmployeeId,
@@ -216,6 +246,13 @@ public record GeolocationInfo(double Latitude, double Longitude);
 
 public record TimeEntryInfo(DateTime Timestamp, string Type);
 
+public record TimeKeepingAdjustmentItem(
+    Guid Id, Guid TimeKeepingId, Guid EmployeeId, string EmployeeName,
+    Guid RequestedByEmployeeId, string RequestedByName,
+    Guid? ReviewedByEmployeeId, string? ReviewedByName,
+    string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp,
+    string Reason, string? ReviewNote, string Status, DateTime CreatedAt, DateTime? ReviewedAt);
+
 public record BranchSummary(
     Guid Id,
     string Name,
@@ -223,6 +260,7 @@ public record BranchSummary(
     bool IsHeadquarters);
 
 public record BranchClockResponse(DateTime UtcNow, DateTime LocalNow, string TimeZoneId);
+public record CompanyJoinLinkResponse(string Token, DateTime ExpiresAt, string CompanyName);
 
 public record EmployeeSummaryItem(
     Guid EmployeeId,

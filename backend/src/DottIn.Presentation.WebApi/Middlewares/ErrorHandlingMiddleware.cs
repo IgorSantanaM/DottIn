@@ -1,12 +1,13 @@
 ﻿using DottIn.Application.Exceptions;
 using DottIn.Domain.Core.Exceptions;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text.Json;
 
 namespace DottIn.Presentation.WebApi.Middlewares
 {
-    public class ErrorHandlingMiddleware(RequestDelegate next)
+    public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
     {
         public async Task InvokeAsync(HttpContext context)
         {
@@ -16,6 +17,9 @@ namespace DottIn.Presentation.WebApi.Middlewares
             }
             catch (Exception ex)
             {
+                if (ex is not DomainException and not ValidationException and not NotFoundException and not ArgumentException and not BadHttpRequestException)
+                    logger.LogError(ex, "Unhandled request failure. TraceId: {TraceId}", context.TraceIdentifier);
+
                 await HandleExceptionAsync(context, ex);
             }
         }
@@ -54,6 +58,16 @@ namespace DottIn.Presentation.WebApi.Middlewares
                     breakOutsideAllowedTimeException.Message,
                     null
                 ),
+                DbUpdateConcurrencyException => (
+                    HttpStatusCode.Conflict,
+                    "O registro foi alterado por outra operação. Atualize os dados e tente novamente.",
+                    null
+                ),
+                DbUpdateException => (
+                    HttpStatusCode.Conflict,
+                    "A operação conflita com um registro já existente.",
+                    null
+                ),
                 _ => (
                     HttpStatusCode.InternalServerError,
                     "An unexpected error occurred, try again later.",
@@ -65,7 +79,8 @@ namespace DottIn.Presentation.WebApi.Middlewares
             {
                 Status = (int)statusCode,
                 Title = title,
-                Errors = errors
+                Errors = errors,
+                TraceId = context.TraceIdentifier
             };
 
             context.Response.ContentType = "application/json";

@@ -13,4 +13,9 @@ public record BranchTimeKeepingRecordDto(
     bool IsNocturnal,
     string Source,
     bool IsHoliday = false,
-    string? HolidayName = null);
+    string? HolidayName = null,
+    TimeSpan NocturnalWorked = default,
+    TimeSpan ExpectedWorked = default,
+    TimeSpan Late = default,
+    TimeSpan EarlyDeparture = default,
+    TimeSpan Overtime = default);

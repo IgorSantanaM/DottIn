@@ -4,7 +4,10 @@
 
 <MudContainer Class="pa-4">
     <MudText Typo="Typo.h5">Funcionários</MudText>
-    <MudButton Href="/management/dominio">Mapeamento Domínio</MudButton>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <MudButton Href="/management/dominio">Mapeamento Domínio</MudButton>
+        <MudButton Href="/management/adjustments">Correções pendentes</MudButton>
+    </div>
     <MudTextField @bind-Value="_search" Label="Buscar por nome ou CPF" Immediate="true" Clearable="true" />
     <MudSelect T="string" @bind-Value="_filter" Label="Status">
         <MudSelectItem Value="@("all")">Todos</MudSelectItem>

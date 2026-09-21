@@ -69,6 +69,40 @@ public class AdminApiClient(HttpClient http)
         await EnsureSuccessOrThrowAsync(response);
     }
 
+    public async Task<TimeKeepingAdjustmentItem> CreateTimeKeepingAdjustmentAsync(
+        Guid timeKeepingId,
+        CreateTimeKeepingAdjustmentRequest request)
+    {
+        var response = await http.PostAsJsonAsync($"/api/timekeeping/{timeKeepingId}/adjustments", request);
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
+            ?? throw new ApiException("Não foi possível criar a solicitação de correção.");
+    }
+
+    public async Task<List<TimeKeepingAdjustmentItem>> GetTimeKeepingAdjustmentsAsync(
+        Guid branchId,
+        string? status = null)
+    {
+        var url = $"/api/branches/{branchId}/timekeeping-adjustments";
+        if (!string.IsNullOrWhiteSpace(status))
+            url += $"?status={Uri.EscapeDataString(status)}";
+        return await http.GetFromJsonAsync<List<TimeKeepingAdjustmentItem>>(url) ?? [];
+    }
+
+    public async Task<TimeKeepingAdjustmentItem> ReviewTimeKeepingAdjustmentAsync(
+        Guid branchId,
+        Guid adjustmentId,
+        bool approve,
+        string? reviewNote = null)
+    {
+        var response = await http.PutAsJsonAsync(
+            $"/api/branches/{branchId}/timekeeping-adjustments/{adjustmentId}/decision",
+            new ReviewTimeKeepingAdjustmentRequest(approve, reviewNote));
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
+            ?? throw new ApiException("Não foi possível analisar a solicitação.");
+    }
+
     // Holiday Calendar
     public async Task<List<HolidayCalendarSummary>> GetHolidayCalendarsAsync(Guid branchId)
     {

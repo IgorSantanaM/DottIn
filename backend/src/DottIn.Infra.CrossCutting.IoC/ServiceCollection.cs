@@ -77,6 +77,7 @@ namespace DottIn.Infra.CrossCutting.IoC
             services.AddScoped<IEmployeeInvitationRepository, EmployeeInvitationRepository>();
             services.AddScoped<ICompanyJoinLinkRepository, CompanyJoinLinkRepository>();
             services.AddScoped<ITimeKeepingRepository, TimeKeepingRepository>();
+            services.AddScoped<ITimeKeepingAdjustmentRepository, TimeKeepingAdjustmentRepository>();
             services.AddScoped<IHolidayCalendarRepository, HolidayCalendarRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IDominioMappingRepository, DominioMappingRepository>();

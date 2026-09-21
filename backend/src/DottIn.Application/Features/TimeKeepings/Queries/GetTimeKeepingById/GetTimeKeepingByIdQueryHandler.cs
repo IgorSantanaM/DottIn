@@ -1,5 +1,6 @@
 ﻿using DottIn.Application.Exceptions;
 using DottIn.Application.Features.TimeKeepings.DTOs;
+using DottIn.Application.Features.TimeKeepings;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
@@ -11,6 +12,7 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
 {
     public class GetTimeKeepingByIdQueryHandler(
         ITimeKeepingRepository timeKeepingRepository,
+        ITimeKeepingAdjustmentRepository adjustmentRepository,
         IBranchRepository branchRepository,
         IEmployeeRepository employeeRepository,
         IHolidayCalendarRepository holidayCalendarRepository)
@@ -18,7 +20,7 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
     {
         public async Task<TimeKeepingDetailsDto> Handle(GetTimeKeepingByIdQuery request, CancellationToken cancellationToken)
         {
-            var timeKeeping = await timeKeepingRepository.GetByIdAsync(request.TimeKeepingId, cancellationToken);
+            var timeKeeping = await timeKeepingRepository.GetWithEntriesByIdAsync(request.TimeKeepingId, cancellationToken);
 
             if (timeKeeping is null)
                 throw NotFoundException.ForEntity(nameof(TimeKeeping), request.TimeKeepingId);
@@ -35,13 +37,10 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
 
             GeolocationDto geolocationDto = new(timeKeeping.Location!.Latitude, timeKeeping.Location.Longitude);
 
-            var isNocturnal = false;
-            var clockIn = timeKeeping.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
-            if (clockIn.HasValue)
-            {
-                var localHour = BranchTime.ToLocal(clockIn.Value, timeKeeping.TimeZoneId).Hour;
-                isNocturnal = localHour >= 22 || localHour < 6;
-            }
+            var adjustments = await adjustmentRepository.GetApprovedByTimeKeepingIdsAsync(
+                [timeKeeping.Id], cancellationToken);
+            var effectiveEntries = TimeKeepingMetricsCalculator.BuildEffectiveEntries(timeKeeping, adjustments);
+            var metrics = TimeKeepingMetricsCalculator.Calculate(timeKeeping, DateTime.UtcNow, adjustments);
 
             var isHoliday = await holidayCalendarRepository.IsHolidayAsync(branch.Id, timeKeeping.WorkDate);
             string? holidayName = null;
@@ -54,14 +53,14 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
 
             TimeKeepingDetailsDto timeKeepingDetailsDto = new(employee.Name,
                                                         branch.Name,
-                                                        timeKeeping.Status,
+                                                        metrics.Status,
                                                         timeKeeping.WorkDate,
                                                         BranchTime.ToLocal(timeKeeping.CreatedAt, timeKeeping.TimeZoneId),
                                                         geolocationDto,
-                                                        timeKeeping.Entries.Select(tke => new TimeEntryDto(
+                                                        effectiveEntries.Select(tke => new TimeEntryDto(
                                                             BranchTime.ToLocal(tke.Timestamp, timeKeeping.TimeZoneId),
                                                             tke.Type)),
-                                                        isNocturnal,
+                                                        metrics.NocturnalWorked > TimeSpan.Zero,
                                                         timeKeeping.Source.ToString(),
                                                         isHoliday,
                                                         holidayName);

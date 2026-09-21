@@ -38,7 +38,9 @@ public record TimeKeepingRecord(
     DateTime? ClockIn, DateTime? ClockOut,
     TimeSpan TotalWorked, TimeSpan TotalBreak,
     string Status, bool IsNocturnal, string Source,
-    bool IsHoliday = false, string? HolidayName = null);
+    bool IsHoliday = false, string? HolidayName = null,
+    TimeSpan NocturnalWorked = default, TimeSpan ExpectedWorked = default,
+    TimeSpan Late = default, TimeSpan EarlyDeparture = default, TimeSpan Overtime = default);
 
 public record TimeKeepingDetails(
     string EmployeeName, string BranchName, string Status,
@@ -49,6 +51,16 @@ public record TimeKeepingDetails(
 
 public record GeolocationInfo(double Latitude, double Longitude);
 public record TimeEntryInfo(DateTime Timestamp, string Type);
+
+public record CreateTimeKeepingAdjustmentRequest(
+    string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp, string Reason);
+public record ReviewTimeKeepingAdjustmentRequest(bool Approve, string? ReviewNote);
+public record TimeKeepingAdjustmentItem(
+    Guid Id, Guid TimeKeepingId, Guid EmployeeId, string EmployeeName,
+    Guid RequestedByEmployeeId, string RequestedByName,
+    Guid? ReviewedByEmployeeId, string? ReviewedByName,
+    string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp,
+    string Reason, string? ReviewNote, string Status, DateTime CreatedAt, DateTime? ReviewedAt);
 
 public record ApiProblem(int Status, string? Title, object? Errors);
 

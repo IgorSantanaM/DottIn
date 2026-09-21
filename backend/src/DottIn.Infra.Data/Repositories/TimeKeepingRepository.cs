@@ -6,6 +6,12 @@ namespace DottIn.Infra.Data.Repositories
 {
     public class TimeKeepingRepository(DottInContext context) : Repository<TimeKeeping, Guid>(context), ITimeKeepingRepository
     {
+        public Task<TimeKeeping?> GetWithEntriesByIdAsync(Guid id, CancellationToken token = default)
+            => context.TimeKeepings
+                .AsNoTracking()
+                .Include(tk => tk.Entries)
+                .FirstOrDefaultAsync(tk => tk.Id == id, token);
+
         public Task<bool> ExistsForEmployeeOnDateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default)
             => context.TimeKeepings
                 .AsNoTracking()

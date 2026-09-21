@@ -1,5 +1,6 @@
 @using MudBlazor
 @using DottIn.Mobile.Services.Interfaces
+@inject IDialogService DialogService
 
 <MudDialog>
     <TitleContent>
@@ -83,6 +84,11 @@
         }
     </DialogContent>
     <DialogActions>
+        @if (AllowCorrection && Details is not null)
+        {
+            <MudButton OnClick="RequestCorrectionAsync" Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.EditCalendar">Solicitar correção</MudButton>
+        }
         <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Primary">Fechar</MudButton>
     </DialogActions>
 </MudDialog>
@@ -94,7 +100,27 @@
     [Parameter]
     public TimeKeepingDetails? Details { get; set; }
 
+    [Parameter]
+    public Guid TimeKeepingId { get; set; }
+
+    [Parameter]
+    public bool AllowCorrection { get; set; }
+
     private void Close() => MudDialog.Close();
+
+    private async Task RequestCorrectionAsync()
+    {
+        if (Details is null || TimeKeepingId == Guid.Empty) return;
+        var parameters = new DialogParameters<TimeKeepingCorrectionMobileDialog>
+        {
+            { x => x.TimeKeepingId, TimeKeepingId },
+            { x => x.Details, Details }
+        };
+        await DialogService.ShowAsync<TimeKeepingCorrectionMobileDialog>(
+            "Solicitar correção",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+    }
 
     private Color GetStatusColor(string status) => status switch
     {

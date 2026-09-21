@@ -1,5 +1,6 @@
 ﻿using DottIn.Application.Exceptions;
 using DottIn.Application.Features.TimeKeepings.DTOs;
+using DottIn.Application.Features.TimeKeepings;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
 using DottIn.Domain.Employees;
@@ -10,6 +11,7 @@ using MediatR;
 namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod
 {
     public class GetTimeKeepingByPeriodQueryHandler(ITimeKeepingRepository timeKeepingRepository,
+        ITimeKeepingAdjustmentRepository adjustmentRepository,
         IEmployeeRepository employeeRepository,
         IBranchRepository branchRepository,
         IHolidayCalendarRepository holidayCalendarRepository)
@@ -17,6 +19,7 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
     {
         public async Task<IEnumerable<TimeKeepingRecordDto>> Handle(GetTimeKeepingByPeriodQuery request, CancellationToken cancellationToken)
         {
+            var endDate = TimeKeepingPeriod.NormalizeAndValidate(request.StartDate, request.EndDate);
             var employee = await employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
 
             if (employee is null)
@@ -33,65 +36,42 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPerio
             if (!branch.IsActive)
                 throw new DomainException("A Empresa não esta ativa.");
 
-            var timeKeepings = await timeKeepingRepository
-                .GetByEmployeeAndPeriodAsync(request.EmployeeId, request.StartDate, request.EndDate);
+            var timeKeepings = (await timeKeepingRepository
+                .GetByEmployeeAndPeriodAsync(request.EmployeeId, request.StartDate, endDate, cancellationToken)).ToList();
+            var approvedAdjustments = (await adjustmentRepository.GetApprovedByTimeKeepingIdsAsync(
+                    timeKeepings.Select(x => x.Id), cancellationToken))
+                .GroupBy(x => x.TimeKeepingId)
+                .ToDictionary(group => group.Key, group => group.AsEnumerable());
 
             var holidays = await holidayCalendarRepository.GetHolidaysInRangeAsync(
-                branch.Id, request.StartDate, request.EndDate ?? request.StartDate.AddMonths(1));
+                branch.Id, request.StartDate, endDate);
             var holidayMap = holidays.ToDictionary(h => h.Date, h => h.Name);
 
             var records = timeKeepings.Select(tk =>
             {
-                var clockIn = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockIn)?.Timestamp;
-                var clockOut = tk.Entries.FirstOrDefault(e => e.Type == TimeKeepingType.ClockOut)?.Timestamp;
                 var now = DateTime.UtcNow;
-                var effectiveEnd = clockOut ?? (clockIn.HasValue ? now : (DateTime?)null);
-
-                var totalWorked = clockIn.HasValue && effectiveEnd.HasValue && effectiveEnd > clockIn
-                    ? effectiveEnd.Value - clockIn.Value
-                    : TimeSpan.Zero;
-
-                var breaks = tk.Entries
-                    .Where(e => e.Type == TimeKeepingType.BreakStart || e.Type == TimeKeepingType.BreakEnd)
-                    .OrderBy(e => e.Timestamp)
-                    .ToList();
-
-                var totalBreak = TimeSpan.Zero;
-                for (int i = 0; i < breaks.Count; i++)
-                {
-                    if (breaks[i].Type == TimeKeepingType.BreakStart)
-                    {
-                        var breakEnd = (i + 1 < breaks.Count && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
-                            ? breaks[i + 1].Timestamp
-                            : now;
-                        totalBreak += breakEnd - breaks[i].Timestamp;
-                        if (i + 1 < breaks.Count && breaks[i + 1].Type == TimeKeepingType.BreakEnd)
-                            i++;
-                    }
-                }
-
-                if (totalWorked > TimeSpan.Zero)
-                    totalWorked -= totalBreak;
-
-                var isNocturnal = false;
-                if (clockIn.HasValue)
-                {
-                    var localHour = BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId).Hour;
-                    isNocturnal = localHour >= 22 || localHour < 6;
-                }
+                approvedAdjustments.TryGetValue(tk.Id, out var adjustments);
+                var metrics = TimeKeepingMetricsCalculator.Calculate(tk, now, adjustments);
+                var schedule = TimeKeepingMetricsCalculator.CalculateSchedule(
+                    tk, employee, branch.ToleranceMinutes, metrics);
 
                 return new TimeKeepingRecordDto(
                     tk.Id,
                     tk.WorkDate,
-                    clockIn.HasValue ? BranchTime.ToLocal(clockIn.Value, tk.TimeZoneId) : null,
-                    clockOut.HasValue ? BranchTime.ToLocal(clockOut.Value, tk.TimeZoneId) : null,
-                    totalWorked,
-                    totalBreak,
-                    tk.Status.ToString(),
-                    isNocturnal,
+                    metrics.ClockInUtc.HasValue ? BranchTime.ToLocal(metrics.ClockInUtc.Value, tk.TimeZoneId) : null,
+                    metrics.ClockOutUtc.HasValue ? BranchTime.ToLocal(metrics.ClockOutUtc.Value, tk.TimeZoneId) : null,
+                    metrics.TotalWorked,
+                    metrics.TotalBreak,
+                    metrics.Status.ToString(),
+                    metrics.NocturnalWorked > TimeSpan.Zero,
                     tk.Source.ToString(),
                     holidayMap.ContainsKey(tk.WorkDate),
-                    holidayMap.TryGetValue(tk.WorkDate, out var hName) ? hName : null);
+                    holidayMap.TryGetValue(tk.WorkDate, out var hName) ? hName : null,
+                    metrics.NocturnalWorked,
+                    schedule.ExpectedWorked,
+                    schedule.Late,
+                    schedule.EarlyDeparture,
+                    schedule.Overtime);
             });
 
             return records;

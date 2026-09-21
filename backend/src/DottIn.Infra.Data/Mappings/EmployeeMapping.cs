@@ -91,6 +91,9 @@ namespace DottIn.Infra.Data.Mappings
 
             builder.HasIndex(e => e.BranchId);
 
+            builder.HasIndex(e => e.CPF.Value)
+                .IsUnique();
+
             builder.HasIndex(e => new { e.BranchId, e.IsActive });
 
             builder.HasIndex(e => e.IsActive);

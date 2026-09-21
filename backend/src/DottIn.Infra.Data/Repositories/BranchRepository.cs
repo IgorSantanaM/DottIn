@@ -21,9 +21,12 @@ namespace DottIn.Infra.Data.Repositories
         }
 
         public async Task<Branch?> GetByCodeAsync(string companyCode, CancellationToken token = default)
-            => await context.Branches
+        {
+            var normalizedCode = companyCode.Trim().ToLowerInvariant().Replace(" ", "-");
+            return await context.Branches
                 .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.CompanyCode.ToUpper() == companyCode.ToUpper(), token);
+                .FirstOrDefaultAsync(b => b.CompanyCode == normalizedCode, token);
+        }
 
         public async Task<IEnumerable<Branch>> GetByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
             => await context.Branches

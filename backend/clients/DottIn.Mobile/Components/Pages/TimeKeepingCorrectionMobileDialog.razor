@@ -1,0 +1,83 @@
+@inject ITimeKeepingApi Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+            A marcação original será preservada e a alteração dependerá de aprovação.
+        </MudText>
+        <MudSelect T="string" @bind-Value="_entryType" Label="Tipo de marcação" Variant="Variant.Outlined">
+            <MudSelectItem Value="@("ClockIn")">Entrada</MudSelectItem>
+            <MudSelectItem Value="@("BreakStart")">Início do intervalo</MudSelectItem>
+            <MudSelectItem Value="@("BreakEnd")">Fim do intervalo</MudSelectItem>
+            <MudSelectItem Value="@("ClockOut")">Saída</MudSelectItem>
+        </MudSelect>
+        <MudSwitch T="bool" @bind-Value="_missingEntry" Label="Marcação esquecida" Class="my-3" />
+        @if (!_missingEntry)
+        {
+            <MudSelect T="string" @bind-Value="_originalTimestamp" Label="Marcação original" Variant="Variant.Outlined">
+                @foreach (var entry in MatchingEntries)
+                {
+                    <MudSelectItem Value="@(entry.Timestamp.ToString("O"))">@entry.Timestamp.ToString("dd/MM HH:mm")</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        <MudDatePicker @bind-Date="_date" Label="Nova data" Variant="Variant.Outlined" Class="mt-3" />
+        <MudTimePicker @bind-Time="_time" Label="Novo horário" Variant="Variant.Outlined" Class="mt-3" />
+        <MudTextField @bind-Value="_reason" Label="Justificativa" Lines="3" Counter="500"
+                      Variant="Variant.Outlined" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@(!CanSubmit || _saving)">
+            Enviar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Guid TimeKeepingId { get; set; }
+    [Parameter, EditorRequired] public TimeKeepingDetails Details { get; set; } = default!;
+
+    private string _entryType = "ClockOut";
+    private bool _missingEntry;
+    private string? _originalTimestamp;
+    private DateTime? _date;
+    private TimeSpan? _time;
+    private string _reason = "";
+    private bool _saving;
+    private IEnumerable<TimeEntryInfo> MatchingEntries => Details.EntriesDto.Where(x => x.Type == _entryType);
+    private bool CanSubmit => _date.HasValue && _time.HasValue && _reason.Trim().Length is >= 5 and <= 500 &&
+                              (_missingEntry || !string.IsNullOrWhiteSpace(_originalTimestamp));
+
+    protected override void OnInitialized()
+    {
+        _missingEntry = !Details.EntriesDto.Any(x => x.Type == "ClockOut");
+        _date = Details.WorkDate.ToDateTime(TimeOnly.MinValue);
+        _time = Details.EntriesDto.LastOrDefault()?.Timestamp.TimeOfDay ?? new TimeSpan(18, 0, 0);
+        _originalTimestamp = MatchingEntries.FirstOrDefault()?.Timestamp.ToString("O");
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (!CanSubmit) return;
+        _saving = true;
+        try
+        {
+            var proposed = DateTime.SpecifyKind(_date!.Value.Date.Add(_time!.Value), DateTimeKind.Unspecified);
+            DateTime? original = _missingEntry || string.IsNullOrWhiteSpace(_originalTimestamp)
+                ? null
+                : DateTime.Parse(_originalTimestamp, null, System.Globalization.DateTimeStyles.RoundtripKind);
+            await Api.CreateAdjustmentAsync(
+                TimeKeepingId,
+                new CreateTimeKeepingAdjustmentRequest(_entryType, original, proposed, _reason.Trim()));
+            Snackbar.Add("Correção enviada para aprovação.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex) { Snackbar.Add(ManagementRules.Error(ex), Severity.Error); }
+        finally { _saving = false; }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

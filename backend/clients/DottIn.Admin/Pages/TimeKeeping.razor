@@ -14,6 +14,14 @@
     Histórico de registros de ponto da empresa
 </MudText>
 
+@if (State.IsOwner)
+{
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4"
+               StartIcon="@Icons.Material.Filled.Rule" OnClick="ShowPendingAdjustments">
+        Correções pendentes
+    </MudButton>
+}
+
 <MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
     @* Filters *@
     <MudGrid Class="mb-4">
@@ -173,6 +181,15 @@
                         </MudChip>
                     </CellTemplate>
                 </PropertyColumn>
+                <TemplateColumn Title="Ações" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="Solicitar correção">
+                            <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small"
+                                           Color="Color.Primary" OnClick="@(() => RequestCorrection(context.Item))"
+                                           @onclick:stopPropagation="true" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
             </Columns>
         </MudDataGrid>
     }
@@ -246,6 +263,21 @@
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
         await DialogService.ShowAsync<ExportDominioDialog>("Exportar Domínio", options);
+    }
+
+    private async Task RequestCorrection(TimeKeepingRecord record)
+    {
+        var parameters = new DialogParameters<TimeKeepingCorrectionDialog> { { x => x.Record, record } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<TimeKeepingCorrectionDialog>("Solicitar correção", parameters, options);
+    }
+
+    private async Task ShowPendingAdjustments()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<TimeKeepingAdjustmentsDialog>("Correções pendentes", options);
+        await dialog.Result;
+        await SearchAsync();
     }
 
     private async Task ExportCsv()

@@ -46,7 +46,7 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
         if (branchId.HasValue)
         {
             var requireAdmin = mutation && IsBranchAdministrationPath(path);
-            var requireManager = mutation && !isClockAction;
+            var requireManager = RequiresManager(path, mutation, isClockAction);
             if (!await access.CanAccessBranchAsync(branchId.Value, requireManager, requireAdmin, http.RequestAborted))
                 return Results.Forbid();
         }
@@ -60,6 +60,32 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
            !path.Contains("/holiday-calendars", StringComparison.OrdinalIgnoreCase) &&
            !path.Contains("/dominio-mappings", StringComparison.OrdinalIgnoreCase) &&
            !path.Contains("/exports/", StringComparison.OrdinalIgnoreCase);
+
+    private static bool RequiresManager(string path, bool mutation, bool isClockAction)
+    {
+        if (mutation)
+            return !isClockAction;
+
+        return path.Contains("/employee-invitations", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("/timekeeping-adjustments", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("/dominio-mappings", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("/exports/", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("/timekeeping/branch/", StringComparison.OrdinalIgnoreCase) ||
+               IsEmployeeDirectoryPath(path);
+    }
+
+    private static bool IsEmployeeDirectoryPath(string path)
+    {
+        var marker = "/employees";
+        var index = path.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+            return false;
+
+        var suffix = path[(index + marker.Length)..].TrimEnd('/');
+        return suffix.Length == 0 ||
+               suffix.Equals("/active", StringComparison.OrdinalIgnoreCase) ||
+               suffix.StartsWith("/cpf/", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static Guid? ReadRouteGuid(HttpContext context, string key)
         => Guid.TryParse(context.Request.RouteValues[key]?.ToString(), out var id) ? id : null;

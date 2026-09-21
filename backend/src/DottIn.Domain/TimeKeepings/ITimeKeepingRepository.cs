@@ -4,6 +4,8 @@ namespace DottIn.Domain.TimeKeepings
 {
     public interface ITimeKeepingRepository : IRepository<TimeKeeping, Guid>
     {
+        Task<TimeKeeping?> GetWithEntriesByIdAsync(Guid id, CancellationToken token = default);
+
         Task<TimeKeeping?> GetTodayByEmployeeAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);
 
         Task<TimeKeeping?> GetTodayByEmployeeForUpdateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);

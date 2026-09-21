@@ -169,7 +169,7 @@ public class ExportEndpoints : IEndpoint
                 continue;
 
             var totalWorkedHours = group.Sum(r => r.TotalWorked.TotalHours);
-            var nocturnalHours = group.Where(r => r.IsNocturnal).Sum(r => r.TotalWorked.TotalHours);
+            var nocturnalHours = group.Sum(r => r.NocturnalWorked.TotalHours);
             var holidayHours = group.Where(r => r.IsHoliday).Sum(r => r.TotalWorked.TotalHours);
             // Regular hours
             if (totalWorkedHours > 0)
@@ -200,7 +200,7 @@ public class ExportEndpoints : IEndpoint
         var records = await mediator.Send(query, cancellationToken);
 
         var sb = new StringBuilder();
-        sb.AppendLine("Funcionário,Data,Entrada,Saída,Trabalhado,Intervalo,Noturno,Feriado,Nome Feriado,Status,Origem");
+        sb.AppendLine("Funcionário,Data,Entrada,Saída,Trabalhado,Intervalo,Noturno,Atraso,Hora extra,Saída antecipada,Feriado,Nome Feriado,Status,Origem");
 
         foreach (var r in records.OrderBy(r => r.EmployeeName).ThenBy(r => r.WorkDate))
         {
@@ -211,7 +211,10 @@ public class ExportEndpoints : IEndpoint
                 r.ClockOut?.ToString("HH:mm") ?? "",
                 r.TotalWorked.ToString(@"hh\:mm"),
                 r.TotalBreak.ToString(@"hh\:mm"),
-                r.IsNocturnal ? "Sim" : "Não",
+                r.NocturnalWorked.ToString(@"hh\:mm"),
+                r.Late.ToString(@"hh\:mm"),
+                r.Overtime.ToString(@"hh\:mm"),
+                r.EarlyDeparture.ToString(@"hh\:mm"),
                 r.IsHoliday ? "Sim" : "Não",
                 EscapeCsv(r.HolidayName ?? ""),
                 r.Status,

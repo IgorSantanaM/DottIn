@@ -339,7 +339,9 @@
 
             var parameters = new DialogParameters<TimeKeepingDetailDialog>
             {
-                { x => x.Details, details }
+                { x => x.Details, details },
+                { x => x.TimeKeepingId, timeKeepingId },
+                { x => x.AllowCorrection, !AppState.IsOwner }
             };
 
             var options = new DialogOptions

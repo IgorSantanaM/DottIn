@@ -34,7 +34,7 @@
                 <MudListItem Icon="@Icons.Material.Filled.Pin" OnClick="ChangePin">
                     <MudText>Alterar PIN</MudText>
                 </MudListItem>
-                <MudListItem Icon="@Icons.Material.Filled.Fingerprint" OnClick="HandleBiometricAction">
+                <MudListItem Icon="@Icons.Material.Filled.Fingerprint" Disabled="true">
                     <div class="list-item-content">
                         <div>
                             <MudText>Biometria</MudText>
@@ -73,7 +73,7 @@
         </MudCardContent>
     </MudCard>
 
-    @if (AppState.IsOwner)
+    @if (AppState.IsOwner && NativeBiometricsEnabled)
     {
         <MudCard Class="settings-card">
             <MudCardContent>
@@ -205,6 +205,7 @@
 </style>
 
 @code {
+    private const bool NativeBiometricsEnabled = false;
     private bool _hasBiometric = false;
     private bool _notificationsEnabled = true;
     private bool _isLoadingEmployees = false;
