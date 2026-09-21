@@ -70,9 +70,20 @@
                     {
                         <MudTimelineItem Color="@GetEntryColor(entry.Type)" Size="Size.Small">
                             <ItemContent>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                     <div>
                                         <MudText Typo="Typo.body2" Class="font-semibold">@GetEntryLabel(entry.Type)</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@GetSourceLabel(entry.Source)</MudText>
+                                        @if (entry.Geolocation is not null)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Success">
+                                                GPS verificado@(entry.Geolocation.AccuracyMeters.HasValue ? $" · ±{entry.Geolocation.AccuracyMeters:0} m" : string.Empty)
+                                            </MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Warning">Sem evidência GPS</MudText>
+                                        }
                                     </div>
                                     <MudText Typo="Typo.body2">@entry.Timestamp.ToString("HH:mm:ss")</MudText>
                                 </div>
@@ -140,6 +151,14 @@
         _ => status
     };
 
+
+    private static string GetSourceLabel(string source) => source switch
+    {
+        "Mobile" => "Celular",
+        "Web" => "Website",
+        "Kiosk" => "Quiosque",
+        _ => source
+    };
     private Color GetEntryColor(string type) => type switch
     {
         "ClockIn" => Color.Success,

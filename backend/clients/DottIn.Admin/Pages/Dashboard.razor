@@ -3,6 +3,7 @@
 @inject AdminApiClient Api
 @inject AdminState State
 @inject BranchClockService BranchClock
+@inject BrowserGeolocationService BrowserGeolocation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @implements IDisposable
@@ -25,7 +26,7 @@
     </div>
     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="LoadDataAsync" Disabled="_loading" Size="Size.Small">
+               OnClick="RefreshDataAsync" Disabled="_loading" Size="Size.Small">
         Atualizar
     </MudButton>
 </div>
@@ -49,7 +50,7 @@
                     <div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários Ativos</MudText>
                         @if (_loading) { <MudSkeleton Width="48px" Height="32px" /> }
-                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_employees.Count(e => e.IsActive)</MudText> }
+                        else { <MudText Typo="Typo.h5" Style="font-weight: 700;">@_activeEmployeeCount</MudText> }
                     </div>
                 </div>
             </MudPaper>
@@ -240,6 +241,9 @@ else
                         </MudChip>
                     }
                 </div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">
+                    A localização é capturada somente ao registrar uma ação de ponto e armazenada para auditoria. Não há rastreamento em segundo plano.
+                </MudText>
             </MudItem>
             <MudItem xs="12" md="6">
                 @* Day Summary *@
@@ -280,9 +284,9 @@ else
 }
 
 @code {
-    private List<EmployeeSummary> _employees = [];
+    private int _activeEmployeeCount;
     private List<TimeKeepingRecord> _todayRecords = [];
-    private TimeKeepingRecord? _myRecord;
+    private PersonalTimeKeepingRecord? _myRecord;
     private PersonalStatus _personalStatus = PersonalStatus.NotClocked;
     private bool _loading = true;
     private bool _isProcessing;
@@ -340,40 +344,42 @@ else
         }
     }
 
-    private async Task LoadDataAsync()
+    private Task LoadDataAsync() => LoadDataCoreAsync(forceRefresh: false);
+
+    private Task RefreshDataAsync() => LoadDataCoreAsync(forceRefresh: true);
+
+    private async Task LoadDataCoreAsync(bool forceRefresh)
     {
-        _loading = true;
+        var hadData = _todayRecords.Count > 0 || _myRecord is not null;
+        if (!hadData)
+            _loading = true;
+
         try
         {
-            var today = BranchClock.Today;
+            var summary = await Api.GetDashboardSummaryAsync(
+                State.BranchId,
+                BranchClock.Today,
+                forceRefresh);
 
-            if (State.IsOwner)
+            _activeEmployeeCount = summary.ActiveEmployees;
+            _todayRecords = summary.TodayRecords.ToList();
+            _myRecord = summary.PersonalRecord;
+            _personalStatus = _myRecord?.Status switch
             {
-                var employeesTask = Api.GetActiveEmployeesAsync(State.BranchId);
-                var todayRecordsTask = Api.GetBranchHistoryAsync(State.BranchId, today, today);
-                await Task.WhenAll(employeesTask, todayRecordsTask);
-
-                _employees = await employeesTask;
-                _todayRecords = await todayRecordsTask;
-            }
-            else
-            {
-                var records = await Api.GetEmployeeHistoryAsync(State.EmployeeId, today, today);
-                _myRecord = records.FirstOrDefault();
-                _personalStatus = _myRecord?.Status switch
-                {
-                    "Working" => PersonalStatus.Working,
-                    "OnBreak" => PersonalStatus.OnBreak,
-                    "Finished" => PersonalStatus.Finished,
-                    _ => PersonalStatus.NotClocked
-                };
-            }
+                "Working" => PersonalStatus.Working,
+                "OnBreak" => PersonalStatus.OnBreak,
+                "Finished" => PersonalStatus.Finished,
+                _ => PersonalStatus.NotClocked
+            };
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Snackbar.Add($"Erro ao carregar dados {ex.Message}", Severity.Error);
         }
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
     }
 
     #region Kiosk Mode (Owner)
@@ -464,10 +470,19 @@ else
         _isProcessing = true;
         try
         {
-            await Api.ClockInAsync(new ClockInRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            var location = await BrowserGeolocation.GetCurrentPositionAsync();
+            await Api.ClockInAsync(new ClockInRequest(
+                State.BranchId,
+                State.EmployeeId,
+                location.Latitude,
+                location.Longitude,
+                Source: "Web",
+                AccuracyMeters: location.AccuracyMeters,
+                CapturedAtUtc: location.CapturedAtUtc));
             Snackbar.Add("Entrada registrada com sucesso!", Severity.Success);
             await LoadDataAsync();
         }
+        catch (BrowserGeolocationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
         catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
         finally { _isProcessing = false; }
     }
@@ -477,10 +492,19 @@ else
         _isProcessing = true;
         try
         {
-            await Api.ClockOutAsync(new ClockOutRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            var location = await BrowserGeolocation.GetCurrentPositionAsync();
+            await Api.ClockOutAsync(new ClockOutRequest(
+                State.BranchId,
+                State.EmployeeId,
+                location.Latitude,
+                location.Longitude,
+                Source: "Web",
+                AccuracyMeters: location.AccuracyMeters,
+                CapturedAtUtc: location.CapturedAtUtc));
             Snackbar.Add("Saída registrada com sucesso!", Severity.Success);
             await LoadDataAsync();
         }
+        catch (BrowserGeolocationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
         catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
         finally { _isProcessing = false; }
     }
@@ -490,11 +514,20 @@ else
         _isProcessing = true;
         try
         {
-            await Api.BreakAsync(new BreakRequest(State.BranchId, State.EmployeeId, 0, 0, SkipGeolocationValidation: true));
+            var location = await BrowserGeolocation.GetCurrentPositionAsync();
+            await Api.BreakAsync(new BreakRequest(
+                State.BranchId,
+                State.EmployeeId,
+                location.Latitude,
+                location.Longitude,
+                Source: "Web",
+                AccuracyMeters: location.AccuracyMeters,
+                CapturedAtUtc: location.CapturedAtUtc));
             var msg = _personalStatus == PersonalStatus.Working ? "Intervalo iniciado" : "Intervalo finalizado";
             Snackbar.Add(msg, Severity.Success);
             await LoadDataAsync();
         }
+        catch (BrowserGeolocationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
         catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
         finally { _isProcessing = false; }
     }

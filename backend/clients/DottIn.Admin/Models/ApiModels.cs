@@ -2,16 +2,16 @@ namespace DottIn.Admin.Models;
 
 public record LoginRequest(string Cpf, string Password, string? CompanyJoinToken = null);
 public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
-public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
-public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
-public record BreakRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web");
+public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web", double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
+public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web", double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
+public record BreakRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, bool SkipGeolocationValidation = false, string Source = "Web", double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
 public record ClockInResponse(Guid TimeKeepingId);
 
 public record LoginResponse(
     string AccessToken, string RefreshToken, DateTime ExpiresAt,
     EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters, string CompanyCode);
 
-public record RefreshTokenRequest(string RefreshToken);
+public record RefreshTokenRequest(string? RefreshToken);
 public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
 
 public record EmployeeInfo(Guid Id, string Name, string Cpf, string? ImageUrl)
@@ -33,6 +33,8 @@ public record EmployeeSummary(
 
 public record DocumentInfo(string Value, string Type);
 
+public record PagedResponse<T>(IEnumerable<T> Items, int TotalPages, int TotalCount);
+
 public record TimeKeepingRecord(
     Guid Id, Guid EmployeeId, string EmployeeName, DateOnly WorkDate,
     DateTime? ClockIn, DateTime? ClockOut,
@@ -42,6 +44,22 @@ public record TimeKeepingRecord(
     TimeSpan NocturnalWorked = default, TimeSpan ExpectedWorked = default,
     TimeSpan Late = default, TimeSpan EarlyDeparture = default, TimeSpan Overtime = default);
 
+public record PersonalTimeKeepingRecord(
+    Guid Id, DateOnly WorkDate,
+    DateTime? ClockIn, DateTime? ClockOut,
+    TimeSpan TotalWorked, TimeSpan TotalBreak,
+    string Status, bool IsNocturnal, string Source,
+    bool IsHoliday = false, string? HolidayName = null,
+    TimeSpan NocturnalWorked = default, TimeSpan ExpectedWorked = default,
+    TimeSpan Late = default, TimeSpan EarlyDeparture = default, TimeSpan Overtime = default);
+
+public record DashboardSummary(
+    int ActiveEmployees,
+    IReadOnlyList<TimeKeepingRecord> TodayRecords,
+    PersonalTimeKeepingRecord? PersonalRecord,
+    DateTime UtcNow,
+    DateTime LocalNow,
+    string TimeZoneId);
 public record TimeKeepingDetails(
     string EmployeeName, string BranchName, string Status,
     DateOnly WorkDate, DateTime CreatedAt,
@@ -49,8 +67,12 @@ public record TimeKeepingDetails(
     IEnumerable<TimeEntryInfo> EntriesDto, bool IsNocturnal, string Source,
     bool IsHoliday = false, string? HolidayName = null);
 
-public record GeolocationInfo(double Latitude, double Longitude);
-public record TimeEntryInfo(DateTime Timestamp, string Type);
+public record GeolocationInfo(
+    double Latitude, double Longitude,
+    double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
+public record TimeEntryInfo(
+    DateTime Timestamp, string Type,
+    GeolocationInfo? Geolocation = null, string Source = "Mobile");
 
 public record CreateTimeKeepingAdjustmentRequest(
     string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp, string Reason);
@@ -62,7 +84,7 @@ public record TimeKeepingAdjustmentItem(
     string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp,
     string Reason, string? ReviewNote, string Status, DateTime CreatedAt, DateTime? ReviewedAt);
 
-public record ApiProblem(int Status, string? Title, object? Errors);
+public record ApiProblem(int Status, string? Title, object? Errors, string? TraceId = null);
 
 public class ApiException(string message) : Exception(message);
 

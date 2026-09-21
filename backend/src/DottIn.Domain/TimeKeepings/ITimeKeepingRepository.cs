@@ -22,6 +22,14 @@ namespace DottIn.Domain.TimeKeepings
 
         Task<IEnumerable<TimeKeeping>> GetByBranchAndPeriodAsync(Guid branchId, DateOnly startDate, DateOnly? endDate, CancellationToken token = default);
 
+        Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByBranchAndPeriodAsync(
+            Guid branchId,
+            DateOnly startDate,
+            DateOnly endDate,
+            int pageNumber,
+            int pageSize,
+            CancellationToken token = default);
+
         Task<IEnumerable<TimeKeeping>> GetActiveByBranchAsync(Guid branchId, CancellationToken token = default);
 
         Task<bool> ExistsForEmployeeOnDateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default);

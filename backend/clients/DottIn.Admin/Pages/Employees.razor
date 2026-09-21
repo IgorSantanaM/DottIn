@@ -6,6 +6,7 @@
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>DottIn Admin - Funcionários</PageTitle>
 
@@ -33,12 +34,11 @@
 
 <MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
     <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
-        <MudTextField @bind-Value="_search" Placeholder="Buscar funcionário..."
+        <MudTextField T="string" Value="_search" ValueChanged="@((string value) => OnSearchChanged(value))" Placeholder="Buscar funcionário..."
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       Variant="Variant.Outlined" Margin="Margin.Dense"
                       Immediate="true" Style="max-width: 320px;" />
-        <MudToggleGroup T="string" @bind-Value="_filter" Color="Color.Primary" Size="Size.Small"
-                        Outline="true" Dense="true">
+        <MudToggleGroup T="string" Value="_filter" ValueChanged="@((string value) => OnFilterChanged(value))" Color="Color.Primary" Size="Size.Small" Outlined="true">
             <MudToggleItem T="string" Value="@("all")">Todos</MudToggleItem>
             <MudToggleItem T="string" Value="@("active")">Ativos</MudToggleItem>
             <MudToggleItem T="string" Value="@("inactive")">Inativos</MudToggleItem>
@@ -53,7 +53,7 @@
     }
     else
     {
-        <MudDataGrid Items="FilteredEmployees" Dense="true" Hover="true" Striped="true"
+        <MudDataGrid Items="_employees" Dense="true" Hover="true" Striped="true"
                      SortMode="SortMode.Multiple">
             <Columns>
                 <PropertyColumn Property="x => x.Name" Title="Nome">
@@ -94,37 +94,110 @@
                 </PropertyColumn>
             </Columns>
         </MudDataGrid>
-    }
+
+        @if (_totalPages > 1)
+        {
+            <div class="d-flex align-center justify-space-between mt-4">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @PageFirstRecord–@PageLastRecord de @_totalCount funcionários
+                </MudText>
+                <div class="d-flex align-center gap-2">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(_pageNumber <= 1 || _loading)"
+                                   OnClick="@(() => ChangePageAsync(_pageNumber - 1))" aria-label="Página anterior" />
+                    <MudText Typo="Typo.body2">Página @_pageNumber de @_totalPages</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_pageNumber >= _totalPages || _loading)"
+                                   OnClick="@(() => ChangePageAsync(_pageNumber + 1))" aria-label="Próxima página" />
+                </div>
+            </div>
+        }    }
 </MudPaper>
 
 @code {
+    private const int PageSize = 25;
     private List<EmployeeSummary> _employees = [];
     private string _search = "";
     private string _filter = "all";
     private bool _loading = true;
+    private int _pageNumber = 1;
+    private int _totalPages;
+    private int _totalCount;
+    private CancellationTokenSource? _searchCancellation;
+    private int PageFirstRecord => _totalCount == 0 ? 0 : ((_pageNumber - 1) * PageSize) + 1;
+    private int PageLastRecord => Math.Min(_pageNumber * PageSize, _totalCount);
 
-    private IEnumerable<EmployeeSummary> FilteredEmployees => _employees
-        .Where(e => _filter switch
-        {
-            "active" => e.IsActive,
-            "inactive" => !e.IsActive,
-            _ => true
-        })
-        .Where(e => string.IsNullOrWhiteSpace(_search) ||
-                    e.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-                    e.Document.Value.Contains(_search));
+    protected override Task OnInitializedAsync() => LoadPageAsync();
 
-    protected override async Task OnInitializedAsync()
+    private async Task OnSearchChanged(string value)
     {
+        _search = value;
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        _searchCancellation = new CancellationTokenSource();
         try
         {
-            _employees = await Api.GetEmployeesByBranchAsync(State.BranchId);
+            await Task.Delay(350, _searchCancellation.Token);
+            _pageNumber = 1;
+            await LoadPageAsync(_searchCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task OnFilterChanged(string value)
+    {
+        _filter = value;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ChangePageAsync(int pageNumber)
+    {
+        if (pageNumber < 1 || pageNumber > _totalPages || pageNumber == _pageNumber)
+            return;
+        _pageNumber = pageNumber;
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync(CancellationToken cancellationToken = default)
+    {
+        _loading = true;
+        try
+        {
+            bool? isActive = _filter switch
+            {
+                "active" => true,
+                "inactive" => false,
+                _ => null
+            };
+            var page = await Api.GetPagedEmployeesAsync(
+                State.BranchId,
+                _pageNumber,
+                PageSize,
+                _search,
+                isActive,
+                cancellationToken: cancellationToken);
+            _employees = page.Items.ToList();
+            _totalPages = page.TotalPages;
+            _totalCount = page.TotalCount;
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch
         {
             Snackbar.Add("Erro ao carregar funcionários", Severity.Error);
         }
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
     }
 
     private static string FormatDocument(DocumentInfo doc)

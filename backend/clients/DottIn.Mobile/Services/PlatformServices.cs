@@ -51,22 +51,54 @@ public class LocationService : ILocationService
         try
         {
             var status = await CheckPermissionAsync();
-            
+
             if (status != PermissionStatus.Granted)
             {
                 status = await RequestPermissionAsync();
                 if (status != PermissionStatus.Granted)
-                    return null;
+                    throw new LocationUnavailableException(
+                        "Permita o acesso à localização nas configurações do aparelho para registrar o ponto.");
             }
 
-            var request = new GeolocationRequest(GeolocationAccuracy.High, TimeSpan.FromSeconds(10));
-            var location = await Geolocation.Default.GetLocationAsync(request);
+            var request = new GeolocationRequest(GeolocationAccuracy.High, TimeSpan.FromSeconds(15));
+            var location = await Geolocation.Default.GetLocationAsync(request)
+                ?? throw new LocationUnavailableException(
+                    "Não foi possível obter sua localização. Vá para uma área com melhor sinal e tente novamente.");
+
+            if (location.Accuracy is <= 0 or > 100)
+                throw new LocationUnavailableException(
+                    "A localização está imprecisa. Aguarde alguns segundos em uma área aberta e tente novamente.");
 
             return location;
         }
-        catch (Exception)
+        catch (LocationUnavailableException)
         {
-            return null;
+            throw;
+        }
+        catch (FeatureNotEnabledException exception)
+        {
+            throw new LocationUnavailableException(
+                "Ative a localização do aparelho para registrar o ponto.", exception);
+        }
+        catch (FeatureNotSupportedException exception)
+        {
+            throw new LocationUnavailableException(
+                "Este aparelho não oferece localização compatível com o registro de ponto.", exception);
+        }
+        catch (PermissionException exception)
+        {
+            throw new LocationUnavailableException(
+                "Permita o acesso à localização nas configurações do aparelho para registrar o ponto.", exception);
+        }
+        catch (TaskCanceledException exception)
+        {
+            throw new LocationUnavailableException(
+                "A obtenção da localização expirou. Vá para uma área com melhor sinal e tente novamente.", exception);
+        }
+        catch (Exception exception)
+        {
+            throw new LocationUnavailableException(
+                "Não foi possível obter sua localização neste momento. Tente novamente.", exception);
         }
     }
 

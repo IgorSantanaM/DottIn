@@ -42,9 +42,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
             var localNow = BranchTime.ToLocal(nowUtc, branch.TimeZoneId);
             employee.ValidateBreakTime(localNow);
 
-            if (!request.SkipGeolocationValidation &&
-                !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
-                throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
+            var auditLocation = GeolocationEvidencePolicy.ValidateAndCreate(
+                branch, request.GeolocationDto, request.SkipGeolocationValidation, nowUtc);
 
             var existingTimeKeeping = await timeKeepingRepository.GetActiveByEmployeeAsync(
                 request.EmployeeId, cancellationToken);
@@ -60,11 +59,15 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.Break
 
             if (existingTimeKeeping.Status == TimeKeepingStatus.OnBreak)
             {
-                existingTimeKeeping.EndBreak(nowUtc);
+                existingTimeKeeping.EndBreak(
+                    nowUtc, auditLocation, request.GeolocationDto.AccuracyMeters,
+                    request.GeolocationDto.CapturedAtUtc, request.Source);
             }
             else
             {
-                existingTimeKeeping.StartBreak(nowUtc);
+                existingTimeKeeping.StartBreak(
+                    nowUtc, auditLocation, request.GeolocationDto.AccuracyMeters,
+                    request.GeolocationDto.CapturedAtUtc, request.Source);
             }
 
             await timeKeepingRepository.UpdateAsync(existingTimeKeeping);

@@ -49,31 +49,51 @@ namespace DottIn.Domain.TimeKeepings
             TimeZoneId = timeZoneId;
         }
 
-        public void ClockIn(DateTime timeUtc)
+        public void ClockIn(
+            DateTime timeUtc,
+            Geolocation? location = null,
+            double? accuracyMeters = null,
+            DateTime? capturedAtUtc = null,
+            ClockSource source = ClockSource.Mobile)
         {
             if (_entries.Any())
                 throw new DomainException("A jornada já foi iniciada.");
 
-            AddEntry(timeUtc, TimeKeepingType.ClockIn);
+            AddEntry(timeUtc, TimeKeepingType.ClockIn, location, accuracyMeters, capturedAtUtc, source);
         }
 
-        public void StartBreak(DateTime timeUtc)
+        public void StartBreak(
+            DateTime timeUtc,
+            Geolocation? location = null,
+            double? accuracyMeters = null,
+            DateTime? capturedAtUtc = null,
+            ClockSource source = ClockSource.Mobile)
         {
             if (Status != TimeKeepingStatus.Working)
                 throw new DomainException("Só é possível iniciar um intervalo durante a jornada.");
 
-            AddEntry(timeUtc, TimeKeepingType.BreakStart);
+            AddEntry(timeUtc, TimeKeepingType.BreakStart, location, accuracyMeters, capturedAtUtc, source);
         }
 
-        public void EndBreak(DateTime timeUtc)
+        public void EndBreak(
+            DateTime timeUtc,
+            Geolocation? location = null,
+            double? accuracyMeters = null,
+            DateTime? capturedAtUtc = null,
+            ClockSource source = ClockSource.Mobile)
         {
             if (Status != TimeKeepingStatus.OnBreak)
                 throw new DomainException("Não há intervalo em andamento para finalizar.");
 
-            AddEntry(timeUtc, TimeKeepingType.BreakEnd);
+            AddEntry(timeUtc, TimeKeepingType.BreakEnd, location, accuracyMeters, capturedAtUtc, source);
         }
 
-        public void ClockOut(DateTime timeUtc)
+        public void ClockOut(
+            DateTime timeUtc,
+            Geolocation? location = null,
+            double? accuracyMeters = null,
+            DateTime? capturedAtUtc = null,
+            ClockSource source = ClockSource.Mobile)
         {
             if (Status == TimeKeepingStatus.NotStarted)
                 throw new DomainException("Registre a entrada antes da saída.");
@@ -81,12 +101,18 @@ namespace DottIn.Domain.TimeKeepings
                 throw new DomainException("A jornada já foi finalizada.");
 
             if (Status == TimeKeepingStatus.OnBreak)
-                EndBreak(timeUtc);
+                EndBreak(timeUtc, location, accuracyMeters, capturedAtUtc, source);
 
-            AddEntry(timeUtc, TimeKeepingType.ClockOut);
+            AddEntry(timeUtc, TimeKeepingType.ClockOut, location, accuracyMeters, capturedAtUtc, source);
         }
 
-        private void AddEntry(DateTime timeUtc, TimeKeepingType type)
+        private void AddEntry(
+            DateTime timeUtc,
+            TimeKeepingType type,
+            Geolocation? location,
+            double? accuracyMeters,
+            DateTime? capturedAtUtc,
+            ClockSource source)
         {
             BranchTime.NormalizeUtc(timeUtc);
             if (timeUtc < CreatedAt)
@@ -94,7 +120,7 @@ namespace DottIn.Domain.TimeKeepings
             if (_entries.Any() && timeUtc < _entries.Last().Timestamp)
                 throw new DomainException("O registro não pode ser anterior ao último evento da jornada.");
 
-            _entries.Add(new TimeEntry(timeUtc, type));
+            _entries.Add(new TimeEntry(timeUtc, type, location, accuracyMeters, capturedAtUtc, source));
             ConcurrencyToken = Guid.NewGuid();
         }
 

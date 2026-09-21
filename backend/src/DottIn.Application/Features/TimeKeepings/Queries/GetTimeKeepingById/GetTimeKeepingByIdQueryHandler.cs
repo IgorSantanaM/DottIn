@@ -59,7 +59,11 @@ namespace DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById
                                                         geolocationDto,
                                                         effectiveEntries.Select(tke => new TimeEntryDto(
                                                             BranchTime.ToLocal(tke.Timestamp, timeKeeping.TimeZoneId),
-                                                            tke.Type)),
+                                                            tke.Type,
+                                                            tke.Location is null ? null : new GeolocationDto(
+                                                                tke.Location.Latitude, tke.Location.Longitude,
+                                                                tke.AccuracyMeters, tke.CapturedAtUtc),
+                                                            tke.Source)),
                                                         metrics.NocturnalWorked > TimeSpan.Zero,
                                                         timeKeeping.Source.ToString(),
                                                         isHoliday,

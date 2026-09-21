@@ -29,6 +29,6 @@
     <key>XSAppIconAssets</key>
     <string>Assets.xcassets/appicon.appiconset</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>DottIn precisa de sua localização para registrar o ponto.</string>
+    <string>DottIn precisa de sua localizaÃ§Ã£o para registrar o ponto.</string>
 </dict>
 </plist>

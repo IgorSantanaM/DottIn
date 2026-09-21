@@ -6,6 +6,8 @@
         double Latitude,
         double Longitude,
         bool SkipGeolocationValidation = false,
-        string Source = "Mobile");
+        string Source = "Mobile",
+        double? AccuracyMeters = null,
+        DateTime? CapturedAtUtc = null);
 
 }

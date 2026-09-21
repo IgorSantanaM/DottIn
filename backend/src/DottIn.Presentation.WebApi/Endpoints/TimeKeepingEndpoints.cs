@@ -7,6 +7,8 @@ using DottIn.Domain.TimeKeepings;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod;
 using DottIn.Application.Features.TimeKeepings.Queries.GetBranchTimeKeepingByPeriod;
+using DottIn.Application.Features.TimeKeepings.Queries.GetPagedBranchTimeKeeping;
+using DottIn.Domain.Common;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Presentation.WebApi.DTOs.TimeKeepings;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
@@ -47,6 +49,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithSummary("Get employee time keeping history")
                 .WithDescription("Returns time keeping records for an employee within a date range.")
                 .Produces<IEnumerable<TimeKeepingRecordDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            group.MapGet("/branch/{branchId:guid}/history/paged", HandleGetPagedBranchTimeKeepingAsync)
+                .WithName(nameof(HandleGetPagedBranchTimeKeepingAsync))
+                .WithSummary("Get paged branch time keeping history")
+                .WithDescription("Returns one page of time keeping records for a branch within a date range.")
+                .Produces<PagedResult<BranchTimeKeepingRecordDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status422UnprocessableEntity)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             group.MapGet("/branch/{branchId:guid}/history", HandleGetBranchTimeKeepingByPeriodAsync)
@@ -121,6 +131,21 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.Ok(records);
         }
 
+        private static async Task<IResult> HandleGetPagedBranchTimeKeepingAsync(
+            [FromRoute] Guid branchId,
+            [FromQuery] DateOnly startDate,
+            [FromQuery] DateOnly? endDate,
+            [FromQuery] int pageNumber,
+            [FromQuery] int pageSize,
+            [FromServices] IMediator mediator,
+            CancellationToken cancellationToken)
+        {
+            var query = new GetPagedBranchTimeKeepingQuery(
+                branchId, startDate, endDate, pageNumber, pageSize);
+            var page = await mediator.Send(query, cancellationToken);
+            return Results.Ok(page);
+        }
+
         private static async Task<IResult> HandleGetBranchTimeKeepingByPeriodAsync(
             [FromRoute] Guid branchId,
             [FromQuery] DateOnly startDate,
@@ -141,6 +166,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromBody] ClockInRequest request,
             [FromServices] IMediator mediator,
             [FromServices] CurrentUserContext currentUser,
+            [FromServices] ILogger<TimeKeepingEndpoints> logger,
             CancellationToken cancellationToken)
         {
             var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
@@ -150,11 +176,16 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var command = new ClockInCommand(
                 request.BranchId,
                 request.EmployeeId,
-                new GeolocationDto(request.Latitude, request.Longitude),
+                new GeolocationDto(
+                    request.Latitude, request.Longitude, request.AccuracyMeters, request.CapturedAtUtc),
                 skipGeolocation,
                 source);
 
             var timeKeepingId = await mediator.Send(command, cancellationToken);
+
+            logger.LogInformation(
+                "Clock-in recorded. BranchId: {BranchId}; EmployeeId: {EmployeeId}; Source: {Source}; SkipGeolocation: {SkipGeolocation}",
+                request.BranchId, request.EmployeeId, source, skipGeolocation);
 
             return timeKeepingId == Guid.Empty
                 ? Results.BadRequest("Failed to clock in.")
@@ -165,6 +196,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromBody] ClockOutRequest request,
             [FromServices] IMediator mediator,
             [FromServices] CurrentUserContext currentUser,
+            [FromServices] ILogger<TimeKeepingEndpoints> logger,
             CancellationToken cancellationToken)
         {
             var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
@@ -174,11 +206,17 @@ namespace DottIn.Presentation.WebApi.Endpoints
             var command = new ClockOutCommand(
                 request.BranchId,
                 request.EmployeeId,
-                new GeolocationDto(request.Latitude, request.Longitude),
+                new GeolocationDto(
+                    request.Latitude, request.Longitude, request.AccuracyMeters, request.CapturedAtUtc),
                 skipGeolocation,
                 source);
 
             await mediator.Send(command, cancellationToken);
+
+            logger.LogInformation(
+                "Clock-out recorded. BranchId: {BranchId}; EmployeeId: {EmployeeId}; Source: {Source}; SkipGeolocation: {SkipGeolocation}",
+                request.BranchId, request.EmployeeId, source, skipGeolocation);
+
             return Results.NoContent();
         }
 
@@ -186,20 +224,26 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromBody] BreakRequest request,
             [FromServices] IMediator mediator,
             [FromServices] CurrentUserContext currentUser,
+            [FromServices] ILogger<TimeKeepingEndpoints> logger,
             CancellationToken cancellationToken)
         {
             var requestedSource = Enum.TryParse<ClockSource>(request.Source, true, out var s) ? s : ClockSource.Mobile;
             var source = ResolveClockSource(requestedSource, request.EmployeeId, currentUser);
             var skipGeolocation = request.SkipGeolocationValidation && currentUser.IsAdministrator;
-
             var command = new BreakCommand(
                 request.EmployeeId,
                 request.BranchId,
-                new GeolocationDto(request.Latitude, request.Longitude),
+                new GeolocationDto(
+                    request.Latitude, request.Longitude, request.AccuracyMeters, request.CapturedAtUtc),
                 skipGeolocation,
                 source);
 
             await mediator.Send(command, cancellationToken);
+
+            logger.LogInformation(
+                "Break action recorded. BranchId: {BranchId}; EmployeeId: {EmployeeId}; Source: {Source}; SkipGeolocation: {SkipGeolocation}",
+                request.BranchId, request.EmployeeId, source, skipGeolocation);
+
             return Results.NoContent();
         }
 

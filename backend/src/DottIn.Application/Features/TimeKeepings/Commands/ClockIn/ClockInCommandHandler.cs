@@ -39,11 +39,9 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
             if (!branch.IsActive)
                 throw new DomainException("A empresa esta desativada e não poderá utilizar o sistem de ponto.");
 
-            if (!request.SkipGeolocationValidation &&
-                !branch.IsWithinRange(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude))
-                throw new DomainException("Funcionário esta fora do raio permitido para bater o ponto.");
-
             var nowUtc = DateTime.UtcNow;
+            var auditLocation = GeolocationEvidencePolicy.ValidateAndCreate(
+                branch, request.GeolocationDto, request.SkipGeolocationValidation, nowUtc);
             var activeTimeKeeping = await timeKeepingRepository.GetActiveByEmployeeAsync(
                 request.EmployeeId, cancellationToken);
 
@@ -57,7 +55,8 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
             if (existingTimeKeeping is not null)
                 throw new DomainException("A jornada deste dia já foi registrada.");
 
-            var geolocation = new Geolocation(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude);
+            var geolocation = auditLocation ??
+                new Geolocation(request.GeolocationDto.Latitude, request.GeolocationDto.Longitude);
 
             var timeKeeping = new TimeKeeping(
                 request.BranchId,
@@ -68,7 +67,12 @@ namespace DottIn.Application.Features.TimeKeepings.Commands.ClockIn
                 nowUtc,
                 request.Source);
 
-            timeKeeping.ClockIn(nowUtc);
+            timeKeeping.ClockIn(
+                nowUtc,
+                auditLocation,
+                request.GeolocationDto.AccuracyMeters,
+                request.GeolocationDto.CapturedAtUtc,
+                request.Source);
 
             await timeKeepingRepository.AddAsync(timeKeeping, cancellationToken);
 

@@ -333,7 +333,13 @@
                 Password = _password
             };
 
-            var response = await Http.PostAsJsonAsync("/api/auth/register/owner", request);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register/owner")
+            {
+                Content = JsonContent.Create(request)
+            };
+            httpRequest.Headers.TryAddWithoutValidation("X-DottIn-Persist-Session", "true");
+            httpRequest.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+            using var response = await Http.SendAsync(httpRequest);
 
             if (response.IsSuccessStatusCode)
             {
@@ -367,7 +373,7 @@
                 });
                 if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
                 {
-                    Snackbar.Add(body!.Title, Severity.Warning);
+                    Snackbar.Add(body?.Title ?? "Não foi possível criar a conta. Confira os dados informados.", Severity.Warning);
                 }
                 
                 else
