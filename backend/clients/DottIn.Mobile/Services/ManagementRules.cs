@@ -29,10 +29,27 @@ public static class ManagementRules
             {
                 using var doc = JsonDocument.Parse(content);
                 if (doc.RootElement.ValueKind == JsonValueKind.String) return doc.RootElement.GetString()!;
+
+                string? message = null;
+                string? traceId = null;
                 foreach (var property in doc.RootElement.EnumerateObject())
-                    if (property.Name.Equals("message", StringComparison.OrdinalIgnoreCase)) return property.Value.ToString();
-                foreach (var property in doc.RootElement.EnumerateObject())
-                    if (property.Name.Equals("errors", StringComparison.OrdinalIgnoreCase)) return property.Value.ToString();
+                {
+                    if (property.Name.Equals("title", StringComparison.OrdinalIgnoreCase) ||
+                        property.Name.Equals("message", StringComparison.OrdinalIgnoreCase))
+                        message ??= property.Value.ToString();
+                    else if (property.Name.Equals("traceId", StringComparison.OrdinalIgnoreCase))
+                        traceId = property.Value.ToString();
+                    else if (property.Name.Equals("errors", StringComparison.OrdinalIgnoreCase))
+                        message ??= property.Value.ToString();
+                }
+
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    var supportCode = string.IsNullOrWhiteSpace(traceId)
+                        ? string.Empty
+                        : $" (código {traceId[..Math.Min(8, traceId.Length)]})";
+                    return message + supportCode;
+                }
             }
             catch (JsonException) { }
             catch (InvalidOperationException) { }

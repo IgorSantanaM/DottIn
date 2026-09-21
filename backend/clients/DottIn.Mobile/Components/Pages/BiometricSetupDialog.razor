@@ -30,17 +30,13 @@
                       Label="Senha"
                       Placeholder="Digite sua senha"
                       Variant="Variant.Outlined"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                      AdornmentAriaLabel="@(_showPassword ? "Ocultar senha" : "Mostrar senha")"
+                      OnAdornmentClick="@(() => _showPassword = !_showPassword)"
                       InputType="@(_showPassword ? InputType.Text : InputType.Password)"
                       FullWidth="true"
-                      Disabled="@_isProcessing">
-            <AdornmentContent>
-                <MudIconButton Icon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                               OnClick="@(() => _showPassword = !_showPassword)"
-                               Edge="Edge.End" />
-            </AdornmentContent>
-        </MudTextField>
+                      Disabled="@_isProcessing" />
 
         @if (!string.IsNullOrEmpty(_errorMessage))
         {

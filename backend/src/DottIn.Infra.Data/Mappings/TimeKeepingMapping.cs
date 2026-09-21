@@ -65,7 +65,20 @@ namespace DottIn.Infra.Data.Mappings
 
             builder.OwnsMany(tk => tk.Entries, entry =>
             {
-                entry.ToTable("TimeEntries");
+                entry.ToTable("TimeEntries", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_TimeEntries_Source",
+                        "\"Source\" IN ('Mobile', 'Web', 'Kiosk')");
+                    table.HasCheckConstraint(
+                        "CK_TimeEntries_Accuracy",
+                        "\"AccuracyMeters\" IS NULL OR (\"AccuracyMeters\" > 0 AND \"AccuracyMeters\" <= 100)");
+                    table.HasCheckConstraint(
+                        "CK_TimeEntries_Location",
+                        "(\"Latitude\" IS NULL AND \"Longitude\" IS NULL AND \"AccuracyMeters\" IS NULL AND \"CapturedAtUtc\" IS NULL) OR " +
+                        "(\"Latitude\" IS NOT NULL AND \"Longitude\" IS NOT NULL AND \"AccuracyMeters\" IS NOT NULL AND \"CapturedAtUtc\" IS NOT NULL " +
+                        "AND \"Latitude\" BETWEEN -90 AND 90 AND \"Longitude\" BETWEEN -180 AND 180)");
+                });
 
                 entry.WithOwner().HasForeignKey("TimeKeepingId");
 
@@ -82,6 +95,23 @@ namespace DottIn.Infra.Data.Mappings
                     .IsRequired()
                     .HasConversion<string>()
                     .HasMaxLength(20);
+                entry.OwnsOne(e => e.Location, location =>
+                {
+                    location.Property(l => l.Latitude).HasColumnName("Latitude");
+                    location.Property(l => l.Longitude).HasColumnName("Longitude");
+                });
+
+                entry.Property(e => e.AccuracyMeters);
+
+                entry.Property(e => e.CapturedAtUtc)
+                    .HasColumnType("timestamp with time zone");
+
+                entry.Property(e => e.Source)
+                    .IsRequired()
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .HasDefaultValue(ClockSource.Mobile);
+
 
                 entry.HasIndex("TimeKeepingId", nameof(TimeEntry.Timestamp));
 

@@ -11,13 +11,19 @@ namespace DottIn.Presentation.WebApi.Middlewares
     {
         public async Task InvokeAsync(HttpContext context)
         {
+            context.Response.Headers["X-Trace-Id"] = context.TraceIdentifier;
             try
             {
                 await next(context);
             }
             catch (Exception ex)
             {
-                if (ex is not DomainException and not ValidationException and not NotFoundException and not ArgumentException and not BadHttpRequestException)
+                var expectedFailure = ex is DomainException or ValidationException or NotFoundException or ArgumentException or BadHttpRequestException or BreakOutsideAllowedTimeException;
+                if (expectedFailure && context.Request.Path.StartsWithSegments("/api/timekeeping"))
+                    logger.LogWarning(
+                        "Timekeeping request rejected. Path: {Path}; TraceId: {TraceId}; Reason: {Reason}",
+                        context.Request.Path, context.TraceIdentifier, ex.Message);
+                else if (!expectedFailure)
                     logger.LogError(ex, "Unhandled request failure. TraceId: {TraceId}", context.TraceIdentifier);
 
                 await HandleExceptionAsync(context, ex);

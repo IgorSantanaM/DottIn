@@ -1,0 +1,54 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/clients/DottIn.Mobile/**"
+      - "backend/tests/DottIn.Mobile.Tests/**"
+      - ".github/workflows/mobile-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/clients/DottIn.Mobile/**"
+      - "backend/tests/DottIn.Mobile.Tests/**"
+      - ".github/workflows/mobile-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build-android:
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore MAUI workloads
+        run: dotnet workload restore backend/clients/DottIn.Mobile/DottIn.Mobile.csproj
+
+      - name: Restore mobile tests
+        run: dotnet restore backend/tests/DottIn.Mobile.Tests/DottIn.Mobile.Tests.csproj
+
+      - name: Test mobile contracts
+        run: dotnet test backend/tests/DottIn.Mobile.Tests/DottIn.Mobile.Tests.csproj --configuration Release --no-restore --logger "trx;LogFileName=mobile-tests.trx"
+
+      - name: Build Android debug package
+        run: dotnet build backend/clients/DottIn.Mobile/DottIn.Mobile.csproj -f net10.0-android --configuration Debug --no-restore
+
+      - name: Check vulnerable dependencies
+        run: dotnet list backend/clients/DottIn.Mobile/DottIn.Mobile.csproj package --vulnerable --include-transitive
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore

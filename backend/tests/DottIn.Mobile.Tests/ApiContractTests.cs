@@ -42,6 +42,31 @@ public class ApiContractTests
     }
 
     [Fact]
+    public async Task Branch_history_requests_a_bounded_page()
+    {
+        Uri? requested = null;
+        using var client = Client(request =>
+        {
+            requested = request.RequestUri;
+            return new(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { items = Array.Empty<object>(), totalPages = 3, totalCount = 51 })
+            };
+        });
+
+        var branchId = Guid.NewGuid();
+        var result = await RestService.For<ITimeKeepingApi>(client).GetPagedBranchHistoryAsync(
+            branchId, new(2026, 9, 1), new(2026, 9, 30), 2, 25);
+
+        Assert.Equal(51, result.TotalCount);
+        Assert.Contains($"/api/timekeeping/branch/{branchId}/history/paged", requested!.AbsolutePath);
+        Assert.Contains("pageNumber=2", requested.Query);
+        Assert.Contains("pageSize=25", requested.Query);
+        Assert.Contains("2026-09-01", Uri.UnescapeDataString(requested.Query));
+        Assert.Contains("2026-09-30", Uri.UnescapeDataString(requested.Query));
+    }
+
+    [Fact]
     public void Company_address_number_is_numeric()
     {
         var address = new BranchAddress("Street", 12, "City", "MT", "78000000", null);

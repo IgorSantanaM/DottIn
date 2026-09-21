@@ -26,7 +26,7 @@
 - Date query parameters use `yyyy-MM-dd`, independent of device culture. HTTP export errors and empty bodies are rejected before saving/sharing.
 - Calendar view no longer deletes against the first calendar. Calendar management selects the exact calendar; overlapping dates do not crash the year view.
 - Billing browser return is not treated as proof of payment. Billing uses existing server-configured web return URLs; users return to the app and it reloads server state. No custom app deep-link infrastructure was introduced.
-- No deployment, database migrations, dependency upgrades, or changes to existing GPS/biometric behavior are included.
+- O registro de ponto exige conexão ativa para preservar horário e evidência GPS válidos; não existe fila offline ou sincronização posterior.
 
 ## Automated verification
 
@@ -48,6 +48,6 @@ The platform-independent test project links the actual mobile contracts/services
 - [ ] Custom cross-month period and CSV: compare records/totals with desktop; failed export must not open the file share sheet.
 - [ ] Two holiday calendars with overlapping dates: create/add/remove in each; confirm other calendar is unchanged and worked-holiday report matches desktop.
 - [ ] Billing test mode: checkout completion/cancellation, existing subscription portal, back to app, server status refresh. Do not run real charges as part of QA.
-- [ ] Offline/reconnect, expired session, rapid navigation, narrow-screen layout, dark mode, and native file sharing/clipboard.
+- [ ] Bloqueio offline/reconexão, sessão expirada, navegação rápida, layout estreito, modo escuro e compartilhamento/clipboard nativos.
 
-The Android build currently reports pre-existing MudBlazor warnings and a vulnerability advisory for SQLitePCLRaw.lib.e_sqlite3.android 2.1.10. Dependency remediation is separate from this feature-parity change.
+The Android build is verified without warnings, and dependency auditing reports no known vulnerable packages.

@@ -21,9 +21,11 @@ else
             <MudText Typo="Typo.h6" Style="font-weight: 700; color: #2563EB;">DottIn</MudText>
             <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2">Admin</MudChip>
             <MudSpacer />
-            <MudIconButton Icon="@(State.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                           Color="Color.Inherit" OnClick="State.ToggleDarkMode"
-                           Title="@(State.IsDarkMode ? "Modo claro" : "Modo escuro")" />
+            <MudTooltip Text="@(State.IsDarkMode ? "Modo claro" : "Modo escuro")">
+                <MudIconButton Icon="@(State.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                               Color="Color.Inherit" OnClick="State.ToggleDarkMode"
+                               aria-label="@(State.IsDarkMode ? "Ativar modo claro" : "Ativar modo escuro")" />
+            </MudTooltip>
             <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Dense="true"
                      AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
                 <MudMenuItem Disabled="true">
@@ -59,7 +61,8 @@ else
             </MudDrawer>
         }
 
-        <MudMainContent Class="pa-6 dottin-main-content" Style="min-height: 100vh; background: var(--mud-palette-background);">
+        <MudMainContent Class="pa-6 dottin-main-content"
+                        Style="min-height: 100vh; padding-top: calc(var(--mud-appbar-height) + 24px); background: var(--mud-palette-background);">
             @Body
         </MudMainContent>
     </MudLayout>

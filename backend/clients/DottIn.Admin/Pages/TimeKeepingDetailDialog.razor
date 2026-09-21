@@ -75,8 +75,21 @@
                     {
                         <MudTimelineItem Color="@GetEntryColor(entry.Type)" Size="Size.Small">
                             <ItemContent>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@GetEntryLabel(entry.Type)</MudText>
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+                                    <div>
+                                        <MudText Typo="Typo.body2" Style="font-weight: 500;">@GetEntryLabel(entry.Type)</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@GetSourceLabel(entry.Source)</MudText>
+                                        @if (entry.Geolocation is not null)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Success">
+                                                GPS verificado@(entry.Geolocation.AccuracyMeters.HasValue ? $" · ±{entry.Geolocation.AccuracyMeters:0} m" : string.Empty)
+                                            </MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Warning">Sem evidência GPS</MudText>
+                                        }
+                                    </div>
                                     <MudText Typo="Typo.body2" Color="Color.Secondary">@entry.Timestamp.ToString("HH:mm:ss")</MudText>
                                 </div>
                             </ItemContent>

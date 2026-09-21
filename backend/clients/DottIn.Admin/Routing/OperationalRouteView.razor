@@ -1,18 +1,45 @@
 @inject AdminState State
+@inject AuthService Auth
+@inject OperationalAccessService OperationalAccess
 @inject NavigationManager Navigation
 
-@if (CanRenderRoute)
+@if (State.IsSessionRestoring)
+{
+    <LayoutView Layout="DefaultLayout">
+        <section class="session-resume" aria-live="polite" aria-busy="true">
+            @if (string.IsNullOrWhiteSpace(State.SessionError))
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Atualizando seus dados...</MudText>
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="110px" />
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="240px" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@State.SessionError</MudAlert>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_retrying" OnClick="RetryAsync">
+                    @(_retrying ? "Tentando novamente..." : "Tentar novamente")
+                </MudButton>
+            }
+        </section>
+    </LayoutView>
+}
+else if (CanRenderRoute)
 {
     <RouteView RouteData="RouteData" DefaultLayout="DefaultLayout" />
 }
 else if (IsResolving)
 {
     <LayoutView Layout="DefaultLayout">
-        <div class="d-flex align-center justify-center" style="min-height: 100vh;">
+        <div class="d-flex align-center justify-center" style="min-height: 50vh;">
             <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
         </div>
     </LayoutView>
 }
+
+<style>
+    .session-resume { min-height:50vh; display:grid; align-content:start; gap:16px; max-width:980px; margin:0 auto; }
+</style>
 
 @code {
     [Parameter, EditorRequired]
@@ -20,6 +47,8 @@ else if (IsResolving)
 
     [Parameter]
     public Type? DefaultLayout { get; set; }
+
+    private bool _retrying;
 
     private bool RequiresOperationalAccess
         => Attribute.IsDefined(
@@ -38,7 +67,7 @@ else if (IsResolving)
     {
         get
         {
-            if (!RequiresOperationalAccess)
+            if (State.IsSessionRestoring || !RequiresOperationalAccess)
                 return null;
 
             if (!State.IsAuthenticated)
@@ -47,6 +76,21 @@ else if (IsResolving)
             return State.IsOperationalAccessResolved && !State.CanAccessOperationalModules
                 ? "/welcome"
                 : null;
+        }
+    }
+
+    private async Task RetryAsync()
+    {
+        _retrying = true;
+        try
+        {
+            await Auth.ValidateRestoredSessionAsync();
+            if (State.IsSessionReady)
+                await OperationalAccess.RefreshAsync();
+        }
+        finally
+        {
+            _retrying = false;
         }
     }
 

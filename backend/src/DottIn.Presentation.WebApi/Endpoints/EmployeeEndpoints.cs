@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.Employees.Commands.ActivateEmployee;
+using DottIn.Application.Features.Employees.Commands.ActivateEmployee;
 using DottIn.Application.Features.Employees.Commands.CreateEmployee;
 using DottIn.Application.Features.Employees.Commands.DeactivateEmployee;
 using DottIn.Application.Features.Employees.Commands.UpdateProfile;
@@ -8,7 +8,9 @@ using DottIn.Application.Features.Employees.Queries.GetActiveEmployees;
 using DottIn.Application.Features.Employees.Queries.GetEmployeeByCPF;
 using DottIn.Application.Features.Employees.Queries.GetEmployeeById;
 using DottIn.Application.Features.Employees.Queries.GetEmployeesByBranch;
+using DottIn.Application.Features.Employees.Queries.GetPagedEmployees;
 using DottIn.Application.Shared.DTOS;
+using DottIn.Domain.Common;
 using DottIn.Presentation.WebApi.DTOs.Employees;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
@@ -42,6 +44,11 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces<IEnumerable<EmployeeSummaryDto>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
+            group.MapGet("/paged", HandleGetPagedEmployeesAsync)
+                .WithName(nameof(HandleGetPagedEmployeesAsync))
+                .WithSummary("Get a paged employee directory")
+                .Produces<PagedResult<EmployeeSummaryDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
             group.MapGet("/{employeeId:guid}", HandleGetEmployeeByIdAsync)
                 .WithName(nameof(HandleGetEmployeeByIdAsync))
                 .WithSummary("Get employee by ID")
@@ -128,6 +135,23 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.Ok(employees);
         }
 
+        private static async Task<IResult> HandleGetPagedEmployeesAsync(
+            [FromRoute] Guid branchId,
+            [FromQuery] int pageNumber,
+            [FromQuery] int pageSize,
+            [FromQuery] string? search,
+            [FromQuery] bool? isActive,
+            [FromServices] IMediator mediator,
+            CancellationToken cancellationToken)
+        {
+            var result = await mediator.Send(new GetPagedEmployeesQuery(
+                branchId,
+                pageNumber <= 0 ? 1 : pageNumber,
+                pageSize <= 0 ? 25 : pageSize,
+                search,
+                isActive), cancellationToken);
+            return Results.Ok(result);
+        }
         private static async Task<IResult> HandleGetEmployeeByIdAsync(
             [FromRoute] Guid branchId,
             [FromRoute] Guid employeeId,

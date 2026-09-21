@@ -52,6 +52,15 @@ public class ManagementTests
     }
 
     [Fact]
+    public void Api_problem_includes_a_short_support_code()
+    {
+        const string content =
+            """{"title":"Localização sem precisão suficiente.","traceId":"abcdef1234567890"}""";
+
+        Assert.Equal("Localização sem precisão suficiente. (código abcdef12)", ManagementRules.ResponseError(content));
+    }
+
+    [Fact]
     public async Task Export_error_cannot_be_shared_as_a_file()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.BadRequest)

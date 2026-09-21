@@ -5,7 +5,7 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
     public record FingerprintLoginRequest(string CompanyCode, string Cpf, string FingerprintToken);
     public record ChangePasswordRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPassword);
     public record ChangePinRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPin);
-    public record RefreshTokenRequest(string RefreshToken);
+    public record RefreshTokenRequest(string? RefreshToken);
 
     public record LoginResponse(
         string AccessToken,

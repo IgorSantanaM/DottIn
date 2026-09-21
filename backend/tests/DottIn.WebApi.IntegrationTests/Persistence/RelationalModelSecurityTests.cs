@@ -49,6 +49,20 @@ public sealed class RelationalModelSecurityTests
     }
 
     [Fact]
+    public void TimeEntry_GeolocationEvidenceMustBeCompleteOrAbsent()
+    {
+        using var context = CreateContext();
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var entity = model.FindEntityType(typeof(TimeEntry))!;
+        var constraint = Assert.Single(entity.GetCheckConstraints(), item => item.Name == "CK_TimeEntries_Location");
+
+        Assert.Contains("\"Latitude\" IS NOT NULL", constraint.Sql, StringComparison.Ordinal);
+        Assert.Contains("\"Longitude\" IS NOT NULL", constraint.Sql, StringComparison.Ordinal);
+        Assert.Contains("\"AccuracyMeters\" IS NOT NULL", constraint.Sql, StringComparison.Ordinal);
+        Assert.Contains("\"CapturedAtUtc\" IS NOT NULL", constraint.Sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SecurityEnums_HaveDatabaseCheckConstraints()
     {
         using var context = CreateContext();

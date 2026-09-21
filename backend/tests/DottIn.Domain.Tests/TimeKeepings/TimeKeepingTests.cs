@@ -78,6 +78,23 @@ public class TimeKeepingTests
         Assert.NotEqual(clockInToken, record.ConcurrencyToken);
     }
 
+    [Fact]
+    public void Entries_PreserveLocationEvidenceForEveryClockAction()
+    {
+        var now = new DateTime(2026, 7, 24, 12, 0, 0, DateTimeKind.Utc);
+        var record = NewRecord(now);
+
+        record.ClockIn(now, Location, 12, now.AddSeconds(-2), ClockSource.Web);
+        record.StartBreak(now.AddHours(4), Location, 18, now.AddHours(4).AddSeconds(-2), ClockSource.Mobile);
+        record.ClockOut(now.AddHours(5), Location, 20, now.AddHours(5).AddSeconds(-1), ClockSource.Web);
+
+        Assert.All(record.Entries, entry => Assert.NotNull(entry.Location));
+        Assert.All(record.Entries, entry => Assert.NotNull(entry.AccuracyMeters));
+        Assert.Equal(
+            new[] { ClockSource.Web, ClockSource.Mobile, ClockSource.Web, ClockSource.Web },
+            record.Entries.Select(entry => entry.Source));
+    }
+
     private static TimeKeeping NewRecord(DateTime now) => new(
         BranchId,
         EmployeeId,

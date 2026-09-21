@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
 using Refit;
+using System.Reflection;
 
 namespace DottIn.Mobile;
 
@@ -41,14 +42,29 @@ public static class MauiProgram
             config.SnackbarConfiguration.VisibleStateDuration = 3000;
         });
 
-        var apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5101"
-            : "http://localhost:5101";
+        var configuredApiBaseUrl = typeof(MauiProgram).Assembly
+            .GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "DottInApiBaseUrl")?.Value;
+
+#if DEBUG
+        var apiBaseUrl = string.IsNullOrWhiteSpace(configuredApiBaseUrl)
+            ? (DeviceInfo.Platform == DevicePlatform.Android ? "http://10.0.2.2:5101" : "http://localhost:5101")
+            : configuredApiBaseUrl;
+#else
+        var apiBaseUrl = configuredApiBaseUrl
+            ?? throw new InvalidOperationException("Configure DottInApiBaseUrl para gerar o aplicativo de produção.");
+#endif
+
+        if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiUri)
+#if !DEBUG
+            || apiUri.Scheme != Uri.UriSchemeHttps
+#endif
+            )
+            throw new InvalidOperationException("O endereço da API do DottIn é inválido ou inseguro.");
 
         builder.Services.AddSingleton<ISecureStorageService, SecureStorageService>();
         builder.Services.AddSingleton<ILocationService, LocationService>();
         builder.Services.AddSingleton<IConnectivityService, ConnectivityService>();
-        builder.Services.AddSingleton<ILocalDatabaseService, LocalDatabaseService>();
 
         builder.Services.AddSingleton<AppState>();
         builder.Services.AddSingleton<BranchClockService>();

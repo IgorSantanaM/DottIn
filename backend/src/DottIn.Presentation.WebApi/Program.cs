@@ -29,7 +29,7 @@ builder.Services.AddCors(opt =>
     {
         var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
         if (origins.Length > 0)
-            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     });
 });
 
@@ -85,6 +85,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<RequestPerformanceMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {

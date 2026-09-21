@@ -8,28 +8,11 @@ public interface ILocationService
     double CalculateDistance(double lat1, double lon1, double lat2, double lon2);
 }
 
+public sealed class LocationUnavailableException(string message, Exception? innerException = null)
+    : Exception(message, innerException);
+
 public interface IConnectivityService
 {
     bool IsConnected { get; }
     event Action<bool>? ConnectivityChanged;
-}
-
-public interface ILocalDatabaseService
-{
-    Task InitializeAsync();
-    Task<List<PendingClockEntry>> GetPendingEntriesAsync();
-    Task AddPendingEntryAsync(PendingClockEntry entry);
-    Task RemovePendingEntryAsync(int id);
-    Task ClearPendingEntriesAsync();
-}
-
-public record PendingClockEntry
-{
-    public int Id { get; set; }
-    public string Type { get; set; } = string.Empty; // ClockIn, ClockOut, Break
-    public Guid BranchId { get; set; }
-    public Guid EmployeeId { get; set; }
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public DateTime CreatedAt { get; set; }
 }

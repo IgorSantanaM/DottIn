@@ -95,7 +95,9 @@ public static class TimeKeepingMetricsCalculator
         IEnumerable<TimeKeepingAdjustment>? adjustments)
     {
         var entries = timeKeeping.Entries
-            .Select(entry => new TimeEntry(entry.Timestamp, entry.Type))
+            .Select(entry => new TimeEntry(
+                entry.Timestamp, entry.Type, entry.Location, entry.AccuracyMeters,
+                entry.CapturedAtUtc, entry.Source))
             .ToList();
 
         IEnumerable<TimeKeepingAdjustment> approvedAdjustments = adjustments?
@@ -113,7 +115,8 @@ public static class TimeKeepingMetricsCalculator
                     entries.RemoveAt(index);
             }
 
-            entries.Add(new TimeEntry(adjustment.ProposedTimestamp, adjustment.EntryType));
+            entries.Add(new TimeEntry(
+                adjustment.ProposedTimestamp, adjustment.EntryType, source: ClockSource.Web));
         }
 
         return entries.OrderBy(entry => entry.Timestamp).ToList();

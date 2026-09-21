@@ -61,6 +61,14 @@ public interface ITimeKeepingApi
         [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
         [Query(Format = "yyyy-MM-dd")] DateOnly? endDate = null);
 
+    [Get("/api/timekeeping/branch/{branchId}/history/paged")]
+    Task<PagedResponse<BranchTimeKeepingRecord>> GetPagedBranchHistoryAsync(
+        Guid branchId,
+        [Query(Format = "yyyy-MM-dd")] DateOnly startDate,
+        [Query(Format = "yyyy-MM-dd")] DateOnly? endDate,
+        [Query] int pageNumber,
+        [Query] int pageSize);
+
     [Post("/api/timekeeping/{timeKeepingId}/adjustments")]
     Task<TimeKeepingAdjustmentItem> CreateAdjustmentAsync(
         Guid timeKeepingId,
@@ -155,9 +163,9 @@ public record RegisterFingerprintRequest(string CompanyCode, string Cpf, string 
 public record ChangePasswordRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPassword);
 public record ChangePinRequest(string CompanyCode, string Cpf, string CurrentPassword, string NewPin);
 public record RefreshTokenRequest(string RefreshToken);
-public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
-public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
-public record BreakRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude);
+public record ClockInRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
+public record ClockOutRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
+public record BreakRequest(Guid BranchId, Guid EmployeeId, double Latitude, double Longitude, double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
 public record CreateTimeKeepingAdjustmentRequest(
     string EntryType, DateTime? OriginalTimestamp, DateTime ProposedTimestamp, string Reason);
 public record ReviewTimeKeepingAdjustmentRequest(bool Approve, string? ReviewNote);
@@ -175,6 +183,8 @@ public record LoginResponse(
 
 public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
 public record ClockInResponse(Guid TimeKeepingId);
+
+public record PagedResponse<T>(IEnumerable<T> Items, int TotalPages, int TotalCount);
 
 public record TimeKeepingRecord(
     Guid Id,
@@ -242,9 +252,9 @@ public record TimeKeepingDetails(
     bool IsHoliday = false,
     string? HolidayName = null);
 
-public record GeolocationInfo(double Latitude, double Longitude);
+public record GeolocationInfo(double Latitude, double Longitude, double? AccuracyMeters = null, DateTime? CapturedAtUtc = null);
 
-public record TimeEntryInfo(DateTime Timestamp, string Type);
+public record TimeEntryInfo(DateTime Timestamp, string Type, GeolocationInfo? Geolocation = null, string Source = "Mobile");
 
 public record TimeKeepingAdjustmentItem(
     Guid Id, Guid TimeKeepingId, Guid EmployeeId, string EmployeeName,

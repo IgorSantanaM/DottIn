@@ -1,4 +1,4 @@
-﻿@inject AdminState State
+@inject AdminState State
 @inject AuthService Auth
 @inject OperationalAccessService OperationalAccess
 @implements IDisposable
@@ -10,7 +10,7 @@
 
 @if (_initializing)
 {
-    <AppLoadingScreen Message="Verificando sua sessão" />
+    <AppLoadingScreen Message="Abrindo DottIn" />
 }
 else
 {
@@ -28,16 +28,26 @@ else
     protected override async Task OnInitializedAsync()
     {
         State.OnChange += StateHasChanged;
+        var restored = false;
         try
         {
-            await Auth.InitializeAsync();
-            if (State.IsAuthenticated)
-                await OperationalAccess.RefreshAsync();
+            restored = await Auth.RestoreLocalSessionAsync();
         }
         finally
         {
             _initializing = false;
         }
+
+        if (restored)
+            _ = CompleteSessionRestoreAsync();
+    }
+
+    private async Task CompleteSessionRestoreAsync()
+    {
+        await Auth.ValidateRestoredSessionAsync();
+        if (State.IsSessionReady)
+            await OperationalAccess.RefreshAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose() => State.OnChange -= StateHasChanged;

@@ -14,12 +14,12 @@
   <ApplicationId>com.dottin.mobile</ApplicationId>
   <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
   <ApplicationVersion>1</ApplicationVersion>
+  <DottInApiBaseUrl Condition="'$(DottInApiBaseUrl)' == ''"></DottInApiBaseUrl>
 
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
   
   <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
-  <AndroidFastDeploymentType>None</AndroidFastDeploymentType>
 </PropertyGroup>
 
   <ItemGroup>
@@ -30,8 +30,14 @@
     <MauiImage Include="Resources\Images\*" />
 
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-
     <MauiFont Include="Resources\Fonts\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DottInApiBaseUrl</_Parameter1>
+      <_Parameter2>$(DottInApiBaseUrl)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
@@ -41,12 +47,16 @@
     <PackageReference Include="MudBlazor" Version="8.15.0" />
     <PackageReference Include="Refit" Version="8.0.0" />
     <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
-    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-    <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
-    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.13" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
     <PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
   </ItemGroup>
+
+  <Target Name="ValidateProductionApiUrl" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Error Condition="'$(DottInApiBaseUrl)' == ''"
+           Text="Informe -p:DottInApiBaseUrl=https://seu-endereco-da-api ao gerar o aplicativo Release." />
+    <Error Condition="'$(DottInApiBaseUrl)' != '' and !$([System.String]::Copy('$(DottInApiBaseUrl)').StartsWith('https://'))"
+           Text="DottInApiBaseUrl deve utilizar HTTPS em builds Release." />
+  </Target>
 
 </Project>

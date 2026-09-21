@@ -62,12 +62,12 @@
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Total Registros</MudText>
-                    <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Count</MudText>
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">@_totalCount</MudText>
                 </div>
             </MudItem>
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Total Horas</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Horas nesta página</MudText>
                     <MudText Typo="Typo.h6" Style="font-weight: 700;">
                         @{
                             var totalMinutes = _records.Sum(r => r.TotalWorked.TotalMinutes);
@@ -80,13 +80,13 @@
             </MudItem>
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários nesta página</MudText>
                     <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Select(r => r.EmployeeId).Distinct().Count()</MudText>
                 </div>
             </MudItem>
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Turnos Noturnos</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Noturnos nesta página</MudText>
                     <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Count(r => r.IsNocturnal)</MudText>
                 </div>
             </MudItem>
@@ -185,13 +185,23 @@
                     <CellTemplate>
                         <MudTooltip Text="Solicitar correção">
                             <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small"
-                                           Color="Color.Primary" OnClick="@(() => RequestCorrection(context.Item))"
-                                           @onclick:stopPropagation="true" />
+                                           Color="Color.Primary" OnClick="@(() => RequestCorrection(context.Item))" />
                         </MudTooltip>
                     </CellTemplate>
                 </TemplateColumn>
             </Columns>
         </MudDataGrid>
+
+        @if (_totalPages > 1)
+        {
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;" class="mt-4">
+                <MudPagination Count="_totalPages" Selected="_pageNumber" SelectedChanged="ChangePageAsync"
+                               Color="Color.Primary" Size="Size.Small" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Exibindo @PageFirstRecord–@PageLastRecord de @_totalCount registros
+                </MudText>
+            </div>
+        }
     }
 </MudPaper>
 
@@ -199,8 +209,14 @@
     private List<TimeKeepingRecord> _records = [];
     private DateTime? _startDate = DateTime.Today.AddDays(-7);
     private DateTime? _endDate = DateTime.Today;
+    private const int PageSize = 25;
     private bool _loading;
     private bool _loaded;
+    private int _pageNumber = 1;
+    private int _totalPages;
+    private int _totalCount;
+    private int PageFirstRecord => _totalCount == 0 ? 0 : ((_pageNumber - 1) * PageSize) + 1;
+    private int PageLastRecord => Math.Min(_pageNumber * PageSize, _totalCount);
 
     protected override async Task OnInitializedAsync()
     {
@@ -228,19 +244,53 @@
 
     private async Task SearchAsync()
     {
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ChangePageAsync(int pageNumber)
+    {
+        if (pageNumber == _pageNumber || pageNumber < 1)
+            return;
+
+        _pageNumber = pageNumber;
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
         if (_startDate is null) return;
+        if (_endDate.HasValue && _endDate.Value.Date < _startDate.Value.Date)
+        {
+            Snackbar.Add("A data final deve ser igual ou posterior à data inicial.", Severity.Warning);
+            return;
+        }
+
         _loading = true;
         try
         {
             var start = DateOnly.FromDateTime(_startDate.Value);
             var end = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : (DateOnly?)null;
-            _records = await Api.GetBranchHistoryAsync(State.BranchId, start, end);
+            var page = await Api.GetPagedBranchHistoryAsync(
+                State.BranchId, start, end, _pageNumber, PageSize);
+            _records = page.Items.ToList();
+            _totalPages = page.TotalPages;
+            _totalCount = page.TotalCount;
+
+            if (_totalPages > 0 && _pageNumber > _totalPages)
+            {
+                _pageNumber = _totalPages;
+                await LoadPageAsync();
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            Snackbar.Add("Erro ao buscar registros", Severity.Error);
+            Snackbar.Add(ex is ApiException ? ex.Message : "Erro ao buscar registros", Severity.Error);
         }
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task ShowDetails(Guid id)

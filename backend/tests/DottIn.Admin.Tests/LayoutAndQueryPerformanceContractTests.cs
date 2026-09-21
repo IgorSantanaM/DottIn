@@ -26,6 +26,27 @@ public sealed class LayoutAndQueryPerformanceContractTests
         Assert.DoesNotContain("Task.WhenAll", handler, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BranchHistoryPage_UsesDatabasePagination()
+    {
+        var repository = ReadSource("src/DottIn.Infra.Data/Repositories/TimeKeepingRepository.cs");
+
+        Assert.Contains("CountAsync(token)", repository, StringComparison.Ordinal);
+        Assert.Contains(".Skip((pageNumber - 1) * pageSize)", repository, StringComparison.Ordinal);
+        Assert.Contains(".Take(pageSize)", repository, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TimeKeepingPage_UsesPagedEndpoint()
+    {
+        var page = ReadSource("clients/DottIn.Admin/Pages/TimeKeeping.razor");
+        var client = ReadSource("clients/DottIn.Admin/Services/AdminApiClient.cs");
+
+        Assert.Contains("GetPagedBranchHistoryAsync", page, StringComparison.Ordinal);
+        Assert.Contains("/history/paged", client, StringComparison.Ordinal);
+        Assert.Contains("PageSize = 25", page, StringComparison.Ordinal);
+    }
+
     private static string ReadSource(string relativePath)
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)

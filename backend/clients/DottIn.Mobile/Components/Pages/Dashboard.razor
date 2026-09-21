@@ -6,6 +6,7 @@
 @inject ITimeKeepingApi TimeKeepingApi
 @inject IHolidayCalendarApi HolidayApi
 @inject ILocationService LocationService
+@inject IConnectivityService ConnectivityService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
@@ -87,7 +88,7 @@
                     Size="Size.Large"
                     StartIcon="@Icons.Material.Filled.PersonAdd"
                     Class="main-action-button"
-                    Disabled="@_isProcessing"
+                    Disabled="@(_isProcessing || !ConnectivityService.IsConnected)"
                     OnClick="HandleKioskAction" />
             <MudText Typo="Typo.button" Class="action-label">REGISTRAR PONTO</MudText>
         </div>
@@ -125,15 +126,10 @@
         <div class="action-button-container">
             <MudFab Color="@GetButtonColor()"
                     Size="Size.Large"
-                    StartIcon="@GetButtonIcon()"
+                    StartIcon="@(_isProcessing ? Icons.Material.Filled.Sync : GetButtonIcon())"
                     Class="@($"main-action-button {(_isProcessing ? "processing" : "")}")"
-                    Disabled="@(_isProcessing || _currentStatus == ClockStatus.Finished)"
-                    OnClick="HandleMainAction">
-                @if (_isProcessing)
-                {
-                    <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" />
-                }
-            </MudFab>
+                    Disabled="@(_isProcessing || !ConnectivityService.IsConnected || _currentStatus == ClockStatus.Finished)"
+                    OnClick="HandleMainAction" />
             <MudText Typo="Typo.button" Class="action-label">@GetButtonText()</MudText>
         </div>
 
@@ -144,7 +140,7 @@
                        StartIcon="@(_currentStatus == ClockStatus.OnBreak ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Coffee)"
                        Class="break-button"
                        OnClick="HandleBreak"
-                       Disabled="@_isProcessing">
+                       Disabled="@(_isProcessing || !ConnectivityService.IsConnected)">
                 @(_currentStatus == ClockStatus.OnBreak ? "Retomar Trabalho" : "Iniciar Intervalo")
             </MudButton>
         }
@@ -193,6 +189,9 @@
             @(_gpsEnabled ? "GPS ativo" : "GPS desativado")
         </MudText>
     </div>
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">
+        A localização é capturada somente durante a batida e armazenada para auditoria. Não há rastreamento em segundo plano.
+    </MudText>
 </div>
 
 @code {
@@ -214,6 +213,8 @@ protected override async Task OnInitializedAsync()
         Navigation.NavigateTo("/login", replace: true);
         return;
     }
+    ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+
 
     try
     {
@@ -266,6 +267,9 @@ protected override async Task OnInitializedAsync()
 
     private async Task HandleKioskAction()
     {
+        if (!EnsureOnline())
+            return;
+
         var companyCode = await SecureStorage.GetAsync("company_code") ?? "";
 
         var identifyParams = new DialogParameters<KioskIdentificationDialog>
@@ -334,25 +338,25 @@ protected override async Task OnInitializedAsync()
             switch (selectedAction)
             {
                 case KioskActionDialog.KioskAction.ClockIn:
-                    await TimeKeepingApi.ClockInAsync(new ClockInRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    await TimeKeepingApi.ClockInAsync(new ClockInRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude, location.Accuracy, location.Timestamp.UtcDateTime));
                     _lastKioskMessage = $"Entrada registrada para {employee.Name}";
                     _lastKioskSeverity = Severity.Success;
                     break;
 
                 case KioskActionDialog.KioskAction.ClockOut:
-                    await TimeKeepingApi.ClockOutAsync(new ClockOutRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    await TimeKeepingApi.ClockOutAsync(new ClockOutRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude, location.Accuracy, location.Timestamp.UtcDateTime));
                     _lastKioskMessage = $"Saída registrada para {employee.Name}";
                     _lastKioskSeverity = Severity.Success;
                     break;
 
                 case KioskActionDialog.KioskAction.StartBreak:
-                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude, location.Accuracy, location.Timestamp.UtcDateTime));
                     _lastKioskMessage = $"Intervalo iniciado para {employee.Name}";
                     _lastKioskSeverity = Severity.Info;
                     break;
 
                 case KioskActionDialog.KioskAction.EndBreak:
-                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude));
+                    await TimeKeepingApi.BreakAsync(new BreakRequest(AppState.BranchId, employee.Id, location.Latitude, location.Longitude, location.Accuracy, location.Timestamp.UtcDateTime));
                     _lastKioskMessage = $"Retorno registrado para {employee.Name}";
                     _lastKioskSeverity = Severity.Success;
                     break;
@@ -362,9 +366,15 @@ protected override async Task OnInitializedAsync()
             if (_overview is not null) await _overview.RefreshAsync();
             try { HapticFeedback.Perform(HapticFeedbackType.LongPress); } catch { }
         }
+        catch (LocationUnavailableException ex)
+        {
+            _lastKioskMessage = ex.Message;
+            _lastKioskSeverity = Severity.Error;
+            Snackbar.Add(_lastKioskMessage, Severity.Error);
+        }
         catch (Exception ex)
         {
-            _lastKioskMessage = $"Erro: {ex.Message}";
+            _lastKioskMessage = $"Erro: {ManagementRules.Error(ex)}";
             _lastKioskSeverity = Severity.Error;
             Snackbar.Add(_lastKioskMessage, Severity.Error);
         }
@@ -420,6 +430,9 @@ protected override async Task OnInitializedAsync()
 
     private async Task HandleMainAction()
     {
+        if (!EnsureOnline())
+            return;
+
         _isProcessing = true;
 
         try
@@ -439,9 +452,13 @@ protected override async Task OnInitializedAsync()
 
             HapticFeedback.Perform(HapticFeedbackType.LongPress);
         }
+        catch (LocationUnavailableException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+            Snackbar.Add(ManagementRules.Error(ex), Severity.Error);
         }
         finally
         {
@@ -451,7 +468,9 @@ protected override async Task OnInitializedAsync()
 
     private async Task ClockIn(Location location)
     {
-        var request = new ClockInRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
+        var request = new ClockInRequest(
+            AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude,
+            location.Accuracy, location.Timestamp.UtcDateTime);
         await TimeKeepingApi.ClockInAsync(request);
         await LoadTodayState();
         Snackbar.Add("Entrada registrada com sucesso!", Severity.Success);
@@ -459,7 +478,9 @@ protected override async Task OnInitializedAsync()
 
     private async Task ClockOut(Location location)
     {
-        var request = new ClockOutRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
+        var request = new ClockOutRequest(
+            AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude,
+            location.Accuracy, location.Timestamp.UtcDateTime);
         await TimeKeepingApi.ClockOutAsync(request);
         await LoadTodayState();
         Snackbar.Add("Saída registrada com sucesso!", Severity.Success);
@@ -467,6 +488,9 @@ protected override async Task OnInitializedAsync()
 
     private async Task HandleBreak()
     {
+        if (!EnsureOnline())
+            return;
+
         _isProcessing = true;
         try
         {
@@ -477,7 +501,9 @@ protected override async Task OnInitializedAsync()
                 return;
             }
 
-            var request = new BreakRequest(AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude);
+            var request = new BreakRequest(
+                AppState.BranchId, AppState.EmployeeId, location.Latitude, location.Longitude,
+                location.Accuracy, location.Timestamp.UtcDateTime);
             await TimeKeepingApi.BreakAsync(request);
 
             var previousStatus = _currentStatus;
@@ -488,9 +514,13 @@ protected override async Task OnInitializedAsync()
 
             HapticFeedback.Perform(HapticFeedbackType.Click);
         }
+        catch (LocationUnavailableException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+            Snackbar.Add(ManagementRules.Error(ex), Severity.Error);
         }
         finally
         {
@@ -559,8 +589,20 @@ protected override async Task OnInitializedAsync()
         _ => "Toque no botão para registrar"
     };
 
+    private bool EnsureOnline()
+    {
+        if (ConnectivityService.IsConnected)
+            return true;
+
+        Snackbar.Add("Sem conexão. Conecte-se à internet para registrar o ponto.", Severity.Warning);
+        return false;
+    }
+
+    private void OnConnectivityChanged(bool _) => InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
         _timer?.Stop();
         _timer?.Dispose();
     }

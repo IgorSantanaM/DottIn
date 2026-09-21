@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Employees;
+using DottIn.Domain.Employees;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +19,39 @@ namespace DottIn.Infra.Data.Repositories
                 .Where(e => e.BranchId == branchId)
                 .ToListAsync(token);
 
+        public async Task<(IReadOnlyList<Employee> Items, int TotalCount)> GetPagedByBranchIdAsync(
+            Guid branchId,
+            int pageNumber,
+            int pageSize,
+            string? search,
+            bool? isActive,
+            CancellationToken token = default)
+        {
+            var query = context.Employees
+                .AsNoTracking()
+                .Where(e => e.BranchId == branchId);
+
+            if (isActive.HasValue)
+                query = query.Where(e => e.IsActive == isActive.Value);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                var digits = new string(term.Where(char.IsDigit).ToArray());
+                query = query.Where(e => EF.Functions.ILike(e.Name, $"%{term}%") ||
+                    (digits.Length > 0 && e.CPF.Value.Contains(digits)));
+            }
+
+            var totalCount = await query.CountAsync(token);
+            var items = await query
+                .OrderBy(e => e.Name)
+                .ThenBy(e => e.Id)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(token);
+
+            return (items, totalCount);
+        }
         public async Task<Employee?> GetByCPFAsync(string cpf, CancellationToken token = default)
         {
             var sanitizedCpf = new string(cpf.Where(char.IsDigit).ToArray());
@@ -47,6 +80,10 @@ namespace DottIn.Infra.Data.Repositories
                 .FirstOrDefaultAsync(e => branchIds.Contains(e.BranchId) && e.CPF.Value == sanitizedCpf, token);
         }
 
+        public Task<int> CountActiveByBranchIdAsync(Guid branchId, CancellationToken token = default)
+            => context.Employees
+                .AsNoTracking()
+                .CountAsync(e => e.BranchId == branchId && e.IsActive && e.Role != EmployeeRole.Owner, token);
         public async Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
         {
             var branchIds = await context.Branches

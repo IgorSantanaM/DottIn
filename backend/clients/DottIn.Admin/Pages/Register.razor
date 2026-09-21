@@ -335,14 +335,13 @@
 
 @code {
     private string _companyCode = "";
-    private string _name = "";
     private string _email = "";
     private string _phone = "";
     private string _documentType = "CNPJ";
     private string _document = "";
-    private TimeSpan? _startWorkTime;
-    private TimeSpan? _endWorkTime;
-    private int _toleranceMinutes;
+    private TimeSpan? _startWorkTime = TimeSpan.FromHours(8);
+    private TimeSpan? _endWorkTime = TimeSpan.FromHours(18);
+    private int _toleranceMinutes = 10;
     private string _timeZoneId = "";
 
     private string _zipCode = "";
@@ -352,7 +351,6 @@
     private string _city = "";
     private string _state = "";
 
-    private bool _isActive = true;
     private bool _loading;
     private bool _isOnboarding;
     private Guid? _selectedPlanId;

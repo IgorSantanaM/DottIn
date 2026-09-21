@@ -12,7 +12,7 @@
     <DialogContent>
         <MudDatePicker @bind-Date="_date" Label="Data do Feriado" Variant="Variant.Outlined"
                        PickerVariant="PickerVariant.Static"
-                       DateFormat="dd/MM/yyyy" FullWidth="true" Class="mb-3"
+                       DateFormat="dd/MM/yyyy" Style="width: 100%;" Class="mb-3"
                        MinDate="@(new DateTime(Year, 1, 1))"
                        MaxDate="@(new DateTime(Year, 12, 31))"
                        OpenTo="OpenTo.Date"

@@ -266,9 +266,18 @@
             navigator.geolocation.getCurrentPosition(
                 position => resolve({
                     latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
+                    longitude: position.coords.longitude,
+                    accuracyMeters: position.coords.accuracy,
+                    capturedAtUtc: new Date(position.timestamp).toISOString()
                 }),
-                () => reject(new Error('Não foi possível obter a localização atual.')),
+                error => {
+                    const message = error.code === error.PERMISSION_DENIED
+                        ? 'Permita o acesso à localização para registrar o ponto.'
+                        : error.code === error.POSITION_UNAVAILABLE
+                            ? 'A localização não está disponível neste momento. Tente novamente.'
+                            : 'A obtenção da localização expirou. Tente novamente em um local com melhor sinal.';
+                    reject(new Error(message));
+                },
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         });
     </script>

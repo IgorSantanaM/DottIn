@@ -18,7 +18,7 @@
     {
         <div class="offline-banner">
             <MudIcon Icon="@Icons.Material.Filled.WifiOff" Size="Size.Small" />
-            <span>Modo offline - dados serão sincronizados quando conectado</span>
+            <span>Sem conexão — conecte-se à internet para registrar o ponto</span>
         </div>
     }
 
@@ -103,13 +103,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _isOnline = ConnectivityService?.IsConnected ?? true;
-
-        if (ConnectivityService != null)
-            ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
-
-        if (AppState != null)
-            AppState.OnChange += StateHasChanged;
+        _isOnline = ConnectivityService.IsConnected;
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+        AppState.OnChange += StateHasChanged;
 
         var darkMode = await SecureStorage.GetAsync("dark_mode");
         AppState.SetDarkMode(darkMode == "true");
@@ -123,10 +119,7 @@
 
     public void Dispose()
     {
-        if (ConnectivityService != null)
-            ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
-        
-        if (AppState != null)
-            AppState.OnChange -= StateHasChanged;
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+        AppState.OnChange -= StateHasChanged;
     }
 }

@@ -10,6 +10,7 @@ namespace DottIn.Infra.Data.Repositories
             => context.TimeKeepings
                 .AsNoTracking()
                 .Include(tk => tk.Entries)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(tk => tk.Id == id, token);
 
         public Task<bool> ExistsForEmployeeOnDateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default)
@@ -21,6 +22,7 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .Where(tk => tk.BranchId == branchId &&
                                  !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
                     .ToListAsync(token);
@@ -28,6 +30,7 @@ namespace DottIn.Infra.Data.Repositories
         public async Task<TimeKeeping?> GetActiveByEmployeeAsync(Guid employeeId, CancellationToken token = default)
             => await context.TimeKeepings
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .Where(tk => tk.EmployeeId == employeeId &&
                                  !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
                     .OrderByDescending(tk => tk.CreatedAt)
@@ -37,6 +40,7 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .Where(tk => tk.BranchId == branchId && tk.WorkDate == workDate)
                     .ToListAsync(token);
 
@@ -44,14 +48,41 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .Where(tk => tk.BranchId == branchId && tk.WorkDate >= startDate && (endDate == null || tk.WorkDate <= endDate))
                     .OrderBy(tk => tk.WorkDate)
                     .ToListAsync(token);
+
+        public async Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByBranchAndPeriodAsync(
+            Guid branchId,
+            DateOnly startDate,
+            DateOnly endDate,
+            int pageNumber,
+            int pageSize,
+            CancellationToken token = default)
+        {
+            var query = context.TimeKeepings
+                .AsNoTracking()
+                .Where(tk => tk.BranchId == branchId && tk.WorkDate >= startDate && tk.WorkDate <= endDate);
+
+            var totalCount = await query.CountAsync(token);
+            var items = await query
+                .OrderByDescending(tk => tk.WorkDate)
+                .ThenBy(tk => tk.EmployeeId)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Include(tk => tk.Entries)
+                .AsSplitQuery()
+                .ToListAsync(token);
+
+            return (items, totalCount);
+        }
 
         public async Task<IEnumerable<TimeKeeping>> GetByEmployeeAndPeriodAsync(Guid employeeId, DateOnly startDate, DateOnly? endDate, CancellationToken token = default)
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .Where(tk => tk.EmployeeId == employeeId && tk.WorkDate >= startDate &&
                                  (endDate == null || tk.WorkDate <= endDate))
                     .OrderBy(tk => tk.WorkDate)
@@ -61,11 +92,13 @@ namespace DottIn.Infra.Data.Repositories
             => await context.TimeKeepings
                     .AsNoTracking()
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .FirstOrDefaultAsync(tk => tk.EmployeeId == employeeId && tk.WorkDate == workDate, token);
 
         public async Task<TimeKeeping?> GetTodayByEmployeeForUpdateAsync(Guid employeeId, DateOnly workDate, CancellationToken token = default)
             => await context.TimeKeepings
                     .Include(tk => tk.Entries)
+                    .AsSplitQuery()
                     .FirstOrDefaultAsync(tk => tk.EmployeeId == employeeId && tk.WorkDate == workDate, token);
     }
 }

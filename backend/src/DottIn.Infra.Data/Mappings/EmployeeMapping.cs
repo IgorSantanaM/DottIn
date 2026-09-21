@@ -91,8 +91,9 @@ namespace DottIn.Infra.Data.Mappings
 
             builder.HasIndex(e => e.BranchId);
 
-            builder.HasIndex(e => e.CPF.Value)
-                .IsUnique();
+            // EF Core 10 cannot model indexes over scalar properties nested in complex types.
+            // The unique IX_Employees_CPF index is maintained by migration 20260821113921.
+
 
             builder.HasIndex(e => new { e.BranchId, e.IsActive });
 
