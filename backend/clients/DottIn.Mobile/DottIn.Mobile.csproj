@@ -15,6 +15,9 @@
   <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
   <ApplicationVersion>1</ApplicationVersion>
   <DottInApiBaseUrl Condition="'$(DottInApiBaseUrl)' == ''"></DottInApiBaseUrl>
+  <DottInTermsUrl Condition="'$(DottInTermsUrl)' == ''"></DottInTermsUrl>
+  <DottInPrivacyUrl Condition="'$(DottInPrivacyUrl)' == ''"></DottInPrivacyUrl>
+  <DottInSupportUrl Condition="'$(DottInSupportUrl)' == ''"></DottInSupportUrl>
 
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
   <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
@@ -37,6 +40,18 @@
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>DottInApiBaseUrl</_Parameter1>
       <_Parameter2>$(DottInApiBaseUrl)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DottInTermsUrl</_Parameter1>
+      <_Parameter2>$(DottInTermsUrl)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DottInPrivacyUrl</_Parameter1>
+      <_Parameter2>$(DottInPrivacyUrl)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DottInSupportUrl</_Parameter1>
+      <_Parameter2>$(DottInSupportUrl)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
 

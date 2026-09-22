@@ -63,6 +63,12 @@ else
 
         <MudMainContent Class="pa-6 dottin-main-content"
                         Style="min-height: 100vh; padding-top: calc(var(--mud-appbar-height) + 24px); background: var(--mud-palette-background);">
+            @if (!State.SessionPersistenceAvailable)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4" role="status">
+                    O navegador bloqueou o armazenamento local. A sessão atual funciona, mas será necessário entrar novamente após recarregar a página.
+                </MudAlert>
+            }
             @Body
         </MudMainContent>
     </MudLayout>

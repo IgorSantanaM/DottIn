@@ -16,12 +16,14 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         bool IsOwner,
         bool IsHeadquarters,
         SubscriptionInfoDto? Subscription,
-        string CompanyCode);
+        string CompanyCode,
+        string Role = "Employee");
 
     public record RefreshTokenResponse(
         string AccessToken,
         string RefreshToken,
-        DateTime ExpiresAt);
+        DateTime ExpiresAt,
+        string Role = "Employee");
 
     public record EmployeeInfoDto(
         Guid Id,

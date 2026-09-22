@@ -7,6 +7,10 @@ public static class MobileRoutePolicy
         || path.StartsWith("/onboarding/", StringComparison.OrdinalIgnoreCase);
     public static string? Redirect(string path, bool authenticated, bool owner, Guid branchId)
     {
+#if !DEBUG
+        if (path.Equals("/diagnostics", StringComparison.OrdinalIgnoreCase))
+            return authenticated ? "/dashboard" : "/login";
+#endif
         if (IsPublic(path)) return null;
         if (!authenticated) return "/login";
         if (IsManagement(path) && !owner) return "/dashboard";

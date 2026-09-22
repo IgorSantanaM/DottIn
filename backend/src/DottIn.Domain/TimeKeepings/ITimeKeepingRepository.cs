@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Core.Data;
+using DottIn.Domain.Core.Data;
 
 namespace DottIn.Domain.TimeKeepings
 {
@@ -22,6 +22,15 @@ namespace DottIn.Domain.TimeKeepings
 
         Task<IEnumerable<TimeKeeping>> GetByBranchAndPeriodAsync(Guid branchId, DateOnly startDate, DateOnly? endDate, CancellationToken token = default);
 
+        Task<IReadOnlyList<TimeKeeping>> GetByBranchAndDatesAsync(Guid branchId, IReadOnlyCollection<DateOnly> workDates, CancellationToken token = default);
+
+        Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByEmployeeAndPeriodAsync(
+            Guid employeeId,
+            DateOnly startDate,
+            DateOnly endDate,
+            int pageNumber,
+            int pageSize,
+            CancellationToken token = default);
         Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByBranchAndPeriodAsync(
             Guid branchId,
             DateOnly startDate,

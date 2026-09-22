@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.TimeKeepings;
+using DottIn.Domain.TimeKeepings;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,6 +53,47 @@ namespace DottIn.Infra.Data.Repositories
                     .OrderBy(tk => tk.WorkDate)
                     .ToListAsync(token);
 
+        public async Task<IReadOnlyList<TimeKeeping>> GetByBranchAndDatesAsync(
+            Guid branchId,
+            IReadOnlyCollection<DateOnly> workDates,
+            CancellationToken token = default)
+        {
+            var dates = workDates.Distinct().ToArray();
+            if (dates.Length == 0)
+                return [];
+
+            return await context.TimeKeepings
+                .AsNoTracking()
+                .Where(tk => tk.BranchId == branchId && dates.Contains(tk.WorkDate))
+                .Include(tk => tk.Entries)
+                .AsSplitQuery()
+                .OrderByDescending(tk => tk.WorkDate)
+                .ToListAsync(token);
+        }
+        public async Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByEmployeeAndPeriodAsync(
+            Guid employeeId,
+            DateOnly startDate,
+            DateOnly endDate,
+            int pageNumber,
+            int pageSize,
+            CancellationToken token = default)
+        {
+            var query = context.TimeKeepings
+                .AsNoTracking()
+                .Where(tk => tk.EmployeeId == employeeId && tk.WorkDate >= startDate && tk.WorkDate <= endDate);
+
+            var totalCount = await query.CountAsync(token);
+            var items = await query
+                .OrderByDescending(tk => tk.WorkDate)
+                .ThenByDescending(tk => tk.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Include(tk => tk.Entries)
+                .AsSplitQuery()
+                .ToListAsync(token);
+
+            return (items, totalCount);
+        }
         public async Task<(IReadOnlyList<TimeKeeping> Items, int TotalCount)> GetPagedByBranchAndPeriodAsync(
             Guid branchId,
             DateOnly startDate,

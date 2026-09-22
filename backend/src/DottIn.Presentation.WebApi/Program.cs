@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using System.Text.Json.Serialization;
 using DottIn.Presentation.WebApi.Security;
+using DottIn.Presentation.WebApi.Health;
+using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,7 +36,10 @@ builder.Services.AddCors(opt =>
 });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddDataProtection();
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("DottIn");
+var keyDirectory = builder.Configuration["DataProtection:KeysDirectory"];
+if (!string.IsNullOrWhiteSpace(keyDirectory))
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 builder.Services.AddScoped<CurrentUserContext>();
 builder.Services.AddScoped<TenantAccessService>();
 builder.Services.AddScoped<TenantAuthorizationFilter>();
@@ -126,7 +131,9 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }))
     .ExcludeFromDescription();
 
 app.MapGet("/health/ready", async (DottInContext dbContext, CancellationToken cancellationToken) =>
-    await dbContext.Database.CanConnectAsync(cancellationToken)
+    await DatabaseReadinessProbe.IsReadyAsync(
+        token => dbContext.Database.CanConnectAsync(token),
+        cancellationToken)
         ? Results.Ok(new { status = "ready" })
         : Results.Json(new { status = "unavailable", dependency = "database" }, statusCode: StatusCodes.Status503ServiceUnavailable))
     .AllowAnonymous()

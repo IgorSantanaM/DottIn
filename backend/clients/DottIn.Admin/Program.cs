@@ -12,7 +12,9 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.
 
 builder.Services.AddScoped<AdminState>();
 builder.Services.AddScoped<SessionStorageService>();
+builder.Services.AddScoped<DashboardSessionCache>();
 builder.Services.AddScoped<BrowserGeolocationService>();
+builder.Services.AddScoped<BrowserDownloadService>();
 builder.Services.AddScoped(sp => new AuthService(
     new HttpClient { BaseAddress = new Uri(apiBaseUrl) },
     sp.GetRequiredService<AdminState>()));

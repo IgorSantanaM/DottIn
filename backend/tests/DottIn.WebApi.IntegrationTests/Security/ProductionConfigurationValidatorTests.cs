@@ -31,6 +31,7 @@ public sealed class ProductionConfigurationValidatorTests
         Assert.Contains("JwtSettings:SecretKey", exception.Message);
         Assert.Contains("Stripe:WebhookSecret", exception.Message);
         Assert.Contains("AllowedOrigins", exception.Message);
+        Assert.Contains("DataProtection:KeysDirectory", exception.Message);
     }
 
     [Fact]
@@ -44,6 +45,7 @@ public sealed class ProductionConfigurationValidatorTests
             ["AzureBlob:ContainerName"] = "employee-files",
             ["JwtSettings:SecretKey"] = "a-production-secret-with-more-than-32-characters",
             ["AllowedOrigins:0"] = "https://app.dottin.com.br",
+            ["DataProtection:KeysDirectory"] = Path.GetTempPath(),
             ["Stripe:SecretKey"] = "sk_live_example",
             ["Stripe:PublishableKey"] = "pk_live_example",
             ["Stripe:WebhookSecret"] = "whsec_example",

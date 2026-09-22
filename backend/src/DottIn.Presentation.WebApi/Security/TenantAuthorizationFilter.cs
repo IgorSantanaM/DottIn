@@ -20,6 +20,11 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
         var timeKeepingId = ReadRouteGuid(http, "timeKeepingId");
         var ownerId = ReadRouteGuid(http, "ownerId");
 
+        if (path.Contains("/timekeeping/employee/", StringComparison.OrdinalIgnoreCase) &&
+            path.EndsWith("/history/paged", StringComparison.OrdinalIgnoreCase) &&
+            employeeId != currentUser.EmployeeId && !currentUser.IsAdministrator)
+            return Results.Forbid();
+
         if (ownerId.HasValue && ownerId.Value != currentUser.TenantId)
             return Results.Forbid();
 
@@ -45,7 +50,8 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
 
         if (branchId.HasValue)
         {
-            var requireAdmin = mutation && IsBranchAdministrationPath(path);
+            var requireAdmin = mutation && IsBranchAdministrationPath(path) ||
+                               path.Contains("/timekeeping/branch/", StringComparison.OrdinalIgnoreCase);
             var requireManager = RequiresManager(path, mutation, isClockAction);
             if (!await access.CanAccessBranchAsync(branchId.Value, requireManager, requireAdmin, http.RequestAborted))
                 return Results.Forbid();
@@ -71,6 +77,7 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
                path.Contains("/dominio-mappings", StringComparison.OrdinalIgnoreCase) ||
                path.Contains("/exports/", StringComparison.OrdinalIgnoreCase) ||
                path.Contains("/timekeeping/branch/", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("/holiday-calendars/work-records/", StringComparison.OrdinalIgnoreCase) ||
                IsEmployeeDirectoryPath(path);
     }
 

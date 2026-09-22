@@ -3,6 +3,7 @@
 @inject AdminApiClient Api
 @inject AdminState State
 @inject BranchClockService BranchClock
+@inject DashboardSessionCache DashboardCache
 @inject BrowserGeolocationService BrowserGeolocation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -21,19 +22,33 @@
             <MudText Typo="Typo.h5" Style="font-weight: 700;">Olá, @(State.User?.FirstName ?? "Usuário")!</MudText>
         }
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            @BranchNow.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
+            @if (_clockReady)
+            {
+                @BranchNow.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))
+            }
+            else
+            {
+                <MudSkeleton Width="230px" Height="20px" />
+            }
         </MudText>
     </div>
     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="RefreshDataAsync" Disabled="_loading" Size="Size.Small">
-        Atualizar
+               OnClick="RefreshDataAsync" Disabled="@(_loading || _refreshingBackground)" Size="Size.Small">
+        @(_refreshingBackground ? "Atualizando..." : "Atualizar")
     </MudButton>
 </div>
 
 @* Real-time Clock *@
 <div style="text-align: center;" class="mb-4">
-    <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@BranchNow.ToString("HH:mm:ss")</MudText>
+    @if (_clockReady)
+    {
+        <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@BranchNow.ToString("HH:mm:ss")</MudText>
+    }
+    else
+    {
+        <MudSkeleton Width="220px" Height="64px" Class="mx-auto" />
+    }
 </div>
 
 @if (State.IsOwner)
@@ -289,11 +304,14 @@ else
     private PersonalTimeKeepingRecord? _myRecord;
     private PersonalStatus _personalStatus = PersonalStatus.NotClocked;
     private bool _loading = true;
+    private bool _refreshingBackground;
+    private bool _clockReady;
     private bool _isProcessing;
     private System.Timers.Timer? _timer;
     private string _lastKioskMessage = "";
     private Severity _lastKioskSeverity = Severity.Success;
     private bool _loaded;
+    private bool _initialLoadCompleted;
 
     protected override async Task OnInitializedAsync()
     {
@@ -303,7 +321,6 @@ else
         if (State.IsAuthenticated && State.BranchId != Guid.Empty)
         {
             _loaded = true;
-            await SynchronizeBranchClockAsync();
             await LoadDataAsync();
             return;
         }
@@ -318,7 +335,6 @@ else
 
         _loaded = true;
         State.OnChange -= HandleStateChange;
-        await SynchronizeBranchClockAsync();
         await InvokeAsync(LoadDataAsync);
     }
 
@@ -328,29 +344,29 @@ else
         _timer?.Dispose();
     }
 
-    private async Task SynchronizeBranchClockAsync()
-    {
-        try
-        {
-            await BranchClock.SynchronizeAsync(State.BranchId);
-        }
-        catch (HttpRequestException)
-        {
-            // The dashboard remains usable while a transient connection error is resolved.
-        }
-        catch (ApiException)
-        {
-            // The time is synchronized again on the next dashboard load.
-        }
-    }
-
     private Task LoadDataAsync() => LoadDataCoreAsync(forceRefresh: false);
 
     private Task RefreshDataAsync() => LoadDataCoreAsync(forceRefresh: true);
 
     private async Task LoadDataCoreAsync(bool forceRefresh)
     {
-        var hadData = _todayRecords.Count > 0 || _myRecord is not null;
+        if (!_initialLoadCompleted && !forceRefresh)
+        {
+            _initialLoadCompleted = true;
+            var snapshot = await DashboardCache.GetAsync(State.EmployeeId, State.BranchId);
+            if (snapshot is not null)
+            {
+                ApplySummary(snapshot.Summary);
+                _refreshingBackground = DateTime.UtcNow - snapshot.SavedAtUtc > DashboardSessionCache.FreshFor;
+                _loading = false;
+                await InvokeAsync(StateHasChanged);
+                if (DateTime.UtcNow - snapshot.SavedAtUtc <= DashboardSessionCache.FreshFor)
+                    return;
+            }
+        }
+
+        var hadData = _clockReady;
+        _refreshingBackground = hadData;
         if (!hadData)
             _loading = true;
 
@@ -361,16 +377,8 @@ else
                 BranchClock.Today,
                 forceRefresh);
 
-            _activeEmployeeCount = summary.ActiveEmployees;
-            _todayRecords = summary.TodayRecords.ToList();
-            _myRecord = summary.PersonalRecord;
-            _personalStatus = _myRecord?.Status switch
-            {
-                "Working" => PersonalStatus.Working,
-                "OnBreak" => PersonalStatus.OnBreak,
-                "Finished" => PersonalStatus.Finished,
-                _ => PersonalStatus.NotClocked
-            };
+            ApplySummary(summary);
+            await DashboardCache.SetAsync(State.EmployeeId, State.BranchId, summary);
         }
         catch (Exception ex)
         {
@@ -379,7 +387,24 @@ else
         finally
         {
             _loading = false;
+            _refreshingBackground = false;
         }
+    }
+
+    private void ApplySummary(DashboardSummary summary)
+    {
+        BranchClock.Apply(summary);
+        _clockReady = true;
+        _activeEmployeeCount = summary.ActiveEmployees;
+        _todayRecords = summary.TodayRecords.ToList();
+        _myRecord = summary.PersonalRecord;
+        _personalStatus = _myRecord?.Status switch
+        {
+            "Working" => PersonalStatus.Working,
+            "OnBreak" => PersonalStatus.OnBreak,
+            "Finished" => PersonalStatus.Finished,
+            _ => PersonalStatus.NotClocked
+        };
     }
 
     #region Kiosk Mode (Owner)

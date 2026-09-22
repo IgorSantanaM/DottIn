@@ -9,10 +9,11 @@ public record ClockInResponse(Guid TimeKeepingId);
 
 public record LoginResponse(
     string AccessToken, string RefreshToken, DateTime ExpiresAt,
-    EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters, string CompanyCode);
+    EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters, string CompanyCode,
+    string? Role = null);
 
 public record RefreshTokenRequest(string? RefreshToken);
-public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
+public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt, string? Role = null);
 
 public record EmployeeInfo(Guid Id, string Name, string Cpf, string? ImageUrl)
 {
@@ -99,6 +100,7 @@ public record HolidayCalendarDetails(
     DateTime CreatedAt, DateTime? UpdatedAt, IEnumerable<HolidayItem> Holidays);
 
 public record HolidayItem(DateOnly Date, string Name, string Type, bool IsOptional);
+public record HolidayWorkRecord(string EmployeeName, DateOnly WorkDate, string HolidayName, TimeSpan TotalWorked);
 
 public record CreateHolidayCalendarRequest(string Name, string CountryCode, int Year, string? RegionCode, string? Description);
 public record AddHolidaysRequest(IEnumerable<HolidayItemRequest> Holidays);

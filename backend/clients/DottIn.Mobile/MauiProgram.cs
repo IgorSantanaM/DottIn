@@ -42,9 +42,16 @@ public static class MauiProgram
             config.SnackbarConfiguration.VisibleStateDuration = 3000;
         });
 
-        var configuredApiBaseUrl = typeof(MauiProgram).Assembly
-            .GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == "DottInApiBaseUrl")?.Value;
+        var metadata = typeof(MauiProgram).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .ToArray();
+        string? GetMetadata(string key) => metadata.FirstOrDefault(attribute => attribute.Key == key)?.Value;
+
+        var configuredApiBaseUrl = GetMetadata("DottInApiBaseUrl");
+        builder.Services.AddSingleton(new ProfileExternalLinks(
+            GetMetadata("DottInTermsUrl"),
+            GetMetadata("DottInPrivacyUrl"),
+            GetMetadata("DottInSupportUrl")));
 
 #if DEBUG
         var apiBaseUrl = string.IsNullOrWhiteSpace(configuredApiBaseUrl)

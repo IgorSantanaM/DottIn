@@ -1,7 +1,7 @@
 @inject AdminApiClient Api
 @inject AdminState State
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject BrowserDownloadService Download
 
 <MudDialog>
     <TitleContent>
@@ -106,7 +106,7 @@
             }
 
             var filename = $"dominio_{_selectedMonth.Value:yyyyMM}.txt";
-            await DownloadFile(bytes, filename, "text/plain");
+            await Download.DownloadAsync(bytes, filename, "text/plain;charset=utf-8");
             Snackbar.Add("Arquivo exportado!", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
@@ -115,19 +115,6 @@
             Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
         }
         _exporting = false;
-    }
-
-    private async Task DownloadFile(byte[] bytes, string filename, string contentType)
-    {
-        var base64 = Convert.ToBase64String(bytes);
-        await JS.InvokeVoidAsync("eval", $@"
-            var link = document.createElement('a');
-            link.href = 'data:{contentType};base64,{base64}';
-            link.download = '{filename}';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        ");
     }
 
     private void Cancel() => MudDialog.Cancel();

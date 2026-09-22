@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Exceptions;
+using DottIn.Application.Exceptions;
 using DottIn.Application.Features.HolidayCalendars.DTOs;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Exceptions;
@@ -21,7 +21,7 @@ namespace DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalenda
 
             var holidayCalendar = await holidayCalendarRepository.GetByIdAsync(request.HolidayCalendarId, cancellationToken);
 
-            if(holidayCalendar is null)
+            if (holidayCalendar is null || holidayCalendar.BranchId != request.BranchId)
                 throw NotFoundException.ForEntity(nameof(HolidayCalendar), request.HolidayCalendarId);
 
             return new HolidayCalendarDetailsDto(

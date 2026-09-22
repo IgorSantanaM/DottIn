@@ -1,5 +1,6 @@
 @page "/welcome"
 @inject AdminState State
+@inject AdminApiClient Api
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -273,6 +274,7 @@
 
     private async Task HandleLogout()
     {
+        await Api.LogoutAsync();
         await State.LogoutAsync();
         Navigation.NavigateTo("/", replace: true);
     }

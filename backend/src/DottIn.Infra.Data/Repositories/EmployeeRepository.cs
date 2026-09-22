@@ -19,6 +19,21 @@ namespace DottIn.Infra.Data.Repositories
                 .Where(e => e.BranchId == branchId)
                 .ToListAsync(token);
 
+        public async Task<IReadOnlyDictionary<Guid, string>> GetNamesByIdsAsync(
+            Guid branchId,
+            IReadOnlyCollection<Guid> employeeIds,
+            CancellationToken token = default)
+        {
+            var ids = employeeIds.Distinct().ToArray();
+            if (ids.Length == 0)
+                return new Dictionary<Guid, string>();
+
+            return await context.Employees
+                .AsNoTracking()
+                .Where(employee => employee.BranchId == branchId && ids.Contains(employee.Id))
+                .Select(employee => new { employee.Id, employee.Name })
+                .ToDictionaryAsync(employee => employee.Id, employee => employee.Name, token);
+        }
         public async Task<(IReadOnlyList<Employee> Items, int TotalCount)> GetPagedByBranchIdAsync(
             Guid branchId,
             int pageNumber,

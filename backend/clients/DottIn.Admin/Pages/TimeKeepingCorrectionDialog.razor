@@ -1,5 +1,6 @@
 @using DottIn.Admin.Models
 @inject AdminApiClient Api
+@inject AdminState State
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -107,6 +108,7 @@
                 ? null
                 : DateTime.Parse(_originalTimestamp, null, System.Globalization.DateTimeStyles.RoundtripKind);
             await Api.CreateTimeKeepingAdjustmentAsync(
+                State.BranchId,
                 Record.Id,
                 new CreateTimeKeepingAdjustmentRequest(_entryType, original, proposed, _reason.Trim()));
             Snackbar.Add("Correção enviada para aprovação.", Severity.Success);

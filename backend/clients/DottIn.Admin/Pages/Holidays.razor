@@ -2,6 +2,7 @@
 @attribute [OperationalAccessRequired]
 @inject AdminApiClient Api
 @inject AdminState State
+@inject BranchClockService BranchClock
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -190,14 +191,33 @@ else
 
 @code {
     private int _selectedYear = DateTime.Now.Year;
-    private readonly int[] _yearOptions = Enumerable.Range(DateTime.Now.Year - 1, 4).ToArray();
+    private int[] _yearOptions = [];
+    private long _loadVersion;
     private bool _loading = true;
     private List<HolidayCalendarSummary> _calendars = [];
     private HolidayCalendarDetails? _selectedCalendar;
     private Guid? _expandedCalendarId;
     private List<HolidayWorkRecord> _holidayRecords = [];
 
-    protected override async Task OnInitializedAsync() => await LoadDataAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await BranchClock.SynchronizeAsync(State.BranchId);
+            _selectedYear = BranchClock.Today.Year;
+        }
+        catch (HttpRequestException)
+        {
+            _selectedYear = DateTime.Now.Year;
+        }
+        catch (ApiException)
+        {
+            _selectedYear = DateTime.Now.Year;
+        }
+
+        _yearOptions = Enumerable.Range(_selectedYear - 1, 4).ToArray();
+        await LoadDataAsync();
+    }
 
     private async Task OnYearChanged(int year)
     {
@@ -207,6 +227,8 @@ else
 
     private async Task LoadDataAsync()
     {
+        var version = ++_loadVersion;
+        var year = _selectedYear;
         _loading = true;
         _expandedCalendarId = null;
         _selectedCalendar = null;
@@ -214,17 +236,35 @@ else
         try
         {
             var all = await Api.GetHolidayCalendarsAsync(State.BranchId);
-            _calendars = all.Where(c => c.Year == _selectedYear).ToList();
+            if (version != _loadVersion) return;
+            _calendars = all.Where(calendar => calendar.Year == year).ToList();
 
-            if (State.IsOwner && _calendars.Any())
-                await LoadHolidayWorkRecords();
+            if (State.IsOwner && _calendars.Count > 0)
+            {
+                try
+                {
+                    var records = await Api.GetHolidayWorkRecordsAsync(State.BranchId, year);
+                    if (version != _loadVersion) return;
+                    _holidayRecords = records;
+                }
+                catch (Exception ex)
+                {
+                    if (version == _loadVersion)
+                        Snackbar.Add($"Não foi possível carregar o trabalho em feriados: {ex.Message}", Severity.Warning);
+                }
+            }
         }
         catch (Exception ex)
         {
+            if (version != _loadVersion) return;
             _calendars = [];
             Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
         }
-        _loading = false;
+        finally
+        {
+            if (version == _loadVersion)
+                _loading = false;
+        }
     }
 
     private async Task LoadCalendarDetails(Guid calendarId)
@@ -251,33 +291,6 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Erro ao carregar feriados: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task LoadHolidayWorkRecords()
-    {
-        try
-        {
-            var yearStart = new DateOnly(_selectedYear, 1, 1);
-            var yearEnd = new DateOnly(_selectedYear, 12, 31);
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            var end = yearEnd > today ? today : yearEnd;
-
-            var holidays = await Api.GetHolidaysInRangeAsync(State.BranchId, yearStart, end);
-            if (!holidays.Any()) { _holidayRecords = []; return; }
-
-            var records = await Api.GetBranchHistoryAsync(State.BranchId, yearStart, end);
-
-            var holidayDates = holidays.ToDictionary(h => h.Date, h => h.Name);
-            _holidayRecords = records
-                .Where(r => holidayDates.ContainsKey(r.WorkDate))
-                .Select(r => new HolidayWorkRecord(r.EmployeeName, r.WorkDate, holidayDates[r.WorkDate], r.TotalWorked))
-                .OrderByDescending(r => r.WorkDate)
-                .ToList();
-        }
-        catch
-        {
-            _holidayRecords = [];
         }
     }
 
@@ -357,6 +370,4 @@ else
         "Municipal" => "Municipal", "Company" => "Empresa",
         "Religious" => "Religioso", _ => t
     };
-
-    private record HolidayWorkRecord(string EmployeeName, DateOnly WorkDate, string HolidayName, TimeSpan TotalWorked);
 }
