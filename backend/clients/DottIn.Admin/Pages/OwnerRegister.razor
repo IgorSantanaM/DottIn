@@ -355,7 +355,8 @@
                         Guid.Empty,
                         IsOwner: true,
                         IsHeadquarters: false,
-                        CompanyCode: string.Empty);
+                        CompanyCode: string.Empty,
+                        Role: "Owner");
 
                     await State.SetAuthenticatedAsync(loginResponse);
                     Http.DefaultRequestHeaders.Authorization =

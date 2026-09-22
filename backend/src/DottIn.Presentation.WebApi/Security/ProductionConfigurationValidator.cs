@@ -16,6 +16,10 @@ public static class ProductionConfigurationValidator
         Require(configuration, "Stripe:PublishableKey", errors);
         Require(configuration, "Stripe:WebhookSecret", errors);
 
+        var keyDirectory = configuration["DataProtection:KeysDirectory"];
+        if (string.IsNullOrWhiteSpace(keyDirectory) || !Path.IsPathFullyQualified(keyDirectory))
+            errors.Add("DataProtection:KeysDirectory deve apontar para um diretório persistente com caminho absoluto.");
+
         var jwtSecret = configuration["JwtSettings:SecretKey"];
         if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32 ||
             jwtSecret.Contains("NeedsToBeReplaced", StringComparison.OrdinalIgnoreCase))

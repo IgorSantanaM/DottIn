@@ -1,10 +1,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.WebAssembly.Http;
 using DottIn.Admin.Models;
 
 namespace DottIn.Admin.Services;
 
-public class AdminApiClient(HttpClient http, AdminQueryCache cache)
+public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSessionCache? dashboardCache = null)
 {
     public Task<List<BranchSummary>> GetBranchesByOwnerAsync(Guid ownerId, bool forceRefresh = false)
         => cache.GetOrCreateAsync(
@@ -101,6 +102,28 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
             forceRefresh,
             cancellationToken);
 
+    public Task<PagedResponse<PersonalTimeKeepingRecord>> GetPagedEmployeeHistoryAsync(
+        Guid employeeId,
+        DateOnly start,
+        DateOnly? end,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default,
+        bool forceRefresh = false)
+        => cache.GetOrCreateAsync(
+            $"employee:{employeeId}:history:paged:{start:yyyyMMdd}:{end:yyyyMMdd}:{pageNumber}:{pageSize}",
+            TimeSpan.FromSeconds(15),
+            async () =>
+            {
+                var url = $"/api/timekeeping/employee/{employeeId}/history/paged?startDate={start:yyyy-MM-dd}" +
+                          $"&pageNumber={pageNumber}&pageSize={pageSize}";
+                if (end.HasValue)
+                    url += $"&endDate={end:yyyy-MM-dd}";
+                return await http.GetFromJsonAsync<PagedResponse<PersonalTimeKeepingRecord>>(url, cancellationToken)
+                       ?? new PagedResponse<PersonalTimeKeepingRecord>([], 0, 0);
+            },
+            forceRefresh,
+            cancellationToken);
     public Task<List<TimeKeepingRecord>> GetEmployeeHistoryAsync(
         Guid employeeId,
         DateOnly start,
@@ -140,31 +163,35 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
     {
         var response = await http.PostAsJsonAsync("/api/timekeeping/clock-in", request);
         await EnsureSuccessOrThrowAsync(response);
-        InvalidateTimeKeeping(request.BranchId, request.EmployeeId);
+        await InvalidateTimeKeepingAsync(request.BranchId, request.EmployeeId);
     }
 
     public async Task ClockOutAsync(ClockOutRequest request)
     {
         var response = await http.PostAsJsonAsync("/api/timekeeping/clock-out", request);
         await EnsureSuccessOrThrowAsync(response);
-        InvalidateTimeKeeping(request.BranchId, request.EmployeeId);
+        await InvalidateTimeKeepingAsync(request.BranchId, request.EmployeeId);
     }
 
     public async Task BreakAsync(BreakRequest request)
     {
         var response = await http.PostAsJsonAsync("/api/timekeeping/break", request);
         await EnsureSuccessOrThrowAsync(response);
-        InvalidateTimeKeeping(request.BranchId, request.EmployeeId);
+        await InvalidateTimeKeepingAsync(request.BranchId, request.EmployeeId);
     }
 
     public async Task<TimeKeepingAdjustmentItem> CreateTimeKeepingAdjustmentAsync(
+        Guid branchId,
         Guid timeKeepingId,
         CreateTimeKeepingAdjustmentRequest request)
     {
         var response = await http.PostAsJsonAsync($"/api/timekeeping/{timeKeepingId}/adjustments", request);
         await EnsureSuccessOrThrowAsync(response);
-        return await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
+        var item = await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
             ?? throw new ApiException("Não foi possível criar a solicitação de correção.");
+        cache.Invalidate($"branch:{branchId}:adjustments:");
+        cache.Invalidate($"timekeeping:{timeKeepingId}:");
+        return item;
     }
 
     public Task<List<TimeKeepingAdjustmentItem>> GetTimeKeepingAdjustmentsAsync(
@@ -196,8 +223,14 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
         cache.Invalidate($"branch:{branchId}:adjustments:");
         cache.Invalidate($"branch:{branchId}:history:");
         cache.Invalidate($"branch:{branchId}:dashboard");
-        return await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
+        if (dashboardCache is not null)
+            await dashboardCache.ClearAsync();
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
+        var item = await response.Content.ReadFromJsonAsync<TimeKeepingAdjustmentItem>()
             ?? throw new ApiException("Não foi possível analisar a solicitação.");
+        cache.Invalidate($"employee:{item.EmployeeId}:history:");
+        cache.Invalidate($"timekeeping:{item.TimeKeepingId}:");
+        return item;
     }
 
     // Holiday Calendar
@@ -232,12 +265,24 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
                 $"/api/branches/{branchId}/holiday-calendars/holidays/range?startDate={start:yyyy-MM-dd}&endDate={end:yyyy-MM-dd}") ?? [],
             forceRefresh);
 
+    public Task<List<HolidayWorkRecord>> GetHolidayWorkRecordsAsync(
+        Guid branchId,
+        int year,
+        bool forceRefresh = false)
+        => cache.GetOrCreateAsync(
+            $"branch:{branchId}:holiday-work:{year}",
+            TimeSpan.FromSeconds(30),
+            async () => await http.GetFromJsonAsync<List<HolidayWorkRecord>>(
+                $"/api/branches/{branchId}/holiday-calendars/work-records/{year}") ?? [],
+            forceRefresh);
+
     public async Task<Guid> CreateHolidayCalendarAsync(Guid branchId, CreateHolidayCalendarRequest request)
     {
         var response = await http.PostAsJsonAsync($"/api/branches/{branchId}/holiday-calendars", request);
         await EnsureSuccessOrThrowAsync(response);
         cache.Invalidate($"branch:{branchId}:calendars");
         cache.Invalidate($"branch:{branchId}:holidays:");
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
         return await response.Content.ReadFromJsonAsync<Guid>();
     }
 
@@ -247,6 +292,7 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
         await EnsureSuccessOrThrowAsync(response);
         cache.Invalidate($"branch:{branchId}:calendars");
         cache.Invalidate($"branch:{branchId}:holidays:");
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
     }
 
     public async Task RemoveHolidayAsync(Guid branchId, Guid calendarId, DateOnly date)
@@ -255,22 +301,23 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
         await EnsureSuccessOrThrowAsync(response);
         cache.Invalidate($"branch:{branchId}:calendars");
         cache.Invalidate($"branch:{branchId}:holidays:");
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
     }
 
     // Domínio Mappings
-    public async Task<List<DominioMappingDto>> GetDominioMappingsAsync(Guid branchId)
-    {
-        var response = await http.GetAsync($"/api/branches/{branchId}/dominio-mappings");
-        if (!response.IsSuccessStatusCode) return [];
-        return await response.Content.ReadFromJsonAsync<List<DominioMappingDto>>() ?? [];
-    }
+    public Task<List<DominioMappingDto>> GetDominioMappingsAsync(Guid branchId)
+        => cache.GetOrCreateAsync(
+            $"branch:{branchId}:dominio-mappings",
+            TimeSpan.FromSeconds(30),
+            async () => await http.GetFromJsonAsync<List<DominioMappingDto>>(
+                $"/api/branches/{branchId}/dominio-mappings") ?? []);
 
     public async Task SaveDominioMappingsAsync(Guid branchId, IEnumerable<SaveDominioMappingRequest> mappings)
     {
         var response = await http.PutAsJsonAsync($"/api/branches/{branchId}/dominio-mappings", mappings);
         await EnsureSuccessOrThrowAsync(response);
+        cache.Invalidate($"branch:{branchId}:dominio-mappings");
     }
-
     public async Task<byte[]> ExportDominioAsync(
         Guid branchId,
         string month,
@@ -299,24 +346,28 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
     }
 
     // Billing
-    public async Task<List<SubscriptionPlan>> GetSubscriptionPlansAsync(CancellationToken cancellationToken = default)
-    {
-        var result = await http.GetFromJsonAsync<List<SubscriptionPlan>>(
-            "/api/billing/plans",
-            cancellationToken);
-        return result ?? [];
-    }
+    public Task<List<SubscriptionPlan>> GetSubscriptionPlansAsync(CancellationToken cancellationToken = default)
+        => cache.GetOrCreateAsync(
+            "billing:plans",
+            TimeSpan.FromMinutes(5),
+            async () => await http.GetFromJsonAsync<List<SubscriptionPlan>>(
+                "/api/billing/plans", cancellationToken) ?? [],
+            cancellationToken: cancellationToken);
 
-    public async Task<BillingInfo?> GetBillingInfoAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await http.GetAsync("/api/billing/subscription", cancellationToken);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
+    public Task<BillingInfo?> GetBillingInfoAsync(CancellationToken cancellationToken = default)
+        => cache.GetOrCreateAsync(
+            "billing:subscription",
+            TimeSpan.FromSeconds(10),
+            async () =>
+            {
+                using var response = await http.GetAsync("/api/billing/subscription", cancellationToken);
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return null;
 
-        await EnsureSuccessOrThrowAsync(response);
-        return await response.Content.ReadFromJsonAsync<BillingInfo>(cancellationToken: cancellationToken);
-    }
-
+                await EnsureSuccessOrThrowAsync(response);
+                return await response.Content.ReadFromJsonAsync<BillingInfo>(cancellationToken: cancellationToken);
+            },
+            cancellationToken: cancellationToken);
     public async Task<string> CreateCheckoutSessionAsync(Guid planId, CancellationToken cancellationToken = default)
     {
         using var response = await http.PostAsJsonAsync(
@@ -381,17 +432,22 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache)
     {
         try
         {
-            await http.PostAsync("/api/auth/logout", null);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+            request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+            using var response = await http.SendAsync(request);
         }
         catch { }
     }
 
-    private void InvalidateTimeKeeping(Guid branchId, Guid employeeId)
+    private async Task InvalidateTimeKeepingAsync(Guid branchId, Guid employeeId)
     {
         cache.Invalidate($"branch:{branchId}:history:");
         cache.Invalidate($"branch:{branchId}:dashboard");
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
         cache.Invalidate($"employee:{employeeId}:history:");
         cache.Invalidate("timekeeping:");
+        if (dashboardCache is not null)
+            await dashboardCache.ClearAsync();
     }
     private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response)
     {

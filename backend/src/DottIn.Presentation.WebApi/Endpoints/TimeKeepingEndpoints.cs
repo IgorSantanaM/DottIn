@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.TimeKeepings.Commands.Break;
+using DottIn.Application.Features.TimeKeepings.Commands.Break;
 using DottIn.Application.Features.TimeKeepings.Commands.ClockIn;
 using DottIn.Application.Features.TimeKeepings.Commands.ClockOut;
 using DottIn.Application.Features.TimeKeepings.DTOs;
@@ -8,6 +8,7 @@ using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingById;
 using DottIn.Application.Features.TimeKeepings.Queries.GetTimeKeepingByPeriod;
 using DottIn.Application.Features.TimeKeepings.Queries.GetBranchTimeKeepingByPeriod;
 using DottIn.Application.Features.TimeKeepings.Queries.GetPagedBranchTimeKeeping;
+using DottIn.Application.Features.TimeKeepings.Queries.GetPagedEmployeeTimeKeeping;
 using DottIn.Domain.Common;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Presentation.WebApi.DTOs.TimeKeepings;
@@ -50,6 +51,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Returns time keeping records for an employee within a date range.")
                 .Produces<IEnumerable<TimeKeepingRecordDto>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
+
+            group.MapGet("/employee/{employeeId:guid}/history/paged", HandleGetPagedEmployeeTimeKeepingAsync)
+                .WithName(nameof(HandleGetPagedEmployeeTimeKeepingAsync))
+                .WithSummary("Get paged employee time keeping history")
+                .WithDescription("Returns one page of an employee's time keeping records within a date range.")
+                .Produces<PagedResult<TimeKeepingRecordDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status403Forbidden)
+                .Produces(StatusCodes.Status422UnprocessableEntity);
 
             group.MapGet("/branch/{branchId:guid}/history/paged", HandleGetPagedBranchTimeKeepingAsync)
                 .WithName(nameof(HandleGetPagedBranchTimeKeepingAsync))
@@ -131,6 +140,20 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.Ok(records);
         }
 
+        private static async Task<IResult> HandleGetPagedEmployeeTimeKeepingAsync(
+            [FromRoute] Guid employeeId,
+            [FromQuery] DateOnly startDate,
+            [FromQuery] DateOnly? endDate,
+            [FromQuery] int pageNumber,
+            [FromQuery] int pageSize,
+            [FromServices] IMediator mediator,
+            CancellationToken cancellationToken)
+        {
+            var query = new GetPagedEmployeeTimeKeepingQuery(
+                employeeId, startDate, endDate, pageNumber, pageSize);
+            var page = await mediator.Send(query, cancellationToken);
+            return Results.Ok(page);
+        }
         private static async Task<IResult> HandleGetPagedBranchTimeKeepingAsync(
             [FromRoute] Guid branchId,
             [FromQuery] DateOnly startDate,

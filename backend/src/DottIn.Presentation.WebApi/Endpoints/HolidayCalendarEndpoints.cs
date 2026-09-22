@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Features.HolidayCalendars.Commands.AddHoliday;
+using DottIn.Application.Features.HolidayCalendars.Commands.AddHoliday;
 using DottIn.Application.Features.HolidayCalendars.Commands.ClearHolidays;
 using DottIn.Application.Features.HolidayCalendars.Commands.CreateHolidayCalendar;
 using DottIn.Application.Features.HolidayCalendars.Commands.RemoveHoliday;
@@ -10,6 +10,7 @@ using DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalendarByI
 using DottIn.Application.Features.HolidayCalendars.Queries.GetHolidayCalendarByYear;
 using DottIn.Application.Features.HolidayCalendars.Queries.GetHolidaysByDate;
 using DottIn.Application.Features.HolidayCalendars.Queries.GetHolidaysInRange;
+using DottIn.Application.Features.TimeKeepings.Queries.GetHolidayWorkRecords;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Presentation.WebApi.DTOs.HolidayCalendars;
 using DottIn.Presentation.WebApi.Endpoints.Internal;
@@ -60,6 +61,11 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .Produces(StatusCodes.Status404NotFound)
                 .Produces(StatusCodes.Status500InternalServerError);
 
+            group.MapGet("/work-records/{year:int}", HandleGetHolidayWorkRecordsAsync)
+                .WithName(nameof(HandleGetHolidayWorkRecordsAsync))
+                .WithSummary("Get work recorded on holidays in a year")
+                .Produces<IReadOnlyList<HolidayWorkRecordDto>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
             group.MapGet("/holidays/date/{date}", HandleGetHolidaysByDateAsync)
                 .WithName(nameof(HandleGetHolidaysByDateAsync))
                 .WithSummary("Get holiday by date")
@@ -141,6 +147,19 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.Ok(calendars);
         }
 
+        private static async Task<IResult> HandleGetHolidayWorkRecordsAsync(
+            [FromRoute] Guid branchId,
+            [FromRoute] int year,
+            [FromServices] IMediator mediator,
+            CancellationToken cancellationToken)
+        {
+            if (year is < 1 or > 9999)
+                return Results.BadRequest(new { Message = "Ano inválido." });
+
+            var records = await mediator.Send(
+                new GetHolidayWorkRecordsQuery(branchId, year), cancellationToken);
+            return Results.Ok(records);
+        }
         private static async Task<IResult> HandleGetCalendarByIdAsync(
             [FromRoute] Guid branchId,
             [FromRoute] Guid calendarId,

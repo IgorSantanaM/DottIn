@@ -23,7 +23,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
     public class AuthEndpoints : IEndpoint
     {
         private const string Tag = "Auth";
-        private const string RefreshCookieName = "DottIn.Refresh";
         private const string PersistSessionHeader = "X-DottIn-Persist-Session";
 
         public static void DefineEndpoints(WebApplication app)
@@ -287,9 +286,11 @@ namespace DottIn.Presentation.WebApi.Endpoints
             HttpContext httpContext,
             CancellationToken cancellationToken)
         {
+            var isWebSession = string.Equals(
+                httpContext.Request.Headers[PersistSessionHeader], "true", StringComparison.OrdinalIgnoreCase);
             var token = !string.IsNullOrWhiteSpace(request.RefreshToken)
                 ? request.RefreshToken
-                : httpContext.Request.Cookies[RefreshCookieName];
+                : isWebSession ? httpContext.Request.Cookies[WebSessionCookie.NameFor(httpContext)] : null;
             if (string.IsNullOrWhiteSpace(token))
                 return Results.Unauthorized();
 
@@ -313,7 +314,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 branch = await branchRepository.GetByIdAsync(existingToken.BranchId, cancellationToken);
             }
 
-            if (branch == null || !branch.IsActive)
+            if (branch == null && (existingToken.BranchId != Guid.Empty || employee.Role != EmployeeRole.Owner))
+                return Results.Unauthorized();
+
+            if (branch is not null && !branch.IsActive)
                 return Results.Unauthorized();
 
             await refreshTokenRepository.DeleteAsync(existingToken);
@@ -323,15 +327,15 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             var accessToken = tokenService.GenerateToken(
                 employee.Id,
-                branch.Id,
-                branch.OwnerId ?? employee.Id,
+                branch?.Id ?? Guid.Empty,
+                branch?.OwnerId ?? employee.Id,
                 employee.Role.ToString(),
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
                 expirationMinutes);
 
-            var newRefreshToken = new RefreshToken(employee.Id, branch.Id);
+            var newRefreshToken = new RefreshToken(employee.Id, branch?.Id ?? Guid.Empty);
             await refreshTokenRepository.AddAsync(newRefreshToken, cancellationToken);
             try
             {
@@ -347,7 +351,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             return Results.Ok(new RefreshTokenResponse(
                 accessToken,
                 newRefreshToken.PlainTextToken!,
-                DateTime.UtcNow.AddMinutes(expirationMinutes)));
+                DateTime.UtcNow.AddMinutes(expirationMinutes),
+                employee.Role.ToString()));
         }
 
         private static async Task<IResult> HandleLogoutAsync(
@@ -364,7 +369,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.Unauthorized();
 
             await refreshTokenRepository.DeleteAllByEmployeeAsync(employeeId, cancellationToken);
-            httpContext.Response.Cookies.Delete(RefreshCookieName);
+            WebSessionCookie.Delete(httpContext);
 
             return Results.NoContent();
         }
@@ -580,7 +585,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 IsOwner: true,
                 IsHeadquarters: false,
                 Subscription: null,
-                CompanyCode: string.Empty);
+                CompanyCode: string.Empty,
+                Role: employee.Role.ToString());
 
             return Results.Ok(response);
         }
@@ -642,7 +648,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 IsOwner: isOwner,
                 IsHeadquarters: branch.IsHeadquarters,
                 Subscription: subscriptionInfo,
-                CompanyCode: branch.CompanyCode
+                CompanyCode: branch.CompanyCode,
+                Role: employee.Role.ToString()
             );
 
             return Results.Ok(response);
@@ -654,18 +661,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 context.Request.Headers[PersistSessionHeader],
                 "true",
                 StringComparison.OrdinalIgnoreCase);
-            if (!requested && !context.Request.Cookies.ContainsKey(RefreshCookieName))
+            if (!requested)
                 return;
 
-            context.Response.Cookies.Append(RefreshCookieName, refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = context.Request.IsHttps || !context.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase),
-                SameSite = SameSiteMode.Strict,
-                Path = "/",
-                MaxAge = TimeSpan.FromDays(30),
-                IsEssential = true
-            });
+            WebSessionCookie.Set(context, refreshToken);
         }
         private static bool IsCurrentEmployee(ClaimsPrincipal user, Guid employeeId)
         {

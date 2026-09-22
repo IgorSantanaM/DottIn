@@ -15,6 +15,7 @@ public sealed class TenantAuthorizationContractTests
     [InlineData("/dominio-mappings")]
     [InlineData("/exports/")]
     [InlineData("/timekeeping/branch/")]
+    [InlineData("/holiday-calendars/work-records/")]
     public void SensitiveBranchReads_RequireManager(string pathFragment)
     {
         var source = ReadSource("src/DottIn.Presentation.WebApi/Security/TenantAuthorizationFilter.cs");
@@ -33,6 +34,27 @@ public sealed class TenantAuthorizationContractTests
         Assert.Contains("suffix.StartsWith(\"/cpf/\"", source, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Commands/AddHoliday/AddHolidayCommandHandler.cs")]
+    [InlineData("Commands/ClearHolidays/ClearHolidaysCommandHandler.cs")]
+    [InlineData("Commands/RemoveHoliday/RemoveHolidayCommandHandler.cs")]
+    [InlineData("Commands/UpdateHoliday/UpdateHolidayCommandHandler.cs")]
+    [InlineData("Queries/GetHolidayCalendarById/GetHolidayCalendarByIdQueryHandler.cs")]
+    public void CalendarByIdOperationsRequireMatchingBranch(string handlerPath)
+    {
+        var source = ReadSource($"src/DottIn.Application/Features/HolidayCalendars/{handlerPath}");
+
+        Assert.Contains("holidayCalendar.BranchId != request.BranchId", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComplianceRulesRejectUnownedOrInactiveCalendar()
+    {
+        var source = ReadSource("src/DottIn.Application/Features/Branches/Commands/SetComplianceRules/SetComplianceRulesCommandHandler.cs");
+
+        Assert.Contains("calendar.BranchId != request.BranchId", source, StringComparison.Ordinal);
+        Assert.Contains("!calendar.IsActive", source, StringComparison.Ordinal);
+    }
     private static string ReadSource(string relativePath)
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)

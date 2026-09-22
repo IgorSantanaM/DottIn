@@ -45,6 +45,16 @@ public class ManagementTests
         => Assert.Equal(expected, MobileRoutePolicy.Redirect(path, authenticated, owner, Guid.NewGuid()));
 
     [Fact]
+    public void DiagnosticsRouteIsUnavailableInRelease()
+    {
+#if DEBUG
+        Assert.Null(MobileRoutePolicy.Redirect("/diagnostics", true, true, Guid.NewGuid()));
+#else
+        Assert.Equal("/dashboard", MobileRoutePolicy.Redirect("/diagnostics", true, true, Guid.NewGuid()));
+        Assert.Equal("/login", MobileRoutePolicy.Redirect("/diagnostics", false, false, Guid.NewGuid()));
+#endif
+    }
+    [Fact]
     public void Owner_without_company_resumes_setup()
     {
         Assert.Equal("/onboarding/company", MobileRoutePolicy.Redirect("/dashboard", true, true, Guid.Empty));

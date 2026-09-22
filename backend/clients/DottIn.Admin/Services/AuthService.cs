@@ -17,20 +17,8 @@ public class AuthService(HttpClient http, AdminState state)
 
     public async Task ValidateRestoredSessionAsync(CancellationToken cancellationToken = default)
     {
-        if (!state.IsAuthenticated)
-            return;
-
-        var attempt = await RefreshAsync(cancellationToken);
-        if (attempt.Response is not null)
-        {
-            await state.CompleteRefreshAsync(attempt.Response);
-            return;
-        }
-
-        if (attempt.IsInvalid)
-            await state.LogoutAsync();
-        else
-            state.MarkSessionRestoreFailed("Não foi possível confirmar sua sessão. Verifique a conexão e tente novamente.");
+        if (state.IsAuthenticated)
+            await RefreshIfNeededAsync(force: true, cancellationToken: cancellationToken);
     }
 
     public async Task<bool> RefreshIfNeededAsync(
@@ -44,9 +32,13 @@ public class AuthService(HttpClient http, AdminState state)
             return true;
 
         var observedExpiration = state.ExpiresAt;
+        var observedSessionVersion = state.SessionVersion;
         await refreshLock.WaitAsync(cancellationToken);
         try
         {
+            if (state.SessionVersion != observedSessionVersion)
+                return state.IsAuthenticated && state.IsSessionReady;
+
             if (state.IsSessionReady && state.ExpiresAt != observedExpiration)
                 return true;
 
@@ -54,6 +46,9 @@ public class AuthService(HttpClient http, AdminState state)
                 return true;
 
             var attempt = await RefreshAsync(cancellationToken);
+            if (state.SessionVersion != observedSessionVersion)
+                return state.IsAuthenticated && state.IsSessionReady;
+
             if (attempt.Response is not null)
             {
                 await state.CompleteRefreshAsync(attempt.Response);
@@ -194,6 +189,10 @@ public class AuthService(HttpClient http, AdminState state)
                 IsInvalid: false);
         }
         catch (HttpRequestException)
+        {
+            return new RefreshAttempt(null, IsInvalid: false);
+        }
+        catch (JsonException)
         {
             return new RefreshAttempt(null, IsInvalid: false);
         }

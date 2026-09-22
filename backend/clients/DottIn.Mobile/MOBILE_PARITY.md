@@ -28,6 +28,10 @@
 - Billing browser return is not treated as proof of payment. Billing uses existing server-configured web return URLs; users return to the app and it reloads server state. No custom app deep-link infrastructure was introduced.
 - O registro de ponto exige conexão ativa para preservar horário e evidência GPS válidos; não existe fila offline ou sincronização posterior.
 
+## Profile links
+
+Configure the public destinations at build time with `-p:DottInTermsUrl=https://...`, `-p:DottInPrivacyUrl=https://...`, and `-p:DottInSupportUrl=https://...` (or `mailto:suporte@...` for support). These are public URLs, not secrets. Only HTTPS legal pages are accepted; an invalid configured destination stops app startup. An omitted destination is shown as unavailable rather than acting like a working link. The notifications row is labelled as in preparation because the app has no notification delivery service yet.
+
 ## Automated verification
 
 ```powershell
@@ -49,5 +53,6 @@ The platform-independent test project links the actual mobile contracts/services
 - [ ] Two holiday calendars with overlapping dates: create/add/remove in each; confirm other calendar is unchanged and worked-holiday report matches desktop.
 - [ ] Billing test mode: checkout completion/cancellation, existing subscription portal, back to app, server status refresh. Do not run real charges as part of QA.
 - [ ] Bloqueio offline/reconexão, sessão expirada, navegação rápida, layout estreito, modo escuro e compartilhamento/clipboard nativos.
+- [ ] Configurar destinos reais de Termos, Privacidade e Suporte e verificar a abertura externa em Android/iOS.
 
 The Android build is verified without warnings, and dependency auditing reports no known vulnerable packages.

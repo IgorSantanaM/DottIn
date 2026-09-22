@@ -16,6 +16,7 @@
     <Compile Include="../../clients/DottIn.Mobile/Services/AppState.cs" Link="Mobile/AppState.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileSessionService.cs" Link="Mobile/MobileSessionService.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileRoutePolicy.cs" Link="Mobile/MobileRoutePolicy.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/ProfileExternalLinks.cs" Link="Mobile/ProfileExternalLinks.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/ManagementRules.cs" Link="Mobile/ManagementRules.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/ExportPayload.cs" Link="Mobile/ExportPayload.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/IApiServices.cs" Link="Mobile/IApiServices.cs" />

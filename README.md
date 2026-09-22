@@ -16,3 +16,7 @@ dotnet user-secrets set "Stripe:WebhookSecret" "whsec_..." --project backend/src
 ```
 
 Also configure valid Stripe price IDs in the `SubscriptionPlans.StripePriceId` database column. Checkout is unavailable for plans without a price ID. In production provide `Stripe:SecretKey`, `Stripe:PublishableKey`, `Stripe:WebhookSecret`, `Stripe:SuccessUrl`, `Stripe:CancelUrl`, and `Stripe:PortalReturnUrl` through deployment secrets/environment variables.
+
+## Production key persistence
+
+Company invitation links use ASP.NET Core Data Protection. Set `DataProtection__KeysDirectory` to an absolute path on a persistent, private volume before starting the production API. Share the same key directory across API replicas and keep it through deployments and backups; losing the keys invalidates outstanding invitation links. Restrict filesystem access to the API process and encrypt the volume at rest. The production configuration validator refuses startup without this setting. Development keeps the default local key storage.

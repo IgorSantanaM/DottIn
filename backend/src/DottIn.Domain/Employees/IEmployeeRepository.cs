@@ -10,6 +10,7 @@ namespace DottIn.Domain.Employees
         Task<Employee?> GetByCPFAsync(string cpf, CancellationToken token = default);
         Task<Employee?> GetByTenantAndCPFAsync(Guid tenantId, string cpf, CancellationToken token = default);
         Task<IEnumerable<Employee>> GetByBranchIdAsync(Guid branchId, CancellationToken token = default);
+        Task<IReadOnlyDictionary<Guid, string>> GetNamesByIdsAsync(Guid branchId, IReadOnlyCollection<Guid> employeeIds, CancellationToken token = default);
         Task<IEnumerable<Employee>> GetActiveEmployeesAsync(Guid branchId, CancellationToken token = default);
         Task<(IReadOnlyList<Employee> Items, int TotalCount)> GetPagedByBranchIdAsync(
             Guid branchId,

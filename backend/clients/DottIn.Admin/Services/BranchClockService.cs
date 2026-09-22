@@ -20,13 +20,16 @@ public sealed class BranchClockService(AdminApiClient api)
     public async Task SynchronizeAsync(Guid branchId, CancellationToken cancellationToken = default)
     {
         var clock = await api.GetBranchClockAsync(branchId, cancellationToken);
-        Apply(clock);
+        Apply(clock.UtcNow, clock.LocalNow, clock.TimeZoneId);
     }
 
-    private void Apply(BranchClockResponse clock)
+    public void Apply(DashboardSummary summary)
+        => Apply(summary.UtcNow, summary.LocalNow, summary.TimeZoneId);
+
+    private void Apply(DateTime utcNow, DateTime localNow, string timeZoneId)
     {
-        _utcAtSynchronization = DateTime.SpecifyKind(clock.UtcNow, DateTimeKind.Utc);
-        _branchTimeAtSynchronization = DateTime.SpecifyKind(clock.LocalNow, DateTimeKind.Unspecified);
-        TimeZoneId = clock.TimeZoneId;
+        _utcAtSynchronization = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
+        _branchTimeAtSynchronization = DateTime.SpecifyKind(localNow, DateTimeKind.Unspecified);
+        TimeZoneId = timeZoneId;
     }
 }

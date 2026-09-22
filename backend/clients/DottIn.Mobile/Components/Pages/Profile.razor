@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject ProfileExternalLinks ExternalLinks
 
 <div class="profile-container">
     @* Profile Header *@
@@ -66,7 +67,7 @@
                 <MudListItem Icon="@Icons.Material.Filled.Notifications">
                     <div class="list-item-content">
                         <MudText>Notificações</MudText>
-                        <MudSwitch T="bool" @bind-Value="_notificationsEnabled" Color="Color.Primary" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Em preparação</MudText>
                     </div>
                 </MudListItem>
             </MudList>
@@ -130,14 +131,26 @@
                         <MudText Typo="Typo.body2" Color="Color.Secondary">1.0.0</MudText>
                     </div>
                 </MudListItem>
-                <MudListItem Icon="@Icons.Material.Filled.Description" OnClick="OpenTerms">
+                <MudListItem Icon="@Icons.Material.Filled.Description" OnClick="OpenTerms" Disabled="@(ExternalLinks.TermsUrl is null)">
                     <MudText>Termos de Uso</MudText>
+                    @if (ExternalLinks.TermsUrl is null)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Não configurado</MudText>
+                    }
                 </MudListItem>
-                <MudListItem Icon="@Icons.Material.Filled.PrivacyTip" OnClick="OpenPrivacy">
+                <MudListItem Icon="@Icons.Material.Filled.PrivacyTip" OnClick="OpenPrivacy" Disabled="@(ExternalLinks.PrivacyUrl is null)">
                     <MudText>Política de Privacidade</MudText>
+                    @if (ExternalLinks.PrivacyUrl is null)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Não configurado</MudText>
+                    }
                 </MudListItem>
-                <MudListItem Icon="@Icons.Material.Filled.Help" OnClick="OpenSupport">
+                <MudListItem Icon="@Icons.Material.Filled.Help" OnClick="OpenSupport" Disabled="@(ExternalLinks.SupportUrl is null)">
                     <MudText>Suporte</MudText>
+                    @if (ExternalLinks.SupportUrl is null)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Não configurado</MudText>
+                    }
                 </MudListItem>
             </MudList>
         </MudCardContent>
@@ -207,7 +220,6 @@
 @code {
     private const bool NativeBiometricsEnabled = false;
     private bool _hasBiometric = false;
-    private bool _notificationsEnabled = true;
     private bool _isLoadingEmployees = false;
     private List<EmployeeSummaryItem> _employees = [];
 
@@ -215,9 +227,6 @@
     {
         var token = await SecureStorage.GetAsync("fingerprint_token");
         _hasBiometric = !string.IsNullOrEmpty(token);
-
-        var notifications = await SecureStorage.GetAsync("notifications_enabled");
-        _notificationsEnabled = notifications != "false";
 
         if (AppState.IsOwner)
             await LoadEmployees();
@@ -389,19 +398,28 @@
         }
     }
 
-    private void OpenTerms()
-    {
-        // TODO: Open terms URL
-    }
+    private Task OpenTerms() => OpenExternalAsync(ExternalLinks.TermsUrl, "Termos de Uso");
 
-    private void OpenPrivacy()
-    {
-        // TODO: Open privacy URL
-    }
+    private Task OpenPrivacy() => OpenExternalAsync(ExternalLinks.PrivacyUrl, "Política de Privacidade");
 
-    private void OpenSupport()
+    private Task OpenSupport() => OpenExternalAsync(ExternalLinks.SupportUrl, "Suporte");
+
+    private async Task OpenExternalAsync(Uri? uri, string label)
     {
-        // TODO: Open support URL or email
+        if (uri is null)
+            return;
+
+        try
+        {
+            if (uri.Scheme == Uri.UriSchemeMailto)
+                await Launcher.Default.OpenAsync(uri);
+            else
+                await Browser.OpenAsync(uri, BrowserLaunchMode.External);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"Não foi possível abrir {label}. Tente novamente.", Severity.Error);
+        }
     }
 
     private async Task Logout()

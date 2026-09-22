@@ -5,13 +5,13 @@
 @inject AdminState State
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
-@inject IJSRuntime JS
+@inject BrowserDownloadService Download
 
 <PageTitle>DottIn Admin - Registros</PageTitle>
 
 <MudText Typo="Typo.h5" Style="font-weight: 700;" Class="mb-1">Registros de Ponto</MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Histórico de registros de ponto da empresa
+    @(State.CanViewBranchRecords ? "Histórico de registros de ponto da empresa" : "Seu histórico de registros de ponto")
 </MudText>
 
 @if (State.IsOwner)
@@ -78,12 +78,15 @@
                     </MudText>
                 </div>
             </MudItem>
+            @if (State.CanViewBranchRecords)
+            {
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Funcionários nesta página</MudText>
                     <MudText Typo="Typo.h6" Style="font-weight: 700;">@_records.Select(r => r.EmployeeId).Distinct().Count()</MudText>
                 </div>
             </MudItem>
+            }
             <MudItem xs="6" sm="3">
                 <div style="text-align: center;">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Noturnos nesta página</MudText>
@@ -119,6 +122,8 @@
                      RowClick="@(args => ShowDetails(args.Item.Id))"
                      Style="cursor: pointer;">
             <Columns>
+                @if (State.CanViewBranchRecords)
+                {
                 <PropertyColumn Property="x => x.EmployeeName" Title="Funcionário">
                     <CellTemplate>
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -129,6 +134,7 @@
                         </div>
                     </CellTemplate>
                 </PropertyColumn>
+                }
                 <PropertyColumn Property="x => x.WorkDate" Title="Data">
                     <CellTemplate>
                         <div style="display: flex; align-items: center; gap: 6px;">
@@ -271,8 +277,21 @@
         {
             var start = DateOnly.FromDateTime(_startDate.Value);
             var end = _endDate.HasValue ? DateOnly.FromDateTime(_endDate.Value) : (DateOnly?)null;
-            var page = await Api.GetPagedBranchHistoryAsync(
-                State.BranchId, start, end, _pageNumber, PageSize);
+            PagedResponse<TimeKeepingRecord> page;
+            if (State.CanViewBranchRecords)
+            {
+                page = await Api.GetPagedBranchHistoryAsync(
+                    State.BranchId, start, end, _pageNumber, PageSize);
+            }
+            else
+            {
+                var personalPage = await Api.GetPagedEmployeeHistoryAsync(
+                    State.EmployeeId, start, end, _pageNumber, PageSize);
+                page = new PagedResponse<TimeKeepingRecord>(
+                    personalPage.Items.Select(ToDisplayRecord).ToList(),
+                    personalPage.TotalPages,
+                    personalPage.TotalCount);
+            }
             _records = page.Items.ToList();
             _totalPages = page.TotalPages;
             _totalCount = page.TotalCount;
@@ -292,6 +311,27 @@
             _loading = false;
         }
     }
+
+    private TimeKeepingRecord ToDisplayRecord(PersonalTimeKeepingRecord record)
+        => new(
+            record.Id,
+            State.EmployeeId,
+            State.User?.Name ?? "Você",
+            record.WorkDate,
+            record.ClockIn,
+            record.ClockOut,
+            record.TotalWorked,
+            record.TotalBreak,
+            record.Status,
+            record.IsNocturnal,
+            record.Source,
+            record.IsHoliday,
+            record.HolidayName,
+            record.NocturnalWorked,
+            record.ExpectedWorked,
+            record.Late,
+            record.EarlyDeparture,
+            record.Overtime);
 
     private async Task ShowDetails(Guid id)
     {
@@ -346,15 +386,7 @@
             }
 
             var filename = $"registros_{start:yyyyMMdd}_{end:yyyyMMdd}.csv";
-            var base64 = Convert.ToBase64String(bytes);
-            await JS.InvokeVoidAsync("eval", $@"
-                var link = document.createElement('a');
-                link.href = 'data:text/csv;base64,{base64}';
-                link.download = '{filename}';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            ");
+            await Download.DownloadAsync(bytes, filename, "text/csv;charset=utf-8");
             Snackbar.Add("CSV exportado!", Severity.Success);
         }
         catch (Exception ex)

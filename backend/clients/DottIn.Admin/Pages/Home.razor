@@ -89,6 +89,8 @@ else
                                       Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Badge"
                                       InputType="InputType.Text"
+                                      InputMode="InputMode.numeric"
+                                      Mask="@_cpfMask"
                                       Immediate="true"
                                       Disabled="_loading"
                                       Error="@(_attempted && !HasValidCpf)"
@@ -152,6 +154,7 @@ else
 
 @code {
     private string _cpf = "";
+    private readonly PatternMask _cpfMask = new("000.000.000-00");
     private string _password = "";
     private string? _formError;
     private bool _showPassword;

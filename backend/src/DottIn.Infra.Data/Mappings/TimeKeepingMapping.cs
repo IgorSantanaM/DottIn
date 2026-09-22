@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Branches;
+using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using DottIn.Domain.TimeKeepings;
 using DottIn.Infra.Data.Extensions;
@@ -57,7 +57,8 @@ namespace DottIn.Infra.Data.Mappings
                 .IsRequired()
                 .HasConversion<string>()
                 .HasMaxLength(20)
-                .HasDefaultValue(ClockSource.Mobile);
+                .HasDefaultValue(ClockSource.Mobile)
+                .HasSentinel((ClockSource)0);
 
             builder.Property(tk => tk.ConcurrencyToken)
                 .IsRequired()
@@ -110,7 +111,8 @@ namespace DottIn.Infra.Data.Mappings
                     .IsRequired()
                     .HasConversion<string>()
                     .HasMaxLength(20)
-                    .HasDefaultValue(ClockSource.Mobile);
+                    .HasDefaultValue(ClockSource.Mobile)
+                    .HasSentinel((ClockSource)0);
 
 
                 entry.HasIndex("TimeKeepingId", nameof(TimeEntry.Timestamp));

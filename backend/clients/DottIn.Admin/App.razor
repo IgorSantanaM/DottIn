@@ -27,7 +27,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        State.OnChange += StateHasChanged;
+        State.OnChange += HandleStateChange;
         var restored = false;
         try
         {
@@ -50,7 +50,9 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose() => State.OnChange -= StateHasChanged;
+    private void HandleStateChange() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.OnChange -= HandleStateChange;
 
     private readonly MudTheme _theme = new()
     {
