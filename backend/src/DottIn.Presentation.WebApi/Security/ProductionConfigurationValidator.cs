@@ -27,6 +27,10 @@ public static class ProductionConfigurationValidator
             errors.Add("JwtSettings:SecretKey deve ser um segredo de produção com pelo menos 32 caracteres.");
         }
 
+        if (!int.TryParse(configuration["JwtSettings:ExpirationMinutes"], out var expirationMinutes) ||
+            expirationMinutes is < 1 or > 30)
+            errors.Add("JwtSettings:ExpirationMinutes deve estar entre 1 e 30 minutos.");
+
         var origins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
         if (origins.Length == 0 || origins.Any(origin =>
                 !Uri.TryCreate(origin, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))

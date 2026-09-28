@@ -10,6 +10,7 @@ namespace DottIn.Infra.Services.Auth
             string secretKey,
             string issuer,
             string audience,
-            int expirationMinutes);
+            int expirationMinutes,
+            Guid sessionVersion);
     }
 }

@@ -25,6 +25,7 @@ public class SessionTests
         Assert.True(restoredState.IsOwner);
         Assert.Equal("/onboarding/company", restored.LandingPage);
         Assert.Equal("renewed", await storage.GetAsync("access_token"));
+        Assert.NotNull(await storage.GetAsync(MobileTokenRefreshService.ExpirationKey));
     }
 
     [Fact]
@@ -37,11 +38,17 @@ public class SessionTests
             : new(HttpStatusCode.OK) { Content = JsonContent.Create(new BranchContext("Company", request.RequestUri.AbsolutePath.EndsWith(branch.ToString()) ? "BRANCH" : "HQ")) });
         var service = Service(client, storage, state);
         await service.AcceptAsync(Owner());
+        await storage.SetAsync("access_token", "renewed");
+        await storage.SetAsync("refresh_token", "next-refresh");
+        await storage.SetAsync(MobileTokenRefreshService.ExpirationKey, DateTime.UtcNow.AddMinutes(15).ToString("O"));
         await service.SwitchBranchAsync(branch);
         Assert.Equal(branch, state.BranchId);
         Assert.Equal("Branch", state.SelectedBranchName);
         Assert.Equal("BRANCH", await storage.GetAsync("company_code"));
+        Assert.Equal("renewed", await storage.GetAsync("access_token"));
+        Assert.Equal("next-refresh", await storage.GetAsync("refresh_token"));
         Assert.Equal(branch, JsonSerializer.Deserialize<LoginResponse>((await storage.GetAsync("mobile_session"))!)!.BranchId);
+        Assert.Equal("renewed", JsonSerializer.Deserialize<LoginResponse>((await storage.GetAsync("mobile_session"))!)!.AccessToken);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SwitchBranchAsync(Guid.NewGuid()));
         Assert.Equal(branch, state.BranchId);
     }
@@ -74,6 +81,7 @@ public class SessionTests
         Assert.False(next.IsAuthenticated);
         Assert.Null(await storage.GetAsync("access_token"));
         Assert.Null(await storage.GetAsync("refresh_token"));
+        Assert.Null(await storage.GetAsync(MobileTokenRefreshService.ExpirationKey));
     }
 
     private static LoginResponse Owner() => new("access", "refresh", DateTime.UtcNow.AddHours(1), new(Guid.NewGuid(), "Test Owner", "12345678901", null), Guid.Empty, true, false);

@@ -94,10 +94,11 @@ namespace DottIn.Infra.Services.Stripe
             Guid headquartersId,
             CancellationToken cancellationToken = default)
         {
+            // A new key per checkout attempt allows an immediate retry after expiration or cancellation.
+            // Reuse that key only for automatic retries of this one Stripe API call.
+            var idempotencyKey = $"checkout_{Guid.NewGuid():N}";
             return await _retryPipeline.ExecuteAsync(async ct =>
             {
-                var idempotencyKey = GenerateIdempotencyKey("checkout", customerId, priceId, headquartersId);
-                
                 var options = new SessionCreateOptions
                 {
                     Customer = customerId,
@@ -242,12 +243,6 @@ namespace DottIn.Infra.Services.Stripe
                 Type: stripeEvent.Type,
                 Json: json,
                 Data: stripeEvent.Data.Object);
-        }
-
-        private static string GenerateIdempotencyKey(string operation, string customerId, string priceId, Guid headquartersId)
-        {
-            var today = DateTime.UtcNow.ToString("yyyy-MM-dd-HH");
-            return $"{operation}_{customerId}_{priceId}_{headquartersId}_{today}";
         }
     }
 }

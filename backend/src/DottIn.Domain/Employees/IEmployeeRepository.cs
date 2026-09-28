@@ -1,4 +1,4 @@
-using DottIn.Domain.Core.Data;
+﻿using DottIn.Domain.Core.Data;
 
 namespace DottIn.Domain.Employees
 {
@@ -21,5 +21,6 @@ namespace DottIn.Domain.Employees
             CancellationToken token = default);
         Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default);
         Task<int> CountActiveByBranchIdAsync(Guid branchId, CancellationToken token = default);
+        Task AssociateUnassignedOwnerWithBranchAsync(Guid ownerId, Guid branchId, CancellationToken token = default);
     }
 }

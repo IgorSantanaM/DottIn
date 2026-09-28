@@ -21,7 +21,7 @@ function Get-CheckedResponse {
     param([string]$BaseUrl, [string]$Path)
 
     $uri = [Uri]::new([Uri]::new($BaseUrl.TrimEnd('/') + '/'), $Path.TrimStart('/'))
-    return Invoke-WebRequest -Uri $uri -TimeoutSec 15 -SkipHttpErrorCheck
+    return Invoke-WebRequest -Uri $uri -TimeoutSec 15 -UseBasicParsing
 }
 
 Push-Location $repositoryRoot

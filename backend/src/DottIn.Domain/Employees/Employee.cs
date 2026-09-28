@@ -22,6 +22,7 @@ namespace DottIn.Domain.Employees
         public bool IsActive { get; private set; }
         public bool AllowOvernightShifts { get; private set; }
         public EmployeeRole Role { get; private set; }
+        public Guid SessionVersion { get; private set; }
         public bool IsSeatBillable => Role != EmployeeRole.Owner;
 
         private Employee() { }
@@ -33,6 +34,7 @@ namespace DottIn.Domain.Employees
         public Employee(string name, Document cpf, string password)
         {
             Id = Guid.NewGuid();
+            SessionVersion = Guid.NewGuid();
 
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("O nome não pode ser vazio.");
@@ -68,6 +70,7 @@ namespace DottIn.Domain.Employees
         {
 
             Id = Guid.NewGuid();
+            SessionVersion = Guid.NewGuid();
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("O nome não pode ser vazio.");
 
@@ -88,6 +91,12 @@ namespace DottIn.Domain.Employees
             IsActive = true;
             Role = EmployeeRole.Employee;
             CreatedAt = DateTime.UtcNow;
+        }
+
+        public void RotateSessionVersion()
+        {
+            SessionVersion = Guid.NewGuid();
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void AddImage(string imageUrl)

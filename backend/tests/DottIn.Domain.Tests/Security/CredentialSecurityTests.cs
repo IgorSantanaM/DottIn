@@ -10,7 +10,7 @@ public sealed class CredentialSecurityTests
     [Fact]
     public void RefreshToken_StoresOnlyHashAndReturnsPlainTextOnce()
     {
-        var token = new RefreshToken(Guid.NewGuid(), Guid.NewGuid());
+        var token = new RefreshToken(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         Assert.False(string.IsNullOrWhiteSpace(token.PlainTextToken));
         Assert.NotEqual(token.PlainTextToken, token.Token);
@@ -29,6 +29,21 @@ public sealed class CredentialSecurityTests
         var document = new Document("52998224725");
 
         Assert.Throws<DomainException>(() => new Employee("Pessoa Teste", document, password));
+    }
+
+    [Fact]
+    public void Employee_RotateSessionVersion_RevokesPreviouslyIssuedVersion()
+    {
+        var employee = new Employee(
+            "Pessoa Teste",
+            new Document("52998224725"),
+            "SenhaForte1!");
+        var previousVersion = employee.SessionVersion;
+
+        employee.RotateSessionVersion();
+
+        Assert.NotEqual(Guid.Empty, previousVersion);
+        Assert.NotEqual(previousVersion, employee.SessionVersion);
     }
 
     [Fact]

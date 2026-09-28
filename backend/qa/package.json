@@ -1,0 +1,10 @@
+{
+  "name": "dottin-qa",
+  "private": true,
+  "scripts": {
+    "test:admin:e2e": "playwright test -c playwright.config.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

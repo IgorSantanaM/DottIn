@@ -8,6 +8,7 @@ namespace DottIn.Domain.Auth
     {
         public Guid EmployeeId { get; private set; }
         public Guid BranchId { get; private set; }
+        public Guid SessionVersion { get; private set; }
         public string Token { get; private set; }
         public DateTime ExpiresAt { get; private set; }
         public DateTime CreatedAt { get; private set; }
@@ -20,11 +21,12 @@ namespace DottIn.Domain.Auth
 
         private RefreshToken() { }
 
-        public RefreshToken(Guid employeeId, Guid branchId, int expirationDays = 30)
+        public RefreshToken(Guid employeeId, Guid branchId, Guid sessionVersion, int expirationDays = 30)
         {
             Id = Guid.NewGuid();
             EmployeeId = employeeId;
             BranchId = branchId;
+            SessionVersion = sessionVersion;
             PlainTextToken = GenerateToken();
             Token = HashToken(PlainTextToken);
             ExpiresAt = DateTime.UtcNow.AddDays(expirationDays);

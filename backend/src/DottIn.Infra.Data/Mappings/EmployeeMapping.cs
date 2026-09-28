@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Employees;
+using DottIn.Domain.Employees;
 using DottIn.Infra.Data.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -74,6 +74,9 @@ namespace DottIn.Infra.Data.Mappings
             builder.Property(e => e.UpdatedAt)
                 .IsRequired(false)
                 .HasColumnType("timestamp with time zone");
+
+            builder.Property(e => e.SessionVersion)
+                .IsRequired();
 
             builder.Property(e => e.IsActive)
                 .IsRequired();

@@ -41,6 +41,23 @@ public sealed class ErrorHandlingMiddlewareTests
         Assert.Equal("trace-internal-456", body.RootElement.GetProperty("traceId").GetString());
     }
 
+    [Fact]
+    public async Task ClientDisconnect_DoesNotBecomeApplicationError()
+    {
+        var context = Context("trace-disconnected-789");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        context.RequestAborted = cancellation.Token;
+        var middleware = new ErrorHandlingMiddleware(
+            _ => throw new OperationCanceledException(cancellation.Token),
+            NullLogger<ErrorHandlingMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(499, context.Response.StatusCode);
+        Assert.Equal(0, context.Response.Body.Length);
+    }
+
     private static DefaultHttpContext Context(string traceId)
     {
         var context = new DefaultHttpContext { TraceIdentifier = traceId };
