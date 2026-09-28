@@ -29,6 +29,7 @@ public sealed class ProductionConfigurationValidatorTests
 
         Assert.Contains("ConnectionStrings:DottInDb", exception.Message);
         Assert.Contains("JwtSettings:SecretKey", exception.Message);
+        Assert.Contains("JwtSettings:ExpirationMinutes", exception.Message);
         Assert.Contains("Stripe:WebhookSecret", exception.Message);
         Assert.Contains("AllowedOrigins", exception.Message);
         Assert.Contains("DataProtection:KeysDirectory", exception.Message);
@@ -44,6 +45,7 @@ public sealed class ProductionConfigurationValidatorTests
             ["AzureBlob:ConnectionString"] = "UseDevelopmentStorage=false;AccountName=dottin;AccountKey=secret",
             ["AzureBlob:ContainerName"] = "employee-files",
             ["JwtSettings:SecretKey"] = "a-production-secret-with-more-than-32-characters",
+            ["JwtSettings:ExpirationMinutes"] = "15",
             ["AllowedOrigins:0"] = "https://app.dottin.com.br",
             ["DataProtection:KeysDirectory"] = Path.GetTempPath(),
             ["Stripe:SecretKey"] = "sk_live_example",
@@ -62,6 +64,23 @@ public sealed class ProductionConfigurationValidatorTests
             new TestHostEnvironment(Environments.Production));
     }
 
+    [Fact]
+    public void Validate_RejectsLongLivedProductionAccessToken()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["JwtSettings:ExpirationMinutes"] = "120"
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            ProductionConfigurationValidator.Validate(
+                configuration,
+                new TestHostEnvironment(Environments.Production)));
+
+        Assert.Contains("JwtSettings:ExpirationMinutes", exception.Message);
+    }
     private sealed class TestHostEnvironment(string environmentName) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = environmentName;

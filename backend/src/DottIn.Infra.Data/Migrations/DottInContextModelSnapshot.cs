@@ -48,6 +48,9 @@ namespace DottIn.Infra.Data.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("SessionVersion")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -297,6 +300,9 @@ namespace DottIn.Infra.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasDefaultValue("Employee");
+
+                    b.Property<Guid>("SessionVersion")
+                        .HasColumnType("uuid");
 
                     b.Property<TimeOnly>("StartWorkTime")
                         .HasColumnType("time without time zone");

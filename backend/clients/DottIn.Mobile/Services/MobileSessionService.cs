@@ -42,6 +42,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         {
             await storage.RemoveAsync("access_token");
             await storage.RemoveAsync("refresh_token");
+            await storage.RemoveAsync(MobileTokenRefreshService.ExpirationKey);
             state.Logout();
             _initialized = true;
             return;
@@ -64,6 +65,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         if (_session is null || !state.CanSwitchBranches || !state.AvailableBranches.Any(b => b.Id == id))
             throw new InvalidOperationException("Filial indisponível.");
         var details = await branches.GetByIdAsync(id);
+        await SyncCurrentTokensAsync();
         _session = _session with { BranchId = id, CompanyCode = details.CompanyCode };
         await PersistAsync();
         await storage.SetAsync("company_code", details.CompanyCode);
@@ -71,14 +73,35 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
     }
     public async Task CompanyCreatedAsync(CreateBranchResponse branch)
     {
-        if (_session is null) throw new InvalidOperationException("Entre novamente para continuar.");
+        if (_session is null || !state.IsAuthenticated) throw new InvalidOperationException("Entre novamente para continuar.");
+        await SyncCurrentTokensAsync();
         await AcceptAsync(_session with { BranchId = branch.BranchId, CompanyCode = branch.CompanyCode, IsHeadquarters = true }, _remember);
+    }
+    private async Task SyncCurrentTokensAsync()
+    {
+        if (_session is null) return;
+        var access = await storage.GetAsync("access_token");
+        var refresh = await storage.GetAsync("refresh_token");
+        var expiry = await storage.GetAsync(MobileTokenRefreshService.ExpirationKey);
+        if (!string.IsNullOrWhiteSpace(access) && !string.IsNullOrWhiteSpace(refresh) &&
+            DateTime.TryParse(expiry, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var expiresAt))
+        {
+            _session = _session with
+            {
+                AccessToken = access,
+                RefreshToken = refresh,
+                ExpiresAt = expiresAt.ToUniversalTime()
+            };
+        }
     }
     private async Task PersistAsync()
     {
         if (_session is null) return;
         await storage.SetAsync("access_token", _session.AccessToken);
         await storage.SetAsync("refresh_token", _session.RefreshToken);
+        await storage.SetAsync(MobileTokenRefreshService.ExpirationKey,
+            _session.ExpiresAt.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         if (_remember) await storage.SetAsync("mobile_session", JsonSerializer.Serialize(_session));
         else await storage.RemoveAsync("mobile_session");
     }
@@ -89,6 +112,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         await storage.RemoveAsync("mobile_session");
         await storage.RemoveAsync("access_token");
         await storage.RemoveAsync("refresh_token");
+        await storage.RemoveAsync(MobileTokenRefreshService.ExpirationKey);
         state.Logout();
     }
 }

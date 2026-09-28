@@ -1,4 +1,4 @@
-﻿using DottIn.Domain.Branches;
+using DottIn.Domain.Branches;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +25,7 @@ namespace DottIn.Infra.Data.Repositories
             var normalizedCode = companyCode.Trim().ToLowerInvariant().Replace(" ", "-");
             return await context.Branches
                 .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.CompanyCode == normalizedCode, token);
+                .FirstOrDefaultAsync(b => b.CompanyCode.ToLower() == normalizedCode, token);
         }
 
         public async Task<IEnumerable<Branch>> GetByOwnerIdAsync(Guid ownerId, CancellationToken token = default)

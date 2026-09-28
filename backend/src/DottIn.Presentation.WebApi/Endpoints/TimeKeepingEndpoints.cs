@@ -276,7 +276,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
             CurrentUserContext currentUser)
         {
             if (!currentUser.IsManager)
-                return ClockSource.Mobile;
+                return requestedSource == ClockSource.Web
+                    ? ClockSource.Web
+                    : ClockSource.Mobile;
             if (employeeId != currentUser.EmployeeId)
                 return ClockSource.Kiosk;
             return requestedSource;

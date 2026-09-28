@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using DottIn.Presentation.WebApi.Security;
 using DottIn.Presentation.WebApi.Health;
+using DottIn.Presentation.WebApi.Performance;
 using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 
@@ -83,6 +84,16 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!))
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var db = context.HttpContext.RequestServices.GetRequiredService<DottInContext>();
+            if (!await SessionVersionValidator.IsValidAsync(
+                    context.Principal, db, context.HttpContext.RequestAborted))
+                context.Fail("Session revoked.");
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -124,6 +135,8 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environm
 
     await dbContext.Database.MigrateAsync();
 }
+
+await AuthenticationWarmup.TryWarmAsync(app.Services, app.Logger);
 
 app.MapGet("/", () => Results.Ok(new { service = "DottIn API", status = "healthy" }));
 app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }))

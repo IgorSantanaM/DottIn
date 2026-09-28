@@ -99,7 +99,7 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
 
     private static Guid? ReadArgumentGuid(IList<object?> arguments, string property)
     {
-        foreach (var argument in arguments.Where(x => x is not null))
+        foreach (var argument in arguments.Where(x => x is not null && x is not CurrentUserContext))
         {
             var info = argument!.GetType().GetProperty(property, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (info?.GetValue(argument) is Guid id && id != Guid.Empty)
@@ -110,7 +110,7 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
 
     private static bool ReadArgumentBool(IList<object?> arguments, string property)
     {
-        foreach (var argument in arguments.Where(x => x is not null))
+        foreach (var argument in arguments.Where(x => x is not null && x is not CurrentUserContext))
         {
             var info = argument!.GetType().GetProperty(property, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (info?.GetValue(argument) is bool value)

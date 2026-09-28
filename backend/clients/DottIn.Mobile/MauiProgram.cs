@@ -76,6 +76,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<AppState>();
         builder.Services.AddSingleton<BranchClockService>();
 
+        builder.Services.AddHttpClient(MobileTokenRefreshService.ClientName, client =>
+            client.BaseAddress = new Uri(apiBaseUrl));
+        builder.Services.AddSingleton<MobileTokenRefreshService>();
         builder.Services.AddTransient<AuthorizationHandler>();
 
         builder.Services.AddRefitClient<IAuthApi>()

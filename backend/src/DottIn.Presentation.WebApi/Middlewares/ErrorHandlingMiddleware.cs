@@ -1,4 +1,4 @@
-﻿using DottIn.Application.Exceptions;
+using DottIn.Application.Exceptions;
 using DottIn.Domain.Core.Exceptions;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +15,14 @@ namespace DottIn.Presentation.WebApi.Middlewares
             try
             {
                 await next(context);
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                // The client disconnected; no problem response can be delivered.
+                // Do not classify it as an application failure.
+                if (!context.Response.HasStarted)
+                    context.Response.StatusCode = 499;
+                logger.LogDebug("Client closed request. TraceId: {TraceId}", context.TraceIdentifier);
             }
             catch (Exception ex)
             {

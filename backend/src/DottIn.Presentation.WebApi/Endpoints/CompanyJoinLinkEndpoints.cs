@@ -192,8 +192,8 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
         var jwt = configuration.GetSection("JwtSettings");
         var expiration = int.Parse(jwt["ExpirationMinutes"]!);
         var accessToken = tokenService.GenerateToken(employee.Id, branch.Id, branch.OwnerId ?? employee.Id,
-            employee.Role.ToString(), jwt["SecretKey"]!, jwt["Issuer"]!, jwt["Audience"]!, expiration);
-        var refreshToken = new RefreshToken(employee.Id, branch.Id);
+            employee.Role.ToString(), jwt["SecretKey"]!, jwt["Issuer"]!, jwt["Audience"]!, expiration, employee.SessionVersion);
+        var refreshToken = new RefreshToken(employee.Id, branch.Id, employee.SessionVersion);
         await db.RefreshTokens.AddAsync(refreshToken, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (accessToken, refreshToken.PlainTextToken!, DateTime.UtcNow.AddMinutes(expiration));

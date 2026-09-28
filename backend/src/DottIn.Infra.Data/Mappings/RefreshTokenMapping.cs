@@ -18,6 +18,9 @@ namespace DottIn.Infra.Data.Mappings
             builder.Property(r => r.BranchId)
                 .IsRequired();
 
+            builder.Property(r => r.SessionVersion)
+                .IsRequired();
+
             builder.Property(r => r.Token)
                 .IsRequired()
                 .HasMaxLength(128);

@@ -22,7 +22,8 @@
 - Backend company creation requires CNPJ and a non-zero location, despite the legacy desktop form offering CPF and sending zero coordinates. Mobile follows the backend rules and supports GPS capture/manual coordinates, desktop schedule defaults (08:00–18:00), tolerance 10 minutes, radius 100 meters, and configurable server time zone.
 - Password login starts with CPF/password. PIN and existing biometric flows retain company context.
 - Route guards restrict owner screens; API authorization remains authoritative. Branch changes remount branch-scoped screens and refresh the stored company code used by kiosk/PIN flows.
-- Secure session restoration refreshes tokens on app start. The password-login “remember me” option controls session restoration. Expired/revoked refresh tokens return to sign-in.
+- Alterar senha no perfil aplica as mesmas regras fortes do domínio (10 caracteres, maiúscula, minúscula, número e símbolo). Alterar senha ou PIN revoga as sessões anteriores; o mobile limpa credenciais locais e orienta novo login.
+- Secure session restoration refreshes tokens on app start and now refreshes access tokens preventively during active use. Concurrent calls share one refresh; a rejected refresh clears credentials. A protected GET/HEAD may retry once after 401, but point and other mutations are never replayed automatically. Branch switching keeps the renewed tokens. The password-login “remember me” option controls session restoration.
 - Date query parameters use `yyyy-MM-dd`, independent of device culture. HTTP export errors and empty bodies are rejected before saving/sharing.
 - Calendar view no longer deletes against the first calendar. Calendar management selects the exact calendar; overlapping dates do not crash the year view.
 - Billing browser return is not treated as proof of payment. Billing uses existing server-configured web return URLs; users return to the app and it reloads server state. No custom app deep-link infrastructure was introduced.
@@ -46,6 +47,7 @@ The platform-independent test project links the actual mobile contracts/services
 - [ ] Android and iOS: new owner → company → completion; restart before company creation and resume.
 - [ ] Existing owner: create another branch, switch branches, verify dashboard/history/profile/calendar data and kiosk company context.
 - [ ] Existing employee: password/PIN/biometric login, clock-in/out and breaks with GPS permissions granted/denied.
+- [ ] Alterar senha e PIN em aparelho físico; confirmar orientação de novo login e bloqueio de sessão antiga em outro dispositivo.
 - [ ] Shared kiosk: reject valid credentials from another company; verify the API also forbids cross-tenant clock actions.
 - [ ] Owner directory: CPF/name search, inactive filter, sorting and biometric setup via Profile.
 - [ ] Save employee mappings; exercise duplicate/invalid/unmapped errors; compare mobile and desktop TXT bytes for identical inputs, then import into a test Domínio company with existing employees.

@@ -310,7 +310,10 @@
 
         if (result is not null && !result.Canceled)
         {
-            Snackbar.Add("PIN alterado com sucesso!", Severity.Success);
+            await SecureStorage.ClearAllAsync();
+            await Session.ClearAsync();
+            Snackbar.Add("PIN alterado. Entre novamente para continuar.", Severity.Success);
+            Navigation.NavigateTo("/login", replace: true);
         }
     }
 
@@ -394,7 +397,10 @@
 
         if (result is not null && !result.Canceled)
         {
-            Snackbar.Add("Senha alterada com sucesso!", Severity.Success);
+            await SecureStorage.ClearAllAsync();
+            await Session.ClearAsync();
+            Snackbar.Add("Senha alterada. Entre novamente para continuar.", Severity.Success);
+            Navigation.NavigateTo("/login", replace: true);
         }
     }
 

@@ -34,7 +34,7 @@ public sealed class RequestPerformanceMiddleware(
                 logger.LogWarning(
                     "Slow request {Method} {Path} returned {StatusCode} in {ElapsedMs:F1} ms. TraceId: {TraceId}",
                     context.Request.Method,
-                    context.Request.Path,
+                    (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "[unmatched]",
                     context.Response.StatusCode,
                     stopwatch.Elapsed.TotalMilliseconds,
                     context.TraceIdentifier);

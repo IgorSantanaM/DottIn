@@ -76,19 +76,26 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
 
             await branchRepository.AddAsync(branch, cancellationToken);
 
-            if (request.IsHeadQuarters && owner is not null && owner.BranchId == Guid.Empty)
-            {
-                owner.AssociateOwnerWithBranch(branch.Id);
-                await employeeRepository.UpdateAsync(owner);
-            }
-
             // If this is a Headquarters with an owner, create Stripe customer and Free subscription
             if (request.IsHeadQuarters && owner != null)
             {
                 await CreateTenantSubscriptionAsync(branch, owner, cancellationToken);
             }
 
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (request.IsHeadQuarters && owner is not null && owner.BranchId == Guid.Empty)
+            {
+                // Employee.BranchId is an alternate key used by tenant-safe foreign keys.
+                // Persist the branch first, then update the owner directly in one transaction.
+                await unitOfWork.ExecuteInTransactionAsync(async token =>
+                {
+                    await unitOfWork.SaveChangesAsync(token);
+                    await employeeRepository.AssociateUnassignedOwnerWithBranchAsync(owner.Id, branch.Id, token);
+                }, cancellationToken);
+            }
+            else
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
 
             return branch.Id;
         }

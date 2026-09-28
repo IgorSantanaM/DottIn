@@ -2,7 +2,6 @@ using System.Security.Claims;
 using System.Data;
 using DottIn.Application.Features.Auth.DTOs;
 using DottIn.Application.Features.Employees.Commands.RegisterOwner;
-using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Application.Shared.DTOS;
 using DottIn.Domain.Auth;
 using DottIn.Domain.Branches;
@@ -73,7 +72,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             group.MapPost("/logout", HandleLogoutAsync)
                 .WithName(nameof(HandleLogoutAsync))
                 .WithSummary("Logout")
-                .WithDescription("Revokes all refresh tokens for the authenticated employee.")
+                .WithDescription("Revokes all access and refresh tokens for the authenticated employee on every device.")
                 .Produces(StatusCodes.Status204NoContent)
                 .Produces(StatusCodes.Status401Unauthorized);
 
@@ -126,7 +125,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
-            [FromServices] ITenantSubscriptionService subscriptionService,
             [FromServices] IValidator<LoginRequest> validator,
             [FromServices] DottInContext db,
             [FromServices] ICompanyJoinLinkTokenService companyJoinLinkTokenService,
@@ -163,7 +161,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!branch.IsActive)
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, httpContext, cancellationToken);
+            return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
         }
 
         private static async Task<IResult?> JoinCompanyFromLinkAsync(
@@ -210,7 +208,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
-            [FromServices] ITenantSubscriptionService subscriptionService,
             HttpContext httpContext,
             CancellationToken cancellationToken)
         {
@@ -233,7 +230,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPin(request.Pin))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, httpContext, cancellationToken);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
         }
 
         private static async Task<IResult> HandleFingerprintLoginAsync(
@@ -244,7 +241,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] IRefreshTokenRepository refreshTokenRepository,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
-            [FromServices] ITenantSubscriptionService subscriptionService,
             HttpContext httpContext,
             CancellationToken cancellationToken)
         {
@@ -267,7 +263,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyFingerprint(request.FingerprintToken))
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, subscriptionService, httpContext, cancellationToken);
+            return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
         }
 
         #endregion
@@ -282,7 +278,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             [FromServices] ITokenService tokenService,
             [FromServices] IUnitOfWork unitOfWork,
             [FromServices] IConfiguration configuration,
-            [FromServices] ITenantSubscriptionService subscriptionService,
             HttpContext httpContext,
             CancellationToken cancellationToken)
         {
@@ -300,7 +295,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.Unauthorized();
 
             var employee = await employeeRepository.GetByIdAsync(existingToken.EmployeeId, cancellationToken);
-            if (employee == null || !employee.IsActive)
+            if (employee == null || !employee.IsActive || employee.SessionVersion != existingToken.SessionVersion)
                 return Results.Unauthorized();
 
             Branch? branch;
@@ -333,9 +328,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
-                expirationMinutes);
+                expirationMinutes,
+                employee.SessionVersion);
 
-            var newRefreshToken = new RefreshToken(employee.Id, branch?.Id ?? Guid.Empty);
+            var newRefreshToken = new RefreshToken(employee.Id, branch?.Id ?? Guid.Empty, employee.SessionVersion);
             await refreshTokenRepository.AddAsync(newRefreshToken, cancellationToken);
             try
             {
@@ -358,22 +354,38 @@ namespace DottIn.Presentation.WebApi.Endpoints
         private static async Task<IResult> HandleLogoutAsync(
             ClaimsPrincipal user,
             HttpContext httpContext,
-            [FromServices] IRefreshTokenRepository refreshTokenRepository,
-            [FromServices] IUnitOfWork unitOfWork,
+            [FromServices] DottInContext db,
             CancellationToken cancellationToken)
         {
             var employeeIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier)
                                   ?? user.FindFirstValue("sub");
-
-            if (string.IsNullOrEmpty(employeeIdClaim) || !Guid.TryParse(employeeIdClaim, out var employeeId))
+            if (!Guid.TryParse(employeeIdClaim, out var employeeId))
                 return Results.Unauthorized();
 
-            await refreshTokenRepository.DeleteAllByEmployeeAsync(employeeId, cancellationToken);
-            WebSessionCookie.Delete(httpContext);
+            // Updating the session version and deleting refresh tokens must commit
+            // together. Tokens issued by a concurrent refresh carry the old version.
+            var strategy = db.Database.CreateExecutionStrategy();
+            var revoked = await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var employee = await db.Employees.FirstOrDefaultAsync(
+                    candidate => candidate.Id == employeeId, cancellationToken);
+                if (employee is null)
+                    return false;
 
+                employee.RotateSessionVersion();
+                await db.SaveChangesAsync(cancellationToken);
+                await db.RefreshTokens.Where(token => token.EmployeeId == employeeId)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            });
+            if (!revoked)
+                return Results.Unauthorized();
+
+            WebSessionCookie.Delete(httpContext);
             return Results.NoContent();
         }
-
         #endregion
 
         #region Authenticated Operations
@@ -445,6 +457,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.BadRequest(new { Message = "A nova senha deve ser diferente da atual." });
 
             employee.SetPassword(request.NewPassword);
+            employee.RotateSessionVersion();
             await employeeRepository.UpdateAsync(employee);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -478,6 +491,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 return Results.Unauthorized();
 
             employee.SetPin(request.NewPin);
+            employee.RotateSessionVersion();
             await employeeRepository.UpdateAsync(employee);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -529,9 +543,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
-                expirationMinutes);
+                expirationMinutes,
+                employee.SessionVersion);
 
-            var refreshToken = new Domain.Auth.RefreshToken(employee.Id, Guid.Empty);
+            var refreshToken = new Domain.Auth.RefreshToken(employee.Id, Guid.Empty, employee.SessionVersion);
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -568,9 +583,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
-                expirationMinutes);
+                expirationMinutes,
+                employee.SessionVersion);
 
-            var refreshToken = new RefreshToken(employee.Id, Guid.Empty);
+            var refreshToken = new RefreshToken(employee.Id, Guid.Empty, employee.SessionVersion);
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -598,7 +614,6 @@ namespace DottIn.Presentation.WebApi.Endpoints
             IRefreshTokenRepository refreshTokenRepository,
             IUnitOfWork unitOfWork,
             IConfiguration configuration,
-            ITenantSubscriptionService subscriptionService,
             HttpContext httpContext,
             CancellationToken cancellationToken)
         {
@@ -613,29 +628,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 jwtSettings["SecretKey"]!,
                 jwtSettings["Issuer"]!,
                 jwtSettings["Audience"]!,
-                expirationMinutes);
+                expirationMinutes,
+                employee.SessionVersion);
 
-            var refreshToken = new RefreshToken(employee.Id, branch.Id);
+            var refreshToken = new RefreshToken(employee.Id, branch.Id, employee.SessionVersion);
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             var isOwner = branch.OwnerId == employee.Id;
-
-            SubscriptionInfoDto? subscriptionInfo = null;
-            if (branch.OwnerId.HasValue)
-            {
-                var subscription = await subscriptionService.GetByOwnerIdAsync(branch.OwnerId.Value, cancellationToken);
-                if (subscription != null)
-                {
-                    subscriptionInfo = new SubscriptionInfoDto(
-                        PlanName: subscription.PlanName,
-                        MaxEmployees: subscription.MaxEmployees,
-                        MaxBranches: subscription.MaxBranches,
-                        CanAddEmployee: subscription.CanAddEmployee,
-                        CanAddBranch: subscription.CanAddBranch
-                    );
-                }
-            }
 
             SetRefreshCookieIfRequested(httpContext, refreshToken.PlainTextToken!);
 
@@ -647,7 +647,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 BranchId: branch.Id,
                 IsOwner: isOwner,
                 IsHeadquarters: branch.IsHeadquarters,
-                Subscription: subscriptionInfo,
+                Subscription: null,
                 CompanyCode: branch.CompanyCode,
                 Role: employee.Role.ToString()
             );

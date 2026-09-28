@@ -15,7 +15,8 @@ namespace DottIn.Infra.Services.Auth
             string secretKey,
             string issuer,
             string audience,
-            int expirationMinutes)
+            int expirationMinutes,
+            Guid sessionVersion)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -27,7 +28,8 @@ namespace DottIn.Infra.Services.Auth
                 new Claim("branchId", branchId.ToString()),
                 new Claim("tenantId", tenantId.ToString()),
                 new Claim(ClaimTypes.Role, role),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("sessionVersion", sessionVersion.ToString())
             };
 
             var token = new JwtSecurityToken(

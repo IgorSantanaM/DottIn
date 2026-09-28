@@ -1,4 +1,4 @@
-using DottIn.Domain.Employees;
+﻿using DottIn.Domain.Employees;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +6,21 @@ namespace DottIn.Infra.Data.Repositories
 {
     public class EmployeeRepository(DottInContext context) : Repository<Employee, Guid>(context), IEmployeeRepository
     {
+
+        public async Task AssociateUnassignedOwnerWithBranchAsync(Guid ownerId, Guid branchId, CancellationToken token = default)
+        {
+            // BranchId belongs to a composite alternate key, so EF cannot mutate a tracked Employee.
+            var updated = await context.Employees
+                .Where(employee => employee.Id == ownerId &&
+                                   employee.Role == EmployeeRole.Owner &&
+                                   employee.BranchId == Guid.Empty)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(employee => employee.BranchId, branchId)
+                    .SetProperty(employee => employee.UpdatedAt, DateTime.UtcNow), token);
+
+            if (updated != 1)
+                throw new InvalidOperationException("O proprietário já está associado a uma filial.");
+        }
 
         public async Task<IEnumerable<Employee>> GetActiveEmployeesAsync(Guid branchId, CancellationToken token = default)
             => await context.Employees
@@ -99,19 +114,17 @@ namespace DottIn.Infra.Data.Repositories
             => context.Employees
                 .AsNoTracking()
                 .CountAsync(e => e.BranchId == branchId && e.IsActive && e.Role != EmployeeRole.Owner, token);
-        public async Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
-        {
-            var branchIds = await context.Branches
+        public Task<int> CountActiveByOwnerIdAsync(Guid ownerId, CancellationToken token = default)
+            => context.Employees
                 .AsNoTracking()
-                .Where(b => b.OwnerId == ownerId && b.IsActive)
-                .Select(b => b.Id)
-                .ToListAsync(token);
-
-            return await context.Employees
-                .AsNoTracking()
-                .Where(e => branchIds.Contains(e.BranchId) && e.IsActive && e.Role != EmployeeRole.Owner)
-                .CountAsync(token);
-        }
+                .CountAsync(employee =>
+                    employee.IsActive &&
+                    employee.Role != EmployeeRole.Owner &&
+                    context.Branches.Any(branch =>
+                        branch.Id == employee.BranchId &&
+                        branch.OwnerId == ownerId &&
+                        branch.IsActive),
+                    token);
 
         public async Task<bool> AddEmployeeImageAsync(Guid employeeId, string imageUrl, CancellationToken cancellationToken = default)
         {

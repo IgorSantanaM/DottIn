@@ -10,13 +10,17 @@
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageReference Include="Refit" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
   </ItemGroup>
   <!-- Exercise the actual platform-independent mobile services without requiring an emulator. -->
   <ItemGroup>
     <Compile Include="../../clients/DottIn.Mobile/Services/AppState.cs" Link="Mobile/AppState.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileSessionService.cs" Link="Mobile/MobileSessionService.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/MobileTokenRefreshService.cs" Link="Mobile/MobileTokenRefreshService.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/AuthorizationHandler.cs" Link="Mobile/AuthorizationHandler.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileRoutePolicy.cs" Link="Mobile/MobileRoutePolicy.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/ProfileExternalLinks.cs" Link="Mobile/ProfileExternalLinks.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/NewPasswordPolicy.cs" Link="Mobile/NewPasswordPolicy.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/ManagementRules.cs" Link="Mobile/ManagementRules.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/ExportPayload.cs" Link="Mobile/ExportPayload.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/IApiServices.cs" Link="Mobile/IApiServices.cs" />
