@@ -12,7 +12,7 @@ namespace DottIn.Infra.Data.Mappings
             builder.ToTable("Employees", table =>
                 table.HasCheckConstraint(
                     "CK_Employees_Role",
-                    "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner')"));
+                    "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner', 'Accountant')"));
 
             builder.HasKey(e => e.Id);
             builder.HasAlternateKey(e => new { e.BranchId, e.Id });
