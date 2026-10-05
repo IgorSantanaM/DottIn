@@ -5,6 +5,7 @@ using DottIn.Domain.Exports;
 using DottIn.Domain.HolidayCalendars;
 using DottIn.Domain.Subscriptions;
 using DottIn.Domain.TimeKeepings;
+using DottIn.Domain.Payrolls;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,11 @@ namespace DottIn.Infra.Data.Contexts
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<TenantSubscription> TenantSubscriptions { get; set; }
         public DbSet<StripeWebhookReceipt> StripeWebhookReceipts { get; set; }
+        public DbSet<Payroll> Payrolls { get; set; }
+        public DbSet<PayrollItem> PayrollItems { get; set; }
+        public DbSet<PayrollPaymentChange> PayrollPaymentChanges { get; set; }
+        public DbSet<PayrollExportEvent> PayrollExportEvents { get; set; }
+        public DbSet<AccountantBranchAccess> AccountantBranchAccesses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

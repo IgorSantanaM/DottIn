@@ -27,6 +27,22 @@ namespace DottIn.Domain.Employees
 
         private Employee() { }
 
+        public static Employee CreateAccountant(string name, Document cpf, Guid branchId, string password)
+        {
+            if (string.IsNullOrWhiteSpace(name) || cpf is null || cpf.Type != DocumentType.CPF || branchId == Guid.Empty)
+                throw new DomainException("Dados do contador inválidos.");
+            var accountant = new Employee
+            {
+                Id = Guid.NewGuid(), SessionVersion = Guid.NewGuid(), Name = name.Trim(), CPF = cpf,
+                BranchId = branchId, Role = EmployeeRole.Accountant, IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                StartWorkTime = TimeOnly.MinValue, EndWorkTime = TimeOnly.MinValue,
+                IntervalStart = TimeOnly.MinValue, IntervalEnd = TimeOnly.MinValue
+            };
+            accountant.SetPassword(password);
+            return accountant;
+        }
+
         /// <summary>
         /// Constructor for Owner registration (no branch, no schedule).
         /// The owner is created before any branch exists.

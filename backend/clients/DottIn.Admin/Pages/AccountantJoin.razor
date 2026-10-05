@@ -1,0 +1,88 @@
+@page "/accountant/join"
+@inject AdminApiClient Api
+@inject AuthService Auth
+@inject AdminState State
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DottIn - Convite para contador</PageTitle>
+
+<div style="min-height:100vh;display:grid;place-items:center;padding:16px">
+    <MudPaper Class="pa-6" Elevation="2" Style="width:min(100%,460px);border-radius:16px">
+        <MudText Typo="Typo.h5" Class="mb-2">Acesso à contabilidade</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Aceite o convite para visualizar e exportar as folhas autorizadas.
+        </MudText>
+        @if (string.IsNullOrWhiteSpace(_token))
+        {
+            <MudAlert Severity="Severity.Error">O link não contém um convite válido.</MudAlert>
+        }
+        else if (State.IsAuthenticated && State.Role == "Accountant")
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="AcceptExistingAsync">
+                Adicionar filial à minha conta
+            </MudButton>
+        }
+        else if (State.IsAuthenticated)
+        {
+            <MudAlert Severity="Severity.Warning">Entre com uma conta de contador para aceitar este convite.</MudAlert>
+        }
+        else
+        {
+            <MudTextField T="string" Label="Nome completo" @bind-Value="_name" Class="mb-2" />
+            <MudTextField T="string" Label="CPF" @bind-Value="_cpf" Class="mb-2" />
+            <MudTextField T="string" Label="Senha" InputType="InputType.Password" @bind-Value="_password" Class="mb-3" />
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Disabled="_busy" OnClick="RegisterAsync">
+                Criar acesso de contador
+            </MudButton>
+            <MudText Typo="Typo.caption" Class="mt-3">Já tem uma conta de contador? Entre na sua conta e abra este link novamente.</MudText>
+        }
+        @if (_busy) { <MudProgressLinear Indeterminate="true" Class="mt-3" /> }
+    </MudPaper>
+</div>
+
+@code {
+    private string _token = "";
+    private string _name = "";
+    private string _cpf = "";
+    private string _password = "";
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query);
+        _token = query["token"] ?? "";
+    }
+
+    private async Task AcceptExistingAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Api.AcceptAccountantAccessAsync(_token);
+            Navigation.NavigateTo("/payroll", replace: true);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _busy = false; }
+    }
+
+    private async Task RegisterAsync()
+    {
+        var cpf = new string(_cpf.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(_name) || cpf.Length != 11 || string.IsNullOrWhiteSpace(_password))
+        {
+            Snackbar.Add("Informe nome, CPF e senha válidos.", Severity.Warning);
+            return;
+        }
+        _busy = true;
+        try
+        {
+            await Api.RegisterAccountantAsync(_token, _name.Trim(), cpf, _password);
+            var (success, error) = await Auth.LoginAsync(cpf, _password);
+            if (success) Navigation.NavigateTo("/payroll", replace: true);
+            else Snackbar.Add(error ?? "Conta criada. Entre para continuar.", Severity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _busy = false; }
+    }
+}
