@@ -1,5 +1,31 @@
 # DottIn
 
+## Local Docker setup (Windows / PowerShell)
+
+From the repository root, run:
+
+```powershell
+./backend/tools/Initialize-ComposeEnvironment.ps1
+docker compose config --quiet
+docker compose up -d --build
+```
+
+The initializer creates a private, Git-ignored `.env` beside `compose.yaml`, generates independent PostgreSQL, RabbitMQ, JWT and local storage secrets, and preserves existing passwords on reruns. It imports an existing **test-mode pair** of Stripe keys from the API's .NET user-secrets store, falling back to the authenticated Stripe CLI's default profile. Run `stripe login` first if necessary. It retrieves the local listener signing secret with Stripe CLI without printing credentials. If credentials are unavailable, it reports the missing setting names; it does not insert fake Stripe keys.
+
+Local mode sets `APP_PUBLIC_URL=http://localhost:32850` and selects `compose.yaml` plus `compose.local.yaml` through `.env`. The API uses Development mode so local HTTP works. The overlay adds a persistent Azurite Blob Storage emulator on **127.0.0.1:32855** (container port 10000), avoiding any need for a real Azure subscription. The Blob connection string uses the container-internal endpoint; it is for the backend, not a public photo URL. Without `MT_LICENSE`, the initializer explicitly selects core-only mode: RabbitMQ runs, but background consumers, including employee image processing, remain disabled. Provide the license and set `MASSTRANSIT_DISABLED=false` to test those features.
+
+For Stripe webhooks, keep this running in a separate terminal using the **same Stripe test account** as the configured keys:
+
+```powershell
+stripe listen --forward-to http://localhost:32850/api/webhooks/stripe
+```
+
+If the signing secret changes, run `./backend/tools/Initialize-ComposeEnvironment.ps1 -RefreshWebhookSecret` and `docker compose up -d` to recreate the API with the updated value. The initializer does not start containers, create live payments or deploy anything. Stripe paid plans still require the correct test Price IDs in the database. Localhost HTTP works on this computer; smartphone geolocation over a LAN IP requires an HTTPS origin.
+
+The `.env` file is **not transferred by Git**. If the checkout is at `E:\Projetos\DottIn`, run the initializer there, or securely copy your `.env` to that checkout. Do not regenerate database passwords for existing volumes; if credentials were lost, recover the old password or explicitly rotate it in PostgreSQL rather than deleting data.
+
+For production, use `./backend/tools/Initialize-ComposeEnvironment.ps1 -Mode Production -PublicUrl https://your-domain.example` with your real Azure, Stripe endpoint and license settings provided through environment variables or `.env`. The initializer refuses to switch an existing localhost configuration to production (or the reverse) implicitly; use a separate checkout/private environment file. Production selects `compose.yaml` only, without the emulator or HTTP development overlay.
+
 ## Docker deployment
 
 The root `compose.yaml` follows the portfolio's deployment pattern: build locally, serve the web Admin with Nginx on container port 80, publish fixed host ports, and restart services with `unless-stopped`. It runs the web Admin, API, PostgreSQL and RabbitMQ. The static mockup in `frontend/` and the native mobile app are not container services.
