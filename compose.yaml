@@ -1,0 +1,112 @@
+name: dottin
+
+services:
+  admin:
+    build:
+      context: ./backend
+      dockerfile: clients/DottIn.Admin/Dockerfile
+    ports:
+      - "32850:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/DottIn.Presentation.WebApi/Dockerfile
+    ports:
+      - "32851:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      AllowedHosts: ${API_ALLOWED_HOSTS:-*}
+      AllowedOrigins__0: ${APP_PUBLIC_URL:?Set APP_PUBLIC_URL to the public HTTPS origin}
+      ConnectionStrings__DottInDb: Host=postgres;Port=5432;Database=dottindb;Username=dottin;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMQ: amqp://dottin:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}@rabbitmq:5672
+      MassTransit__Disabled: ${MASSTRANSIT_DISABLED:-false}
+      MassTransit__UseInMemory: "false"
+      MT_LICENSE: ${MT_LICENSE:-}
+      MediatR__LicenseKey: ${MEDIATR_LICENSE_KEY:-}
+      JwtSettings__SecretKey: ${JWT_SECRET:?Set JWT_SECRET to a random secret of at least 32 characters}
+      JwtSettings__Issuer: DottInAPI
+      JwtSettings__Audience: DottInMobile
+      JwtSettings__ExpirationMinutes: "15"
+      DataProtection__KeysDirectory: /app/data-protection-keys
+      ReverseProxy__KnownNetworks__0: ${COMPOSE_SUBNET:-172.28.85.0/24}
+      Database__ApplyMigrationsOnStartup: ${APPLY_MIGRATIONS_ON_STARTUP:-true}
+      AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:?Set AZURE_BLOB_CONNECTION_STRING}
+      AzureBlob__ContainerName: ${AZURE_BLOB_CONTAINER_NAME:-employee-images}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY:?Set STRIPE_SECRET_KEY}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:?Set STRIPE_PUBLISHABLE_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:?Set STRIPE_WEBHOOK_SECRET}
+      Stripe__SuccessUrl: ${APP_PUBLIC_URL}/billing/success
+      Stripe__CancelUrl: ${APP_PUBLIC_URL}/billing/cancel
+      Stripe__PortalReturnUrl: ${APP_PUBLIC_URL}/billing
+    volumes:
+      - dottin-data-protection:/app/data-protection-keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "${TOOLS_BIND_ADDRESS:-127.0.0.1}:32852:5432"
+    environment:
+      POSTGRES_DB: dottindb
+      POSTGRES_USER: dottin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - dottin-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dottin -d dottindb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    hostname: rabbitmq
+    ports:
+      - "${TOOLS_BIND_ADDRESS:-127.0.0.1}:32853:5672"
+      - "${TOOLS_BIND_ADDRESS:-127.0.0.1}:32854:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: dottin
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    volumes:
+      - dottin-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMPOSE_SUBNET:-172.28.85.0/24}
+
+volumes:
+  dottin-postgres:
+  dottin-rabbitmq:
+  dottin-data-protection:

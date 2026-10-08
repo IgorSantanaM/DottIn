@@ -8,8 +8,8 @@ RUN dotnet publish clients/DottIn.Admin/DottIn.Admin.csproj \
     --no-restore \
     --output /app/publish
 
-FROM nginx:1.27-alpine AS final
+FROM nginx:stable-alpine AS final
 COPY clients/DottIn.Admin/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
 
-EXPOSE 8080
+EXPOSE 80

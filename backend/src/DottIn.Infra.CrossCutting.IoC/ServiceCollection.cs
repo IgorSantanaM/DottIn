@@ -34,6 +34,7 @@ namespace DottIn.Infra.CrossCutting.IoC
         {
             services.AddMediatR(cfg =>
             {
+                cfg.LicenseKey = configuration["MediatR:LicenseKey"];
                 cfg.RegisterServicesFromAssembly(typeof(ClockInCommand).Assembly);
             });
 

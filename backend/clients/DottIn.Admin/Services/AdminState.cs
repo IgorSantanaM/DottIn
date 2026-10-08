@@ -22,6 +22,14 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
     public Guid BranchId { get; private set; }
     public bool IsOwner { get; private set; }
     public string Role { get; private set; } = "Employee";
+    public string RoleLabel => Role switch
+    {
+        "Owner" => "Proprietário",
+        "Administrator" => "Administrador",
+        "Manager" => "Gestor",
+        "Employee" => "Funcionário",
+        _ => "Usuário"
+    };
     public bool CanViewBranchRecords => Role is "Owner" or "Administrator";
     public bool IsDarkMode { get; private set; } = true;
     public string CompanyCode { get; private set; } = "";

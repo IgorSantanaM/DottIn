@@ -143,12 +143,26 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
-            if (employee.BranchId == Guid.Empty && !string.IsNullOrWhiteSpace(request.CompanyJoinToken))
+            if (!string.IsNullOrWhiteSpace(request.CompanyJoinToken))
             {
-                var joinError = await JoinCompanyFromLinkAsync(employee, request.CompanyJoinToken, db,
-                    companyJoinLinkTokenService, cancellationToken);
-                if (joinError is not null)
-                    return joinError;
+                if (employee.BranchId == Guid.Empty)
+                {
+                    var joinError = await JoinCompanyFromLinkAsync(employee, request.CompanyJoinToken, db,
+                        companyJoinLinkTokenService, cancellationToken);
+                    if (joinError is not null)
+                        return joinError;
+                    employee = await employeeRepository.GetByIdAsync(employee.Id, cancellationToken)
+                        ?? throw new InvalidOperationException("Conta associada não encontrada.");
+                }
+                else
+                {
+                    var validation = await CompanyJoinLinkEndpoints.ValidateAsync(
+                        request.CompanyJoinToken, db, companyJoinLinkTokenService, cancellationToken);
+                    if (validation is null)
+                        return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
+                    if (validation.Value.Branch.Id != employee.BranchId)
+                        return Results.Conflict(new { Message = "Esta conta já pertence a outra filial. Use uma conta diferente para aceitar o convite." });
+                }
             }
 
             if (employee.BranchId == Guid.Empty && employee.Role == EmployeeRole.Owner)
@@ -171,33 +185,56 @@ namespace DottIn.Presentation.WebApi.Endpoints
             ICompanyJoinLinkTokenService tokenService,
             CancellationToken cancellationToken)
         {
-            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-            var validation = await CompanyJoinLinkEndpoints.ValidateAsync(token, db, tokenService, cancellationToken);
-            if (validation is null)
-                return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
-
-            var (_, branch, subscription) = validation.Value;
-            if (employee.BranchId != Guid.Empty)
-                return null;
-
-            if (!await CompanyJoinLinkEndpoints.HasSeatAvailableAsync(db, branch.OwnerId!.Value, subscription, cancellationToken))
-                return Results.Conflict(new { Message = "Não há assentos disponíveis nesta empresa." });
-
-            try
+            var strategy = db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync<IResult?>(async () =>
             {
-                var (intervalStart, intervalEnd) = CompanyJoinLinkEndpoints.DefaultInterval(branch);
-                employee.JoinInvitedBranch(branch.Id, branch.StartWorkTime, branch.EndWorkTime, intervalStart, intervalEnd);
-                db.Employees.Update(employee);
-                await db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (DbUpdateException)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return Results.Conflict(new { Message = "Não foi possível associar a conta à empresa." });
-            }
+                db.ChangeTracker.Clear();
+                await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+                var validation = await CompanyJoinLinkEndpoints.ValidateAsync(token, db, tokenService, cancellationToken);
+                if (validation is null)
+                    return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
 
-            return null;
+                var (_, branch, subscription) = validation.Value;
+                var currentEmployee = await db.Employees.AsNoTracking().SingleOrDefaultAsync(
+                    candidate => candidate.Id == employee.Id, cancellationToken);
+                if (currentEmployee is null || currentEmployee.BranchId != Guid.Empty)
+                    return Results.Conflict(new { Message = "Esta conta já está vinculada a uma filial." });
+
+                if (!await CompanyJoinLinkEndpoints.HasSeatAvailableAsync(db, branch.OwnerId!.Value, subscription, cancellationToken))
+                    return Results.Conflict(new { Message = "Não há assentos disponíveis nesta empresa." });
+
+                try
+                {
+                    var (intervalStart, intervalEnd) = CompanyJoinLinkEndpoints.DefaultInterval(branch);
+                    var previousSessionVersion = currentEmployee.SessionVersion;
+                    currentEmployee.JoinInvitedBranch(branch.Id, branch.StartWorkTime, branch.EndWorkTime, intervalStart, intervalEnd);
+                    currentEmployee.RotateSessionVersion();
+                    // BranchId participates in Employee's alternate key. ExecuteUpdate
+                    // updates it atomically without EF trying to mutate a tracked key.
+                    var updated = await db.Employees
+                        .Where(candidate => candidate.Id == employee.Id && candidate.BranchId == Guid.Empty &&
+                            candidate.SessionVersion == previousSessionVersion)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(candidate => candidate.BranchId, currentEmployee.BranchId)
+                            .SetProperty(candidate => candidate.Role, currentEmployee.Role)
+                            .SetProperty(candidate => candidate.StartWorkTime, currentEmployee.StartWorkTime)
+                            .SetProperty(candidate => candidate.EndWorkTime, currentEmployee.EndWorkTime)
+                            .SetProperty(candidate => candidate.IntervalStart, currentEmployee.IntervalStart)
+                            .SetProperty(candidate => candidate.IntervalEnd, currentEmployee.IntervalEnd)
+                            .SetProperty(candidate => candidate.AllowOvernightShifts, currentEmployee.AllowOvernightShifts)
+                            .SetProperty(candidate => candidate.SessionVersion, currentEmployee.SessionVersion)
+                            .SetProperty(candidate => candidate.UpdatedAt, currentEmployee.UpdatedAt), cancellationToken);
+                    if (updated != 1)
+                        return Results.Conflict(new { Message = "Esta conta já está vinculada a uma filial." });
+                    await transaction.CommitAsync(cancellationToken);
+                    return null;
+                }
+                catch (DbUpdateException)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return Results.Conflict(new { Message = "Não foi possível associar a conta à empresa." });
+                }
+            });
         }
 
         private static async Task<IResult> HandlePinLoginAsync(

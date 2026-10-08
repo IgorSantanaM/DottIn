@@ -11,6 +11,15 @@ public sealed class LayoutAndQueryPerformanceContractTests
     }
 
     [Fact]
+    public void UserMenuAndAppBarShowAuthenticatedRole()
+    {
+        var layout = ReadSource("clients/DottIn.Admin/Layout/MainLayout.razor");
+
+        Assert.Equal(2, layout.Split("@State.RoleLabel", StringSplitOptions.None).Length - 1);
+        Assert.DoesNotContain(">Administrador</MudText>", layout, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void OwnerDashboard_UsesAggregatedEndpoint()
     {
         var dashboard = ReadSource("clients/DottIn.Admin/Pages/Dashboard.razor");
