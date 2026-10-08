@@ -12,7 +12,7 @@ else
     <MudLayout>
         <MudAppBar Elevation="1" Dense="true" Fixed="true"
                    Style="background-color: var(--mud-palette-appbar-background); color: var(--mud-palette-appbar-text);">
-            @if (State.CanAccessOperationalModules)
+            @if (State.CanAccessOperationalModules && State.Role != "Accountant")
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
                                Edge="Edge.Start" OnClick="ToggleDrawer" />
@@ -31,7 +31,7 @@ else
                 <MudMenuItem Disabled="true">
                     <div style="min-width: 180px;">
                         <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">@State.User?.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@State.RoleLabel</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(State.Role == "Accountant" ? "Contador" : "Administrador")</MudText>
                     </div>
                 </MudMenuItem>
                 <MudDivider />
@@ -44,6 +44,12 @@ else
             <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
                        Variant="DrawerVariant.Mini" OpenMiniOnHover="true">
                 <MudNavMenu>
+                    @if (State.Role == "Accountant")
+                    {
+                        <MudNavLink Href="/payroll" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Folha</MudNavLink>
+                    }
+                    else
+                    {
                     <MudNavLink Href="/dashboard" Match="NavLinkMatch.All"
                                 Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
                     <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix"
@@ -52,10 +58,15 @@ else
                                 Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
                     <MudNavLink Href="/holidays" Match="NavLinkMatch.Prefix"
                                 Icon="@Icons.Material.Filled.CalendarMonth">Feriados</MudNavLink>
+                    @if (State.Role is "Owner" or "Administrator")
+                    {
+                        <MudNavLink Href="/payroll" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Folha</MudNavLink>
+                    }
                     @if (State.IsOwner)
                     {
                         <MudNavLink Href="/billing" Match="NavLinkMatch.Prefix"
                                     Icon="@Icons.Material.Filled.CreditCard">Assinatura</MudNavLink>
+                    }
                     }
                 </MudNavMenu>
             </MudDrawer>

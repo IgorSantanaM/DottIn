@@ -51,6 +51,7 @@ if (!string.IsNullOrWhiteSpace(keyDirectory))
     dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 builder.Services.AddScoped<CurrentUserContext>();
 builder.Services.AddScoped<TenantAccessService>();
+builder.Services.AddScoped<PayrollAccessService>();
 builder.Services.AddScoped<TenantAuthorizationFilter>();
 builder.Services.AddScoped<ICompanyJoinLinkTokenService, CompanyJoinLinkTokenService>();
 
@@ -162,3 +163,5 @@ app.MapGet("/health/ready", async (DottInContext dbContext, CancellationToken ca
     .ExcludeFromDescription();
 
 app.Run();
+
+public partial class Program { }

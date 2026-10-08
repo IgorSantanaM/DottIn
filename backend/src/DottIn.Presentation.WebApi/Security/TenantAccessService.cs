@@ -61,7 +61,7 @@ public sealed class TenantAccessService(DottInContext db, CurrentUserContext cur
     }
 
     public bool CanActFor(Guid employeeId, bool requestedSkipGeolocation)
-        => employeeId == currentUser.EmployeeId
+        => currentUser.Role == EmployeeRole.Accountant ? false : employeeId == currentUser.EmployeeId
             ? !requestedSkipGeolocation || currentUser.IsAdministrator
             : currentUser.IsManager;
 }
