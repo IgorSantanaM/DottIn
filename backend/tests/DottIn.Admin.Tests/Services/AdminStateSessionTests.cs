@@ -203,11 +203,11 @@ public sealed class AdminStateSessionTests
         Assert.Equal("new-token", restored.AccessToken);
     }
     [Theory]
-    [InlineData("Owner", true)]
-    [InlineData("Administrator", true)]
-    [InlineData("Manager", false)]
-    [InlineData("Employee", false)]
-    public async Task BranchHistoryAccessFollowsAuthenticatedRoleAfterReload(string role, bool expected)
+    [InlineData("Owner", true, "Proprietário")]
+    [InlineData("Administrator", true, "Administrador")]
+    [InlineData("Manager", false, "Gestor")]
+    [InlineData("Employee", false, "Funcionário")]
+    public async Task BranchHistoryAccessFollowsAuthenticatedRoleAfterReload(string role, bool expected, string expectedLabel)
     {
         var browser = new MemoryBrowserStorage();
         var original = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
@@ -215,14 +215,17 @@ public sealed class AdminStateSessionTests
             "old-token", "refresh-token", DateTime.UtcNow.AddMinutes(1),
             new EmployeeInfo(Guid.NewGuid(), "Ana Silva", "", null),
             Guid.NewGuid(), false, false, "COMP", role));
+        Assert.Equal(expectedLabel, original.RoleLabel);
 
         var restored = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
         Assert.True(await restored.RestoreSnapshotAsync());
         Assert.Equal(expected, restored.CanViewBranchRecords);
+        Assert.Equal(expectedLabel, restored.RoleLabel);
 
         await restored.CompleteRefreshAsync(new RefreshTokenResponse(
             "new-token", "refresh-token", DateTime.UtcNow.AddMinutes(15), role));
         Assert.Equal(expected, restored.CanViewBranchRecords);
+        Assert.Equal(expectedLabel, restored.RoleLabel);
         var snapshot = JsonSerializer.Deserialize<AdminSessionSnapshot>(browser.Local["admin.session.snapshot"]);
         Assert.Equal(role, snapshot?.Role);
     }

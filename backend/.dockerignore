@@ -6,3 +6,15 @@ tests
 tools
 build*.txt
 *.user
+.git
+.github
+.agents
+.codex
+.aws
+.env
+.env.*
+qa
+**/appsettings.Development.json
+src/DottIn.Infra.Data/appsettings.json
+*.log
+*.binlog

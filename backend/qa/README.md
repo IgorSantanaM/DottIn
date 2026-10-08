@@ -31,6 +31,10 @@ The suite uses the locally installed Chrome and covers owner, administrator, and
 ## Credential revocation regression
 
 After building the API in Debug, run `./backend/qa/verify-credential-revocation.ps1` from the repository root. It creates a new disposable PostgreSQL database, applies migrations and the synthetic August seed, starts an isolated API on `127.0.0.1:5102`, then checks weak-password rejection, password/PIN changes, immediate access/refresh-token revocation, and login with the new credentials. It removes only its own temporary database and container seed file. It never changes `dottindb` or makes a Stripe call.
+
+## Company join-link regression
+
+After building the API in Debug, run `./backend/qa/verify-company-join-link.ps1` from the repository root. It uses the same disposable PostgreSQL setup on `localhost:5102` to verify owner-only link issuance, anonymous resolution, new-account registration and immediate branch access, existing-account association, rejection of duplicate CPF and accounts assigned to another branch, and revocation of an old unassigned-owner session. It removes only its temporary database and seed file. Add `-WithBrowser` when the Admin is running at `http://localhost:5231`, or pass `-AdminUrl http://localhost:5233` for another local test port. The optional Chrome test copies the link from `/employees`, registers through `/join`, checks the employee role in the header and menu, enters the dashboard and verifies session restoration after refresh. No production data, deployment or Stripe payment is involved.
 ## Stripe sandbox onboarding
 
 Use the same Stripe **test account** for the API secret key and the three active monthly BRL price IDs. Seed local plans with `../tools/seed_stripe_test_plans.sql` using psql variables `basic_price`, `professional_price`, and `unlimited_price`. Never apply this seed to production.

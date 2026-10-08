@@ -55,7 +55,7 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
         [FromServices] ICompanyJoinLinkTokenService tokenService,
         CancellationToken cancellationToken)
     {
-        if (!currentUser.IsManager)
+        if (!currentUser.IsOwner)
             return Results.Forbid();
 
         var branch = await branchRepository.GetByIdAsync(branchId, cancellationToken);
@@ -109,45 +109,51 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
         if (cpf.Length != 11)
             return Results.BadRequest(new { Message = "O CPF deve conter 11 dígitos." });
 
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-        var validation = await ValidateAsync(request.Token, db, tokenService, cancellationToken);
-        if (validation is null)
-            return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
-
-        var (_, branch, subscription) = validation.Value;
-        if (await db.Employees.AnyAsync(x => x.CPF.Value == cpf, cancellationToken))
-            return Results.Conflict(new { Message = "Já existe uma conta registrada com este CPF. Faça login pelo link." });
-
-        if (!await HasSeatAvailableAsync(db, branch.OwnerId!.Value, subscription, cancellationToken))
-            return Results.Conflict(new { Message = "Não há assentos disponíveis nesta empresa." });
-
-        Employee employee;
-        try
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<IResult>(async () =>
         {
-            var (intervalStart, intervalEnd) = DefaultInterval(branch);
-            employee = new Employee(request.Name.Trim(), new Document(cpf), branch.Id,
-                branch.StartWorkTime, branch.EndWorkTime, intervalStart, intervalEnd);
-            employee.SetPassword(request.Password);
-        }
-        catch (Exception exception) when (exception is Domain.Core.Exceptions.DomainException)
-        {
-            return Results.BadRequest(new { Message = exception.Message });
-        }
+            db.ChangeTracker.Clear();
+            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            var validation = await ValidateAsync(request.Token, db, tokenService, cancellationToken);
+            if (validation is null)
+                return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
 
-        await db.Employees.AddAsync(employee, cancellationToken);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            return Results.Conflict(new { Message = "Não foi possível associar a conta à empresa." });
-        }
+            var (_, branch, subscription) = validation.Value;
+            if (await db.Employees.AnyAsync(x => x.CPF.Value == cpf, cancellationToken))
+                return Results.Conflict(new { Message = "Já existe uma conta registrada com este CPF. Faça login pelo link." });
 
-        var (accessToken, refreshToken, expiresAt) = await CreateSessionAsync(employee, branch, db, jwtTokenService, configuration, cancellationToken);
-        return Results.Created("/api/auth/login", new RegisterFromCompanyJoinLinkResponse(accessToken, refreshToken, expiresAt, employee.Id, branch.Id));
+            if (!await HasSeatAvailableAsync(db, branch.OwnerId!.Value, subscription, cancellationToken))
+                return Results.Conflict(new { Message = "Não há assentos disponíveis nesta empresa." });
+
+            Employee employee;
+            try
+            {
+                var (intervalStart, intervalEnd) = DefaultInterval(branch);
+                employee = new Employee(request.Name.Trim(), new Document(cpf), branch.Id,
+                    branch.StartWorkTime, branch.EndWorkTime, intervalStart, intervalEnd);
+                employee.SetPassword(request.Password);
+            }
+            catch (Domain.Core.Exceptions.DomainException exception)
+            {
+                return Results.BadRequest(new { Message = exception.Message });
+            }
+
+            await db.Employees.AddAsync(employee, cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                var (accessToken, refreshToken, expiresAt) = await CreateSessionAsync(
+                    employee, branch, db, jwtTokenService, configuration, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return Results.Created("/api/auth/login", new RegisterFromCompanyJoinLinkResponse(
+                    accessToken, refreshToken, expiresAt, employee.Id, branch.Id));
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Results.Conflict(new { Message = "Não foi possível associar a conta à empresa." });
+            }
+        });
     }
 
     internal static async Task<(CompanyJoinLink Link, Branch Branch, TenantSubscription Subscription)?> ValidateAsync(
@@ -160,7 +166,10 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
             return null;
 
         var link = await db.CompanyJoinLinks.SingleOrDefaultAsync(x => x.Id == linkId, cancellationToken);
-        if (link is null || !link.IsActiveAt(DateTime.UtcNow) || link.ExpiresAt != payloadExpiry)
+        // PostgreSQL stores timestamps at microsecond precision, while the newly
+        // minted token may contain the original 100-nanosecond DateTime ticks.
+        if (link is null || !link.IsActiveAt(DateTime.UtcNow) ||
+            Math.Abs((link.ExpiresAt - payloadExpiry).Ticks) >= 10)
             return null;
 
         var branch = await db.Branches.SingleOrDefaultAsync(x => x.Id == link.BranchId, cancellationToken);

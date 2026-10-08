@@ -1,5 +1,10 @@
 [CmdletBinding()]
-param([string]$DockerContainer = 'charming_kare')
+param(
+    [string]$DockerContainer = 'charming_kare',
+    [ValidateSet('Credential', 'Join')][string]$Scenario = 'Credential',
+    [switch]$WithBrowser,
+    [string]$AdminUrl = 'http://localhost:5231'
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
@@ -12,6 +17,15 @@ if ($DockerContainer -notmatch '^[A-Za-z0-9_.-]+$' -or
 }
 if (Get-NetTCPConnection -State Listen -LocalPort 5102 -ErrorAction SilentlyContinue) {
     throw 'A porta isolada 5102 já está em uso.'
+}
+if ($WithBrowser -and $Scenario -ne 'Join') { throw 'O teste de navegador está disponível apenas para convites.' }
+if ($WithBrowser) {
+    if ($AdminUrl -notmatch '^http://localhost:5\d{3}$') { throw 'AdminUrl deve ser localhost na porta 5000-5999.' }
+    try {
+        $adminResponse = Invoke-WebRequest -Uri ($AdminUrl + '/') -TimeoutSec 5 -UseBasicParsing
+        if ([int]$adminResponse.StatusCode -ne 200) { throw 'Admin local não está pronto.' }
+    }
+    catch { throw "Inicie o Admin web em $AdminUrl antes do teste de navegador." }
 }
 
 $runId = [Guid]::NewGuid().ToString('N').Substring(0, 12)
@@ -27,6 +41,10 @@ $previousConnection = [Environment]::GetEnvironmentVariable('ConnectionStrings__
 $previousEnvironment = [Environment]::GetEnvironmentVariable('ASPNETCORE_ENVIRONMENT')
 $previousUrl = [Environment]::GetEnvironmentVariable('DOTTIN_QA_API_URL')
 $previousMarker = [Environment]::GetEnvironmentVariable('DOTTIN_QA_CREDENTIAL_ISOLATED')
+$previousJoinMarker = [Environment]::GetEnvironmentVariable('DOTTIN_QA_JOIN_ISOLATED')
+$previousAdminUrl = [Environment]::GetEnvironmentVariable('DOTTIN_QA_ADMIN_URL')
+$previousQaOrigin = [Environment]::GetEnvironmentVariable('AllowedOrigins__1')
+$apiUrl = if ($Scenario -eq 'Join') { 'http://localhost:5102' } else { 'http://127.0.0.1:5102' }
 $databaseCreated = $false
 $seedCopied = $false
 $apiProcess = $null
@@ -53,9 +71,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Seed sintético falhou no banco temporário.' }
 
     [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', 'Development')
-    [Environment]::SetEnvironmentVariable('DOTTIN_QA_API_URL', 'http://127.0.0.1:5102')
-    [Environment]::SetEnvironmentVariable('DOTTIN_QA_CREDENTIAL_ISOLATED', '1')
-    $apiProcess = Start-Process -FilePath 'dotnet' -ArgumentList @($apiDll, '--urls', 'http://127.0.0.1:5102') `
+    [Environment]::SetEnvironmentVariable('DOTTIN_QA_API_URL', $apiUrl)
+    [Environment]::SetEnvironmentVariable('DOTTIN_QA_CREDENTIAL_ISOLATED', [string][int]($Scenario -eq 'Credential'))
+    [Environment]::SetEnvironmentVariable('DOTTIN_QA_JOIN_ISOLATED', [string][int]($Scenario -eq 'Join'))
+    if ($WithBrowser) { [Environment]::SetEnvironmentVariable('DOTTIN_QA_ADMIN_URL', $AdminUrl) }
+    else { [Environment]::SetEnvironmentVariable('DOTTIN_QA_ADMIN_URL', $null) }
+    if ($WithBrowser) { [Environment]::SetEnvironmentVariable('AllowedOrigins__1', $AdminUrl) }
+    $apiProcess = Start-Process -FilePath 'dotnet' -ArgumentList @($apiDll, '--urls', $apiUrl) `
         -WorkingDirectory (Join-Path $repositoryRoot 'backend/src/DottIn.Presentation.WebApi') `
         -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $env:TEMP "dottin-credential-$runId.out.log") `
@@ -65,15 +87,16 @@ try {
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         Start-Sleep -Milliseconds 500
         try {
-            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:5102/health/ready' -TimeoutSec 2 -UseBasicParsing
+            $response = Invoke-WebRequest -Uri ($apiUrl + '/health/ready') -TimeoutSec 2 -UseBasicParsing
             if ([int]$response.StatusCode -eq 200) { $ready = $true; break }
         }
         catch { }
     }
     if (-not $ready) { throw 'API isolada não ficou pronta na porta 5102.' }
 
-    & node (Join-Path $PSScriptRoot 'verify-credential-revocation.cjs')
-    if ($LASTEXITCODE -ne 0) { throw 'E2E de troca de credenciais falhou.' }
+    $verificationScript = if ($Scenario -eq 'Join') { 'verify-company-join-link.cjs' } else { 'verify-credential-revocation.cjs' }
+    & node (Join-Path $PSScriptRoot $verificationScript)
+    if ($LASTEXITCODE -ne 0) { throw "E2E $Scenario falhou." }
 }
 finally {
     if ($apiProcess -and -not $apiProcess.HasExited) {
@@ -84,6 +107,9 @@ finally {
     [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', $previousEnvironment)
     [Environment]::SetEnvironmentVariable('DOTTIN_QA_API_URL', $previousUrl)
     [Environment]::SetEnvironmentVariable('DOTTIN_QA_CREDENTIAL_ISOLATED', $previousMarker)
+    [Environment]::SetEnvironmentVariable('DOTTIN_QA_JOIN_ISOLATED', $previousJoinMarker)
+    [Environment]::SetEnvironmentVariable('DOTTIN_QA_ADMIN_URL', $previousAdminUrl)
+    [Environment]::SetEnvironmentVariable('AllowedOrigins__1', $previousQaOrigin)
     if ($seedCopied) {
         & docker exec $DockerContainer rm -- $containerSeedPath
         if ($LASTEXITCODE -ne 0) { throw 'Falha ao remover apenas o seed temporário do container.' }
