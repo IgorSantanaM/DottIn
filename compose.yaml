@@ -39,7 +39,7 @@ services:
       JwtSettings__Audience: DottInMobile
       JwtSettings__ExpirationMinutes: "15"
       DataProtection__KeysDirectory: /app/data-protection-keys
-      ReverseProxy__KnownNetworks__0: ${COMPOSE_SUBNET:-172.28.85.0/24}
+      ReverseProxy__TrustContainerNetwork: "true"
       Database__ApplyMigrationsOnStartup: ${APPLY_MIGRATIONS_ON_STARTUP:-true}
       AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:?Set AZURE_BLOB_CONNECTION_STRING}
       AzureBlob__ContainerName: ${AZURE_BLOB_CONTAINER_NAME:-employee-images}
@@ -102,11 +102,13 @@ services:
 
 networks:
   default:
-    ipam:
-      config:
-        - subnet: ${COMPOSE_SUBNET:-172.28.85.0/24}
+    # Docker allocates a free subnet; fixed IPAM ranges collide with other stacks.
+    driver: bridge
 
 volumes:
   dottin-postgres:
+    driver: local
   dottin-rabbitmq:
+    driver: local
   dottin-data-protection:
+    driver: local

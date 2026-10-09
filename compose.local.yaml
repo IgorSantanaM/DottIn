@@ -25,3 +25,4 @@ services:
 
 volumes:
   dottin-azurite:
+    driver: local
