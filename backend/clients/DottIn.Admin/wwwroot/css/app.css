@@ -30,15 +30,98 @@ a, .btn-link {
 
 /* MudMainContent is rendered by MudBlazor, so this rule must remain global. */
 .dottin-main-content {
+    min-height: 100dvh;
+    min-width: 0;
+    padding: 72px 24px 24px;
+    /* MudLayout's appbar selector has higher specificity than this content class. */
     padding-top: 72px !important;
 }
 
-@media (max-width: 600px) {
+.dottin-page-header, .dottin-calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.dottin-page-header > div, .dottin-calendar-identity > div { min-width: 0; }
+.dottin-actions, .dottin-calendar-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.dottin-calendar-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dottin-calendar-identity .mud-avatar { flex-shrink: 0; }
+.dottin-employee-filters { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.dottin-employee-search { flex: 1 1 240px; max-width: 320px; }
+.dottin-record-actions { display: flex; align-items: end; gap: 8px; }
+.dottin-record-actions > .mud-button-root { min-width: 0; }
+.dottin-record-actions > .mud-menu { flex-shrink: 0; }
+.mud-typography.dottin-dashboard-clock { font-size: clamp(2.25rem, 9vw, 3.75rem); font-weight: 300; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.dottin-day-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.dottin-main-content .mud-grid-item { min-width: 0; }
+.dottin-main-content .mud-table-container { max-width: 100%; overflow-x: auto; }
+.dottin-main-content .mud-typography { overflow-wrap: anywhere; }
+.mud-icon-button.dottin-mobile-menu, .mud-drawer.dottin-mobile-navigation,
+.dottin-mobile-navigation + .mud-overlay { display: none; }
+
+@media (max-width: 959.98px) {
+    .mud-icon-button.dottin-desktop-menu, .mud-drawer.dottin-desktop-navigation { display: none; }
+    .mud-icon-button.dottin-mobile-menu { display: inline-flex; }
+    .mud-drawer.dottin-mobile-navigation { display: flex; }
+    .dottin-mobile-navigation + .mud-overlay { display: flex; }
+    /* Temporary navigation must never reserve the desktop mini-drawer gutter. */
+    .dottin-main-content { margin-left: 0 !important; margin-right: 0 !important; }
+}
+
+@media (max-width: 599.98px) {
+    .dottin-appbar .mud-toolbar { height: 56px; min-height: 56px; padding-inline: 12px; gap: 2px; }
+    .dottin-appbar img { height: 26px !important; width: 91px; flex-shrink: 0; }
+    .dottin-role-chip { margin-inline: 4px !important; font-size: 11px; }
+    .dottin-appbar .mud-icon-button { width: 44px; height: 44px; flex-shrink: 0; }
+    .dottin-mobile-navigation .mud-nav-link { min-height: 48px; }
     .dottin-main-content {
-        padding-top: 64px !important;
-        padding-right: 16px !important;
-        padding-left: 16px !important;
+        padding: 76px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        padding-top: 76px !important;
     }
+    .dottin-main-content .mud-paper.pa-5, .dottin-main-content .mud-paper.pa-6 { padding: 16px !important; }
+    .dottin-page-header { align-items: flex-start; gap: 12px; }
+    .dottin-page-header > div { flex: 1 1 100%; }
+    .dottin-main-content .mud-typography-h5 { font-size: 1.4rem; line-height: 1.3; }
+    .dottin-employee-filters { flex-direction: column; align-items: stretch; gap: 12px; }
+    .dottin-employee-search { flex: none; width: 100%; max-width: none; }
+    .dottin-employee-status { display: flex; width: 100%; }
+    .dottin-employee-status .mud-toggle-item { flex: 1; min-width: 0; }
+    .dottin-calendar-header { flex-direction: column; align-items: stretch; }
+    .dottin-calendar-action { width: 100%; }
+    .dottin-calendar-meta { gap: 4px 8px; }
+    .dottin-punch-actions { flex-direction: column; align-items: stretch; }
+    .dottin-punch-button { width: 100%; }
+    .dottin-main-content .mud-button-root { min-height: 44px; white-space: normal; }
+    .dottin-main-content .mud-icon-button { min-width: 44px; min-height: 44px; }
+    /* Keep MudBlazor's mobile row labels, but allow long values to wrap. */
+    .dottin-main-content .mud-table-cell { min-width: 0; overflow-wrap: anywhere; }
+    .dottin-main-content .mud-table-cell > div { min-width: 0; max-width: 100%; }
+    .dottin-main-content .mud-table-cell::before { flex-shrink: 0; margin-right: 12px; }
+    .dottin-main-content .mud-table-cell .mud-chip { max-width: 100%; height: auto; min-height: 24px; }
+    .dottin-main-content .mud-table-cell .mud-chip-content { white-space: normal; overflow-wrap: anywhere; }
+    .mud-pagination { flex-wrap: wrap; justify-content: center; }
+    .mud-dialog { margin: 12px; width: calc(100% - 24px); max-height: calc(100dvh - 24px); }
+    .mud-dialog .mud-dialog-content { padding: 16px; overflow-wrap: anywhere; }
+    .mud-dialog .mud-dialog-actions { flex-wrap: wrap; padding: 12px 16px; }
+    .mud-dialog .mud-button-root { min-height: 44px; white-space: normal; }
+    .mud-dialog .mud-table-container { max-width: 100%; overflow-x: auto; }
+    #mud-snackbar-container { max-width: 100%; width: 100%; padding: 0 max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+    #mud-snackbar-container.mud-snackbar-location-bottom-right { left: 0; right: 0; bottom: 0; }
+    #mud-snackbar-container .mud-snackbar { width: 100%; min-width: 0; max-width: 100%; margin-inline: 0; }
+    .mud-snackbar-content-message { min-width: 0; overflow-wrap: anywhere; }
+    .mud-snackbar .mud-icon-button { min-width: 44px; min-height: 44px; }
+}
+
+@media (max-width: 359.98px) {
+    /* The role remains available in the account menu; preserve room for touch controls. */
+    .dottin-role-chip { display: none; }
 }
 
 .valid.modified:not([type=checkbox]) {

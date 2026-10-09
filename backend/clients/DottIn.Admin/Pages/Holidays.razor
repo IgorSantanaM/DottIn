@@ -8,7 +8,7 @@
 
 <PageTitle>DottIn Admin - Calendário de Feriados</PageTitle>
 
-<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+<div class="dottin-page-header mb-4">
     <div>
         <MudText Typo="Typo.h5" Style="font-weight: 700;">Calendário de Feriados</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
@@ -59,14 +59,14 @@ else
     @foreach (var cal in _calendars)
     {
         <MudPaper Elevation="0" Class="pa-5 mb-4" Style="border-radius: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
-                <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="dottin-calendar-header mb-3">
+                <div class="dottin-calendar-identity">
                     <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
                         <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
                     </MudAvatar>
                     <div>
                         <MudText Typo="Typo.h6" Style="font-weight: 600;">@cal.Name</MudText>
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="dottin-calendar-meta">
                             <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@cal.Year</MudChip>
                             <MudChip T="string" Size="Size.Small" Color="@(cal.IsActive ? Color.Success : Color.Default)"
                                      Variant="Variant.Filled">@(cal.IsActive ? "Ativo" : "Inativo")</MudChip>
@@ -75,7 +75,7 @@ else
                         </div>
                     </div>
                 </div>
-                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" Class="dottin-calendar-action"
                            StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => LoadCalendarDetails(cal.Id))">
                     Ver Feriados
                 </MudButton>
@@ -141,7 +141,7 @@ else
                                 <TemplateColumn Title="">
                                     <CellTemplate>
                                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                       OnClick="@(() => RemoveHoliday(cal.Id, context.Item))" />
+                                                       OnClick="@(() => RemoveHoliday(cal.Id, context.Item))" aria-label="Remover feriado" />
                                     </CellTemplate>
                                 </TemplateColumn>
                             }

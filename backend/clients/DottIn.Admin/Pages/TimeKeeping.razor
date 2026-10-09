@@ -33,7 +33,7 @@
             <MudDatePicker @bind-Date="_endDate" Label="Data Fim" Variant="Variant.Outlined"
                            Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
         </MudItem>
-        <MudItem xs="12" sm="4" Style="display: flex; align-items: end; gap: 8px;">
+        <MudItem xs="12" sm="4" Class="dottin-record-actions">
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Search"
                        OnClick="SearchAsync" Disabled="_loading" FullWidth="true">
@@ -43,7 +43,7 @@
             {
                 <MudMenu Icon="@Icons.Material.Filled.FileDownload" Variant="Variant.Outlined"
                          Color="Color.Default" Size="Size.Medium"
-                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="Exportar registros">
                     <MudMenuItem Icon="@Icons.Material.Filled.Description" OnClick="ExportDominio">
                         Exportar Domínio (.txt)
                     </MudMenuItem>
@@ -191,7 +191,7 @@
                     <CellTemplate>
                         <MudTooltip Text="Solicitar correção">
                             <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small"
-                                           Color="Color.Primary" OnClick="@(() => RequestCorrection(context.Item))" />
+                                           Color="Color.Primary" OnClick="@(() => RequestCorrection(context.Item))" aria-label="Solicitar correção" />
                         </MudTooltip>
                     </CellTemplate>
                 </TemplateColumn>

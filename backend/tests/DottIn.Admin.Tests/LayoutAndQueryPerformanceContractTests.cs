@@ -7,7 +7,49 @@ public sealed class LayoutAndQueryPerformanceContractTests
     {
         var layout = ReadSource("clients/DottIn.Admin/Layout/MainLayout.razor");
 
-        Assert.Contains("padding-top: calc(var(--mud-appbar-height) + 24px)", layout, StringComparison.Ordinal);
+        var css = ReadSource("clients/DottIn.Admin/wwwroot/css/app.css");
+        Assert.Contains("Class=\"dottin-main-content\"", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("Class=\"pa-6 dottin-main-content\"", layout, StringComparison.Ordinal);
+        Assert.Contains("padding: 72px 24px 24px", css, StringComparison.Ordinal);
+        Assert.Contains("padding: 76px max(16px", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PhoneNavigationIsTemporaryInitiallyClosedAndClosesAfterNavigation()
+    {
+        var layout = ReadSource("clients/DottIn.Admin/Layout/MainLayout.razor");
+        Assert.Contains("Variant=\"DrawerVariant.Temporary\"", layout);
+        Assert.Contains("Variant=\"DrawerVariant.Mini\"", layout);
+        Assert.Contains("private bool _mobileDrawerOpen;", layout);
+        Assert.Equal(2, layout.Split("<OperationalNavMenu CanViewEmployees=\"@State.CanViewEmployees\"", StringSplitOptions.None).Length - 1);
+        Assert.Contains("Navigation.LocationChanged += OnLocationChanged", layout);
+        Assert.Contains("Navigation.LocationChanged -= OnLocationChanged", layout);
+        Assert.Contains("_mobileDrawerOpen = false", layout);
+        var css = ReadSource("clients/DottIn.Admin/wwwroot/css/app.css");
+        Assert.Contains(".mud-drawer.dottin-desktop-navigation { display: none; }", css);
+        Assert.Contains(".mud-drawer.dottin-mobile-navigation { display: flex; }", css);
+    }
+
+    [Theory]
+    [InlineData("Employees", "dottin-employee-filters")]
+    [InlineData("Holidays", "dottin-calendar-header")]
+    [InlineData("Dashboard", "dottin-dashboard-clock")]
+    public void OperationalPagesUseResponsiveLayoutContracts(string page, string cssClass)
+    {
+        Assert.Contains(cssClass, ReadSource($"clients/DottIn.Admin/Pages/{page}.razor"));
+        Assert.Contains($".{cssClass}", ReadSource("clients/DottIn.Admin/wwwroot/css/app.css"));
+    }
+
+    [Fact]
+    public void MobileLayoutWrapsContentInsteadOfHidingBodyOverflow()
+    {
+        var css = ReadSource("clients/DottIn.Admin/wwwroot/css/app.css");
+        Assert.Contains("grid-template-columns: repeat(2, minmax(0, 1fr))", css);
+        Assert.Contains("font-size: clamp(", css);
+        Assert.Contains("overflow-wrap: anywhere", css);
+        Assert.Contains("env(safe-area-inset-bottom)", css);
+        Assert.DoesNotContain("overflow-x: hidden", css);
+        Assert.Contains("viewport-fit=cover", ReadSource("clients/DottIn.Admin/wwwroot/index.html"));
     }
 
     [Fact]
@@ -17,6 +59,20 @@ public sealed class LayoutAndQueryPerformanceContractTests
 
         Assert.Equal(2, layout.Split("@State.RoleLabel", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain(">Administrador</MudText>", layout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmployeeDirectoryIsProtectedInNavigationAndBeforePageRendering()
+    {
+        var menu = ReadSource("clients/DottIn.Admin/Layout/OperationalNavMenu.razor");
+        var page = ReadSource("clients/DottIn.Admin/Pages/Employees.razor");
+        var route = ReadSource("clients/DottIn.Admin/Routing/OperationalRouteView.razor");
+        Assert.Contains("@if (CanViewEmployees)", menu);
+        Assert.Contains("[Parameter] public bool CanViewEmployees", menu);
+        Assert.Contains("@attribute [EmployeeDirectoryAccessRequired]", page);
+        Assert.Contains("(!RequiresEmployeeDirectoryAccess || State.CanViewEmployees)", route);
+        Assert.Contains("RequiresEmployeeDirectoryAccess && !State.CanViewEmployees", route);
+        Assert.Contains("return \"/dashboard\"", route);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 @page "/employees"
 @attribute [OperationalAccessRequired]
+@attribute [EmployeeDirectoryAccessRequired]
 @inject AdminApiClient Api
 @inject AdminState State
 @inject ISnackbar Snackbar
@@ -10,7 +11,7 @@
 
 <PageTitle>DottIn Admin - Funcionários</PageTitle>
 
-<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+<div class="dottin-page-header mb-4">
     <div>
         <MudText Typo="Typo.h5" Style="font-weight: 700;">Funcionários</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
@@ -19,7 +20,7 @@
     </div>
     @if (State.IsOwner)
     {
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div class="dottin-actions">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="CopyInviteLinkAsync">
                 Copiar convite
@@ -33,12 +34,12 @@
 </div>
 
 <MudPaper Elevation="0" Class="pa-5" Style="border-radius: 12px;">
-    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+    <div class="dottin-employee-filters mb-4">
         <MudTextField T="string" Value="_search" ValueChanged="@((string value) => OnSearchChanged(value))" Placeholder="Buscar funcionário..."
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       Variant="Variant.Outlined" Margin="Margin.Dense"
-                      Immediate="true" Style="max-width: 320px;" />
-        <MudToggleGroup T="string" Value="_filter" ValueChanged="@((string value) => OnFilterChanged(value))" Color="Color.Primary" Size="Size.Small" Outlined="true">
+                      Immediate="true" Class="dottin-employee-search" aria-label="Buscar funcionário" />
+        <MudToggleGroup T="string" Value="_filter" ValueChanged="@((string value) => OnFilterChanged(value))" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="dottin-employee-status">
             <MudToggleItem T="string" Value="@("all")">Todos</MudToggleItem>
             <MudToggleItem T="string" Value="@("active")">Ativos</MudToggleItem>
             <MudToggleItem T="string" Value="@("inactive")">Inativos</MudToggleItem>
@@ -97,7 +98,7 @@
 
         @if (_totalPages > 1)
         {
-            <div class="d-flex align-center justify-space-between mt-4">
+            <div class="dottin-page-header mt-4">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     @PageFirstRecord–@PageLastRecord de @_totalCount funcionários
                 </MudText>

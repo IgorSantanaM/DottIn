@@ -31,6 +31,7 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         _ => "Usuário"
     };
     public bool CanViewBranchRecords => Role is "Owner" or "Administrator";
+    public bool CanViewEmployees => IsAuthenticated && (Role is "Owner" or "Administrator" or "Manager");
     public bool IsDarkMode { get; private set; } = true;
     public string CompanyCode { get; private set; } = "";
     public bool HasCompletedConfiguration => BranchId != Guid.Empty;

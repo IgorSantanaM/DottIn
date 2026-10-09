@@ -1,0 +1,19 @@
+@inject AdminState State
+
+<MudNavMenu>
+    <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    @if (CanViewEmployees)
+    {
+        <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">Funcionários</MudNavLink>
+    }
+    <MudNavLink Href="/timekeeping" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
+    <MudNavLink Href="/holidays" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth">Feriados</MudNavLink>
+    @if (State.IsOwner)
+    {
+        <MudNavLink Href="/billing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CreditCard">Assinatura</MudNavLink>
+    }
+</MudNavMenu>
+
+@code {
+    [Parameter] public bool CanViewEmployees { get; set; }
+}
