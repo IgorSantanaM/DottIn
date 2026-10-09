@@ -81,6 +81,24 @@ public sealed class ProductionConfigurationValidatorTests
 
         Assert.Contains("JwtSettings:ExpirationMinutes", exception.Message);
     }
+    [Theory]
+    [InlineData("https://dottin.cloudlane.com/api")]
+    [InlineData("https://*.cloudlane.com")]
+    [InlineData("https://dottin.cloudlane.com?query=value")]
+    [InlineData("http://dottin.cloudlane.com")]
+    public void Validate_RejectsUnsafeProductionCorsOrigins(string origin)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AllowedOrigins:0"] = origin
+        }).Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => ProductionConfigurationValidator.Validate(
+            configuration, new TestHostEnvironment(Environments.Production)));
+
+        Assert.Contains("AllowedOrigins", exception.Message);
+    }
+
     private sealed class TestHostEnvironment(string environmentName) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = environmentName;

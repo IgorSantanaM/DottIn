@@ -28,6 +28,30 @@ For production, use `./backend/tools/Initialize-ComposeEnvironment.ps1 -Mode Pro
 
 ## Docker deployment
 
+### Production domain, API prefix and CORS
+
+The production origin is `https://dottin.cloudlane.com`. Use the explicit production overlay so a local `.env` containing `COMPOSE_FILE=compose.yaml;compose.local.yaml` cannot accidentally select Development mode:
+
+```sh
+docker compose -f compose.yaml -f compose.production.yaml config --quiet
+docker compose -f compose.yaml -f compose.production.yaml up -d --build
+```
+
+This sets the API environment to Production, permits credentialed CORS requests from exactly `https://dottin.cloudlane.com`, and uses that origin for Stripe return URLs. `PRODUCTION_PUBLIC_URL` and `PRODUCTION_ALLOWED_HOSTS` can override the defaults for another deployment. Provide actual production Azure/Stripe credentials; the local Azurite endpoint and a CLI listener signing secret are not production service credentials. Keep existing database/JWT secrets and volumes. This command does not automatically provision or change the host's HTTPS proxy or DNS.
+
+The backend routes already include `/api`: `/api/auth/login`, `/api/billing/config`, `/api/timekeeping/...`, etc. Both proxy hops must **preserve** that prefix. The container's Nginx uses `location ^~ /api/` and `proxy_pass http://api:8080` (no trailing slash). Otherwise a proxy can turn `/api/auth/login` into `/auth/login`, which correctly returns 404 in the API. Do not add a second `/api` prefix or use `UsePathBase("/api")` on these existing routes.
+
+For a host Nginx terminating HTTPS, [deploy/nginx/dottin.cloudlane.com.locations.conf](deploy/nginx/dottin.cloudlane.com.locations.conf) contains the location blocks to include inside your existing TLS server for this domain. Replace conflicting locations rather than duplicating them. It forwards the original URI to port 32850, preserves `Host`, and forwards the HTTPS scheme. If using another proxy, configure the equivalent **preserve path / no strip-prefix** behavior. Keep certificate settings and HTTP-to-HTTPS redirects on the host.
+
+`GET /api` and `GET /api/health/live` now return API JSON, while `/api/health/ready` checks the database. The original `/health/live` and `/health/ready` remain available for container health checks. `GET /api/billing/config` is an anonymous API probe; protected routes should return 401 when logged out, not 404. Unknown API paths stay real 404s rather than returning the Admin SPA. Browser preflight requests (`OPTIONS`, `Authorization`, `Content-Type`) are handled by the API before authentication; disallowed origins receive no CORS permission headers. An origin has no `/api` suffix. Do not combine wildcard origins with credentialed sessions or add duplicate CORS headers in Nginx.
+
+To check after a deployment:
+
+```sh
+curl -i https://dottin.cloudlane.com/api/health/live
+curl -i -X OPTIONS https://dottin.cloudlane.com/api/auth/login -H 'Origin: https://dottin.cloudlane.com' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: authorization,content-type'
+```
+
 The root `compose.yaml` follows the portfolio's deployment pattern: build locally, serve the web Admin with Nginx on container port 80, publish fixed host ports, and restart services with `unless-stopped`. It runs the web Admin, API, PostgreSQL and RabbitMQ. The static mockup in `frontend/` and the native mobile app are not container services.
 
 Copy `.env.example` to `.env` at the repository root, set `APP_PUBLIC_URL` to your public HTTPS origin **without a trailing slash**, and fill in the database, RabbitMQ, JWT, Azure Blob and Stripe settings. Generate independent URL-safe passwords, for example with `openssl rand -hex 32`. The Compose file refuses to start with missing required values. `.env` is ignored by Git and excluded from Docker build contexts.

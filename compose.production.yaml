@@ -1,0 +1,11 @@
+# Explicit opt-in production origin; -f overrides a local COMPOSE_FILE in .env.
+# Supply actual production storage, Stripe webhook and licensing credentials.
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      AllowedHosts: ${PRODUCTION_ALLOWED_HOSTS:-dottin.cloudlane.com;localhost;127.0.0.1}
+      AllowedOrigins__0: ${PRODUCTION_PUBLIC_URL:-https://dottin.cloudlane.com}
+      Stripe__SuccessUrl: ${PRODUCTION_PUBLIC_URL:-https://dottin.cloudlane.com}/billing/success
+      Stripe__CancelUrl: ${PRODUCTION_PUBLIC_URL:-https://dottin.cloudlane.com}/billing/cancel
+      Stripe__PortalReturnUrl: ${PRODUCTION_PUBLIC_URL:-https://dottin.cloudlane.com}/billing
