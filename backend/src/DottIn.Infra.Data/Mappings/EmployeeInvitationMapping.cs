@@ -13,7 +13,7 @@ public sealed class EmployeeInvitationMapping : EntityTypeConfiguration<Employee
         builder.ToTable("EmployeeInvitations", table =>
             table.HasCheckConstraint(
                 "CK_EmployeeInvitations_Role",
-                "\"Role\" IN ('Employee', 'Manager', 'Administrator')"));
+                "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Accountant')"));
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(64).IsFixedLength();
@@ -30,6 +30,7 @@ public sealed class EmployeeInvitationMapping : EntityTypeConfiguration<Employee
 
         builder.HasIndex(x => new { x.BranchId, x.ExpiresAt });
         builder.HasIndex(x => x.InvitedByEmployeeId);
+        builder.HasIndex(x => new { x.BranchId, x.InvitedByEmployeeId });
         builder.HasIndex(x => x.ConsumedByEmployeeId);
 
         builder.HasOne<Branch>()
@@ -39,8 +40,7 @@ public sealed class EmployeeInvitationMapping : EntityTypeConfiguration<Employee
 
         builder.HasOne<Employee>()
             .WithMany()
-            .HasForeignKey(x => new { x.BranchId, x.InvitedByEmployeeId })
-            .HasPrincipalKey(employee => new { employee.BranchId, employee.Id })
+            .HasForeignKey(x => x.InvitedByEmployeeId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Employee>()

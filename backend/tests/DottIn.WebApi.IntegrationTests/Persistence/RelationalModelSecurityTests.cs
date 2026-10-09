@@ -2,6 +2,7 @@ using DottIn.Domain.Branches;
 using DottIn.Domain.Employees;
 using DottIn.Domain.Subscriptions;
 using DottIn.Domain.TimeKeepings;
+using DottIn.Domain.Payrolls;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -37,7 +38,7 @@ public sealed class RelationalModelSecurityTests
     }
 
     [Fact]
-    public void EmployeeInvitation_RequiresInviterToBelongToTheSameBranch()
+    public void EmployeeInvitation_ReferencesInviterWithoutRestrictingOwnersToTheirHomeBranch()
     {
         using var context = CreateContext();
         var entity = context.Model.FindEntityType(typeof(EmployeeInvitation))!;
@@ -45,7 +46,21 @@ public sealed class RelationalModelSecurityTests
         Assert.Contains(entity.GetForeignKeys(), fk =>
             fk.PrincipalEntityType.ClrType == typeof(Employee) &&
             fk.Properties.Select(property => property.Name)
-                .SequenceEqual([nameof(EmployeeInvitation.BranchId), nameof(EmployeeInvitation.InvitedByEmployeeId)]));
+                .SequenceEqual([nameof(EmployeeInvitation.InvitedByEmployeeId)]));
+    }
+
+    [Fact]
+    public void Payroll_CompetenceIsUniquePerBranch_AndAccountantGrantIsExplicit()
+    {
+        using var context = CreateContext();
+        var payroll = context.Model.FindEntityType(typeof(Payroll))!;
+        var access = context.Model.FindEntityType(typeof(AccountantBranchAccess))!;
+        Assert.Contains(payroll.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(p => p.Name).SequenceEqual([
+                nameof(Payroll.BranchId), nameof(Payroll.Year), nameof(Payroll.Month)]));
+        Assert.Contains(access.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(p => p.Name).SequenceEqual([
+                nameof(AccountantBranchAccess.BranchId), nameof(AccountantBranchAccess.AccountantEmployeeId)]));
     }
 
     [Fact]

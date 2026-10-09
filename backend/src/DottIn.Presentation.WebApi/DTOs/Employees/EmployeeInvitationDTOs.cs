@@ -34,3 +34,4 @@ public sealed record AcceptEmployeeInvitationRequest(
     TimeOnly IntervalEnd);
 
 public sealed record AcceptEmployeeInvitationResponse(Guid EmployeeId, Guid BranchId);
+public sealed record AcceptAccountantAccessRequest(string Token);

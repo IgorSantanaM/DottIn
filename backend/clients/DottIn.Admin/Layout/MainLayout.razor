@@ -13,7 +13,7 @@ else
     <MudLayout>
         <MudAppBar Elevation="1" Dense="true" Fixed="true" Class="dottin-appbar"
                    Style="background-color: var(--mud-palette-appbar-background); color: var(--mud-palette-appbar-text);">
-            @if (State.CanAccessOperationalModules)
+            @if (State.CanAccessOperationalModules && State.Role != "Accountant")
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
                                Edge="Edge.Start" OnClick="@(() => _desktopDrawerOpen = !_desktopDrawerOpen)"
@@ -35,7 +35,7 @@ else
                 <MudMenuItem Disabled="true">
                     <div style="min-width: 180px;">
                         <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">@State.User?.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@State.RoleLabel</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(State.Role == "Accountant" ? "Contador" : "Administrador")</MudText>
                     </div>
                 </MudMenuItem>
                 <MudDivider />

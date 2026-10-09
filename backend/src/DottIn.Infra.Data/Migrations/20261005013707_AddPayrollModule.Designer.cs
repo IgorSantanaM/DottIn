@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DottIn.Infra.Data.Migrations
 {
     [DbContext(typeof(DottInContext))]
-    partial class DottInContextModelSnapshot : ModelSnapshot
+    [Migration("20261005013707_AddPayrollModule")]
+    partial class AddPayrollModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -85,9 +88,6 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedByEmployeeId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)

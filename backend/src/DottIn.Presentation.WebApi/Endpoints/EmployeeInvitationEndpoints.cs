@@ -6,6 +6,7 @@ using DottIn.Application.Features.Subscriptions.Services;
 using DottIn.Domain.Branches;
 using DottIn.Domain.Core.Data;
 using DottIn.Domain.Employees;
+using DottIn.Domain.Payrolls;
 using DottIn.Domain.ValueObjects;
 using DottIn.Infra.Data.Contexts;
 using DottIn.Presentation.WebApi.DTOs.Employees;
@@ -46,6 +47,11 @@ public sealed class EmployeeInvitationEndpoints : IEndpoint
             .Produces<AcceptEmployeeInvitationResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status409Conflict);
+
+        app.MapPost("/api/employee-invitations/accept-accountant-access", HandleAcceptAccountantAccessAsync)
+            .WithTags(Tag).RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status403Forbidden);
     }
 
     private static async Task<IResult> HandleListAsync(
@@ -70,6 +76,7 @@ public sealed class EmployeeInvitationEndpoints : IEndpoint
         if (!currentUser.IsManager)
             return Results.Forbid();
         if (request.Role == EmployeeRole.Owner ||
+            request.Role == EmployeeRole.Accountant && !currentUser.IsAdministrator ||
             currentUser.Role == EmployeeRole.Manager && request.Role != EmployeeRole.Employee)
             return Results.Forbid();
         if (request.ExpiresInHours is < 1 or > 168)
@@ -141,53 +148,98 @@ public sealed class EmployeeInvitationEndpoints : IEndpoint
         if (string.IsNullOrWhiteSpace(request.Token))
             return Results.BadRequest(new { Message = "Token obrigatório." });
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable, cancellationToken);
+        var strategy = db.Database.CreateExecutionStrategy();
+        Func<Task<IResult>> operation = async () =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, cancellationToken);
 
+            var invitation = await invitationRepository.GetByTokenHashAsync(HashToken(request.Token), cancellationToken);
+            if (invitation is null || invitation.StatusAt(DateTime.UtcNow) != InvitationStatus.Pending)
+                return Results.BadRequest(new { Message = "Convite inválido ou expirado." });
+
+            var branch = await branchRepository.GetByIdAsync(invitation.BranchId, cancellationToken);
+            if (branch is null || !branch.IsActive || !branch.OwnerId.HasValue)
+                return Results.BadRequest(new { Message = "Filial indisponível." });
+
+            if (!await subscriptionService.CanAddEmployeeAsync(branch.OwnerId.Value, cancellationToken))
+                return Results.Conflict(new { Message = "O limite de assentos do plano foi atingido." });
+
+            var document = new Document(request.Cpf);
+            if (await employeeRepository.GetByCPFAsync(document.Value, cancellationToken) is not null)
+                return Results.Conflict(new { Message = "Já existe um funcionário com este CPF." });
+
+            var employee = invitation.Role == EmployeeRole.Accountant
+                ? Employee.CreateAccountant(request.Name, document, branch.Id, request.Password)
+                : new Employee(request.Name, document, branch.Id,
+                    request.StartWorkTime, request.EndWorkTime, request.IntervalStart, request.IntervalEnd);
+            if (invitation.Role != EmployeeRole.Accountant)
+            {
+                employee.SetRole(invitation.Role);
+                employee.SetPassword(request.Password);
+            }
+
+            await employeeRepository.AddAsync(employee, cancellationToken);
+            if (invitation.Role == EmployeeRole.Accountant)
+                db.AccountantBranchAccesses.Add(new AccountantBranchAccess(
+                    branch.Id, employee.Id, invitation.InvitedByEmployeeId, DateTime.UtcNow));
+            invitation.Consume(employee.Id, DateTime.UtcNow);
+            await invitationRepository.UpdateAsync(invitation);
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Results.Conflict(new { Message = "O convite foi utilizado ou os dados já existem." });
+            }
+
+            return Results.Created(
+                $"/api/branches/{branch.Id}/employees/{employee.Id}",
+                new AcceptEmployeeInvitationResponse(employee.Id, branch.Id));
+        };
+        return await strategy.ExecuteAsync(operation);
+    }
+
+    private static async Task<IResult> HandleAcceptAccountantAccessAsync(
+        [FromBody] AcceptAccountantAccessRequest request,
+        [FromServices] CurrentUserContext currentUser,
+        [FromServices] DottInContext db,
+        [FromServices] IEmployeeInvitationRepository invitationRepository,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.Role != EmployeeRole.Accountant)
+            return Results.Forbid();
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return Results.BadRequest(new { Message = "Convite obrigatório." });
         var invitation = await invitationRepository.GetByTokenHashAsync(HashToken(request.Token), cancellationToken);
-        if (invitation is null || invitation.StatusAt(DateTime.UtcNow) != InvitationStatus.Pending)
+        if (invitation is null || invitation.Role != EmployeeRole.Accountant ||
+            invitation.StatusAt(DateTime.UtcNow) != InvitationStatus.Pending)
             return Results.BadRequest(new { Message = "Convite inválido ou expirado." });
+        var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(
+            b => b.Id == invitation.BranchId && b.IsActive && b.OwnerId != null, cancellationToken);
+        if (branch is null) return Results.BadRequest(new { Message = "Filial indisponível." });
+        if (await db.AccountantBranchAccesses.AnyAsync(a => a.BranchId == branch.Id &&
+            a.AccountantEmployeeId == currentUser.EmployeeId, cancellationToken))
+            return Results.Conflict(new { Message = "O contador já possui acesso a esta filial." });
 
-        var branch = await branchRepository.GetByIdAsync(invitation.BranchId, cancellationToken);
-        if (branch is null || !branch.IsActive || !branch.OwnerId.HasValue)
-            return Results.BadRequest(new { Message = "Filial indisponível." });
-
-        if (!await subscriptionService.CanAddEmployeeAsync(branch.OwnerId.Value, cancellationToken))
-            return Results.Conflict(new { Message = "O limite de assentos do plano foi atingido." });
-
-        var document = new Document(request.Cpf);
-        if (await employeeRepository.GetByCPFAsync(document.Value, cancellationToken) is not null)
-            return Results.Conflict(new { Message = "Já existe um funcionário com este CPF." });
-
-        var employee = new Employee(
-            request.Name,
-            document,
-            branch.Id,
-            request.StartWorkTime,
-            request.EndWorkTime,
-            request.IntervalStart,
-            request.IntervalEnd);
-        employee.SetRole(invitation.Role);
-        employee.SetPassword(request.Password);
-
-        await employeeRepository.AddAsync(employee, cancellationToken);
-        invitation.Consume(employee.Id, DateTime.UtcNow);
-        await invitationRepository.UpdateAsync(invitation);
-
+        db.AccountantBranchAccesses.Add(new AccountantBranchAccess(
+            branch.Id, currentUser.EmployeeId, invitation.InvitedByEmployeeId, DateTime.UtcNow));
+        invitation.Consume(currentUser.EmployeeId, DateTime.UtcNow);
+        // SaveChanges is transactional; the invitation's concurrency token makes one-time
+        // consumption and the new access grant succeed or fail together.
         try
         {
             await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
-            await transaction.RollbackAsync(cancellationToken);
-            return Results.Conflict(new { Message = "O convite foi utilizado ou os dados já existem." });
+            return Results.Conflict(new { Message = "O convite já foi utilizado ou o acesso já existe." });
         }
-
-        return Results.Created(
-            $"/api/branches/{branch.Id}/employees/{employee.Id}",
-            new AcceptEmployeeInvitationResponse(employee.Id, branch.Id));
+        return Results.NoContent();
     }
 
     private static EmployeeInvitationResponse ToResponse(EmployeeInvitation invitation, DateTime now)

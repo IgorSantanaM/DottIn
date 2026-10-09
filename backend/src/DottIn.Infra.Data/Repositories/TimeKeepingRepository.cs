@@ -24,7 +24,10 @@ namespace DottIn.Infra.Data.Repositories
                     .Include(tk => tk.Entries)
                     .AsSplitQuery()
                     .Where(tk => tk.BranchId == branchId &&
-                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
+                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut) &&
+                                 !context.TimeKeepingAdjustments.Any(a => a.TimeKeepingId == tk.Id &&
+                                     a.Status == TimeKeepingAdjustmentStatus.Approved &&
+                                     a.EntryType == TimeKeepingType.ClockOut && a.OriginalTimestamp == null))
                     .ToListAsync(token);
 
         public async Task<TimeKeeping?> GetActiveByEmployeeAsync(Guid employeeId, CancellationToken token = default)
@@ -32,7 +35,10 @@ namespace DottIn.Infra.Data.Repositories
                     .Include(tk => tk.Entries)
                     .AsSplitQuery()
                     .Where(tk => tk.EmployeeId == employeeId &&
-                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut))
+                                 !tk.Entries.Any(entry => entry.Type == TimeKeepingType.ClockOut) &&
+                                 !context.TimeKeepingAdjustments.Any(a => a.TimeKeepingId == tk.Id &&
+                                     a.Status == TimeKeepingAdjustmentStatus.Approved &&
+                                     a.EntryType == TimeKeepingType.ClockOut && a.OriginalTimestamp == null))
                     .OrderByDescending(tk => tk.CreatedAt)
                     .FirstOrDefaultAsync(token);
 

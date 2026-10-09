@@ -8,28 +8,88 @@ namespace DottIn.Admin.Services;
 
 public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSessionCache? dashboardCache = null)
 {
-    public Task<BranchManagement> GetBranchManagementAsync(bool forceRefresh = false)
-        => cache.GetOrCreateAsync("owner:branch-management", TimeSpan.FromSeconds(30), async () =>
-        {
-            using var response = await http.GetAsync("/api/branches/management");
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-                throw new ApiException("A gestão de filiais é exclusiva do proprietário da matriz ou da assinatura da empresa.");
-            await EnsureSuccessOrThrowAsync(response);
-            return await response.Content.ReadFromJsonAsync<BranchManagement>()
-                ?? throw new ApiException("Não foi possível carregar as filiais.");
-        }, forceRefresh);
+    public async Task<List<PayrollSummary>> GetPayrollsAsync()
+        => await http.GetFromJsonAsync<List<PayrollSummary>>("/api/payrolls") ?? [];
 
-    public async Task<CreatedBranch> CreateManagedBranchAsync(CreateManagedBranchRequest request)
+    public async Task<PayrollDetails> GetPayrollAsync(Guid id)
+        => await http.GetFromJsonAsync<PayrollDetails>($"/api/payrolls/{id}")
+           ?? throw new ApiException("Não foi possível abrir a folha.");
+
+    public async Task<PayrollDetails> CreatePayrollAsync(Guid branchId, int year, int month)
     {
-        using var response = await http.PostAsJsonAsync("/api/branches", request);
-        if (!response.IsSuccessStatusCode)
-            throw new ApiException(BranchRegistrationErrorFormatter.Format(response.StatusCode, await response.Content.ReadAsStringAsync()));
-        cache.Invalidate("owner:");
-        cache.Invalidate("billing:");
-        return await response.Content.ReadFromJsonAsync<CreatedBranch>()
-            ?? throw new ApiException("A filial foi criada, mas não foi possível obter sua identificação. Atualize a lista.");
+        using var response = await http.PostAsJsonAsync("/api/payrolls", new { BranchId = branchId, Year = year, Month = month });
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<PayrollDetails>()
+            ?? throw new ApiException("Não foi possível criar a folha.");
     }
 
+    public async Task<PayrollDetails> CalculatePayrollAsync(Guid id, Guid version)
+    {
+        using var response = await http.PostAsJsonAsync($"/api/payrolls/{id}/calculate", new { Version = version });
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<PayrollDetails>()
+            ?? throw new ApiException("Não foi possível recalcular a folha.");
+    }
+
+    public async Task<PayrollDetails> SavePayrollPaymentAsync(Guid id, Guid employeeId,
+        decimal amount, string? notes, Guid version)
+    {
+        using var response = await http.PutAsJsonAsync(
+            $"/api/payrolls/{id}/employees/{employeeId}/payment",
+            new { Amount = amount, Notes = notes, Version = version });
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<PayrollDetails>()
+            ?? throw new ApiException("Não foi possível salvar o valor.");
+    }
+
+    public async Task<PayrollDetails> ClosePayrollAsync(Guid id, Guid version)
+    {
+        using var response = await http.PostAsJsonAsync($"/api/payrolls/{id}/close", new { Version = version });
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<PayrollDetails>()
+            ?? throw new ApiException("Não foi possível fechar a folha.");
+    }
+
+    public async Task<byte[]> ExportPayrollAsync(Guid id)
+    {
+        using var response = await http.PostAsync($"/api/payrolls/{id}/export", null);
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadAsByteArrayAsync();
+    }
+
+    public async Task<AccountantInvitation> InviteAccountantAsync(Guid branchId)
+    {
+        using var response = await http.PostAsJsonAsync(
+            $"/api/branches/{branchId}/employee-invitations",
+            new { Role = "Accountant", ExpiresInHours = 72 });
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<AccountantInvitation>()
+            ?? throw new ApiException("Não foi possível criar o convite.");
+    }
+
+    public async Task<List<AccountantAccess>> GetAccountantAccessAsync(Guid branchId)
+        => await http.GetFromJsonAsync<List<AccountantAccess>>($"/api/payrolls/accountant-access/{branchId}") ?? [];
+
+    public async Task RevokeAccountantAccessAsync(Guid branchId, Guid employeeId)
+    {
+        using var response = await http.DeleteAsync($"/api/payrolls/accountant-access/{branchId}/{employeeId}");
+        await EnsureSuccessOrThrowAsync(response);
+    }
+
+    public async Task AcceptAccountantAccessAsync(string token)
+    {
+        using var response = await http.PostAsJsonAsync(
+            "/api/employee-invitations/accept-accountant-access", new AccountantAccessRequest(token));
+        await EnsureSuccessOrThrowAsync(response);
+    }
+
+    public async Task RegisterAccountantAsync(string token, string name, string cpf, string password)
+    {
+        using var response = await http.PostAsJsonAsync("/api/employee-invitations/accept",
+            new AccountantRegisterRequest(token, name, cpf, password,
+                TimeOnly.MinValue, TimeOnly.MinValue, TimeOnly.MinValue, TimeOnly.MinValue));
+        await EnsureSuccessOrThrowAsync(response);
+    }
     public Task<List<BranchSummary>> GetBranchesByOwnerAsync(Guid ownerId, bool forceRefresh = false)
         => cache.GetOrCreateAsync(
             $"owner:{ownerId}:branches",
