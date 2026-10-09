@@ -19,6 +19,9 @@ using DottIn.Presentation.WebApi.Endpoints.Internal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using DottIn.Presentation.WebApi.Security;
+using DottIn.Infra.Data.Contexts;
+using Microsoft.EntityFrameworkCore;
+using DottIn.Application.Features.Subscriptions.Services;
 
 namespace DottIn.Presentation.WebApi.Endpoints
 {
@@ -76,6 +79,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Returns all branches marked as headquarters.")
                 .Produces<IEnumerable<BranchSummaryDto>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
+
+            group.MapGet("/management", HandleManagementAsync);
 
             group.MapPost("/", HandleCreateBranchAsync)
                 .WithName(nameof(HandleCreateBranchAsync))
@@ -232,14 +237,35 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
         #region Command Handlers
 
+        private static async Task<IResult> HandleManagementAsync(
+            [FromServices] DottInContext db,
+            [FromServices] TenantAccessService access,
+            [FromServices] CurrentUserContext currentUser,
+            [FromServices] ITenantSubscriptionService subscriptions,
+            CancellationToken cancellationToken)
+        {
+            if (!await access.CanManageBranchesAsync(token: cancellationToken))
+                return Results.Forbid();
+            var ownerId = currentUser.TenantId;
+            var branches = await db.Branches.AsNoTracking().Where(b => b.OwnerId == ownerId)
+                .OrderByDescending(b => b.IsHeadquarters).ThenBy(b => b.Name)
+                .Select(b => new ManagedBranchDto(b.Id, b.Name, b.Document.Value, b.CompanyCode,
+                    b.IsActive, b.IsHeadquarters, db.Employees.Count(e => e.BranchId == b.Id && e.IsActive),
+                    b.TimeZoneId, b.StartWorkTime, b.EndWorkTime, b.AllowedRadiusMeters, b.ToleranceMinutes))
+                .ToListAsync(cancellationToken);
+            var subscription = await subscriptions.GetByOwnerIdAsync(ownerId, cancellationToken);
+            return Results.Ok(new BranchManagementResponse(ownerId, branches, subscription));
+        }
+
         private static async Task<IResult> HandleCreateBranchAsync(
             [FromBody] CreateBranchCommand command,
             [FromServices] IMediator mediator,
             [FromServices] IBranchRepository branchRepository,
             [FromServices] CurrentUserContext currentUser,
+            [FromServices] TenantAccessService access,
             CancellationToken cancellationToken)
         {
-            if (!currentUser.IsAdministrator)
+            if (!await access.CanManageBranchesAsync(allowFirstHeadquarters: true, token: cancellationToken))
                 return Results.Forbid();
 
             var existingBranches = await branchRepository.GetByOwnerIdAsync(currentUser.TenantId, cancellationToken);
@@ -247,7 +273,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             command = command with
             {
                 OwnerId = currentUser.TenantId,
-                IsHeadQuarters = isFirstBranch
+                IsHeadQuarters = isFirstBranch,
+                CreatedByEmployeeId = currentUser.EmployeeId
             };
 
             var branchId = await mediator.Send(command, cancellationToken);

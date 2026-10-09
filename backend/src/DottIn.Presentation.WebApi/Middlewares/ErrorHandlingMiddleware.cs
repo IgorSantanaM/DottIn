@@ -26,7 +26,7 @@ namespace DottIn.Presentation.WebApi.Middlewares
             }
             catch (Exception ex)
             {
-                var expectedFailure = ex is DomainException or ValidationException or NotFoundException or ArgumentException or BadHttpRequestException or BreakOutsideAllowedTimeException;
+                var expectedFailure = ex is DomainException or ValidationException or NotFoundException or ArgumentException or BadHttpRequestException or BreakOutsideAllowedTimeException or SubscriptionLimitExceededException;
                 if (expectedFailure && context.Request.Path.StartsWithSegments("/api/timekeeping"))
                     logger.LogWarning(
                         "Timekeeping request rejected. Path: {Path}; TraceId: {TraceId}; Reason: {Reason}",
@@ -42,6 +42,11 @@ namespace DottIn.Presentation.WebApi.Middlewares
         {
             var (statusCode, title, errors) = exception switch
             {
+                SubscriptionLimitExceededException limit => (
+                    HttpStatusCode.Conflict,
+                    limit.Message,
+                    null
+                ),
                 ArgumentException argumentException => (
                     HttpStatusCode.BadRequest,
                     argumentException.Message,

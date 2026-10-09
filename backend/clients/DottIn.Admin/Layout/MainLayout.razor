@@ -57,6 +57,13 @@ else
 
         <MudMainContent Class="dottin-main-content"
                         Style="background: var(--mud-palette-background);">
+            @if (State.IsOwner && State.CanAccessOperationalModules)
+            {
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="min-width:0; overflow-wrap:anywhere; flex:1 1 180px;">Unidade selecionada: @State.CompanyCode</MudText>
+                    <MudButton Href="/branches" Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Business">Trocar unidade</MudButton>
+                </div>
+            }
             @if (!State.SessionPersistenceAvailable)
             {
                 <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4" role="status">

@@ -241,6 +241,11 @@
                     Começar Configuração
                 </MudButton>
 
+                @if (State.IsOwner && State.HasCompletedConfiguration)
+                {
+                    <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mt-2" Href="/branches">Gerenciar filiais</MudButton>
+                }
+
                 <MudButton Variant="Variant.Outlined"
                            Class="btn-outline mt-2"
                            FullWidth="true"

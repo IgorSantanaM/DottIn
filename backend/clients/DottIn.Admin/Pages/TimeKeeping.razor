@@ -16,6 +16,8 @@
 
 @if (State.IsOwner)
 {
+    <MudButton Href="/payroll" Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4 mr-2"
+               StartIcon="@Icons.Material.Filled.Payments">Folha de pagamento</MudButton>
     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4"
                StartIcon="@Icons.Material.Filled.Rule" OnClick="ShowPendingAdjustments">
         Correções pendentes

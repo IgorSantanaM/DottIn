@@ -537,6 +537,9 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSes
     {
         if (response.IsSuccessStatusCode) return;
 
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+            throw new ApiException("Você não tem permissão para esta operação.");
+
         var body = await response.Content.ReadAsStringAsync();
         try
         {

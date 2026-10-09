@@ -27,6 +27,20 @@ public record BranchSummary(
 
 public record BranchClockResponse(DateTime UtcNow, DateTime LocalNow, string TimeZoneId);
 
+public record BranchManagement(Guid OwnerId, List<ManagedBranch> Branches, BranchSubscription? Subscription);
+public record ManagedBranch(Guid Id, string Name, string Document, string CompanyCode,
+    bool IsActive, bool IsHeadquarters, int ActiveEmployeeCount, string TimeZoneId,
+    TimeOnly StartWork, TimeOnly EndWork, int AllowedRadiusMeters, int ToleranceMinutes);
+public record BranchSubscription(Guid Id, Guid HeadquartersId, Guid OwnerId, string PlanName, string Status,
+    int MaxEmployees, int MaxBranches, int CurrentEmployeeCount, int CurrentBranchCount,
+    DateTime CurrentPeriodEnd, bool CanAddEmployee, bool CanAddBranch);
+public record BranchAddress(string Street, int Number, string? Complement, string City, string State, string ZipCode);
+public record CreateManagedBranchRequest(string Name, DocumentInfo Document, BranchCoordinates Geolocation,
+    BranchAddress Address, string TimeZoneId, TimeOnly StartWorkTime, TimeOnly EndWorkTime,
+    string Email, string PhoneNumber, Guid? OwnerId, bool IsHeadQuarters, int AllowedRadiusMeters, int ToleranceMinutes);
+public record BranchCoordinates(double Latitude, double Longitude);
+public record CreatedBranch(Guid BranchId, string CompanyCode);
+
 public record EmployeeSummary(
     Guid EmployeeId, string Name, DocumentInfo Document, string? ImageUrl,
     string BranchName, TimeOnly StartWorkTime, TimeOnly EndWorkTime,

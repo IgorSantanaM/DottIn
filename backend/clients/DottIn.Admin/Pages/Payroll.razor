@@ -1,356 +1,129 @@
 @page "/payroll"
 @attribute [OperationalAccessRequired]
-@using DottIn.Admin.Models
-@using System.Globalization
-@inject AdminApiClient Api
+@attribute [OwnerAccessRequired]
 @inject AdminState State
-@inject ISnackbar Snackbar
+@inject AdminApiClient Api
+@inject BranchClockService Clock
 @inject IDialogService Dialogs
 @inject BrowserDownloadService Download
-@inject NavigationManager Navigation
-@inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 <PageTitle>DottIn - Folha de pagamento</PageTitle>
-
-<div class="d-flex align-center justify-space-between flex-wrap gap-3 mb-5">
+<div class="dottin-page-header">
     <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Folha de pagamento</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            @(IsAccountant ? "Folhas finalizadas das filiais autorizadas" : "Revise horas e defina os valores da competência")
-        </MudText>
+        <MudText Typo="Typo.h5" Style="font-weight:700;">Folha de pagamento</MudText>
+        <MudText Color="Color.Secondary">Prepare os registros da unidade selecionada para o fechamento da folha.</MudText>
     </div>
-    @if (!IsAccountant)
-    {
-        <div class="d-flex gap-2">
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.People" OnClick="LoadAccountantsAsync">Acessos</MudButton>
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="InviteAccountantAsync">Convidar contador</MudButton>
-        </div>
-    }
+    <MudButton Href="/timekeeping" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schedule">Consultar registros</MudButton>
 </div>
 
-@if (!IsAccountant)
-{
-    <MudPaper Class="pa-4 mb-4" Elevation="0">
-        <MudGrid AlignItems="AlignItems.Center">
-            <MudItem xs="12" sm="5">
-                <MudSelect T="Guid" Label="Filial" @bind-Value="_branchId" @bind-Value:after="OnBranchChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    @foreach (var branch in _branches)
-                    {
-                        <MudSelectItem T="Guid" Value="@branch.Id">@branch.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="6" sm="2">
-                <MudNumericField T="int" Label="Mês" @bind-Value="_month" Min="1" Max="12" Variant="Variant.Outlined" Margin="Margin.Dense" />
-            </MudItem>
-            <MudItem xs="6" sm="2">
-                <MudNumericField T="int" Label="Ano" @bind-Value="_year" Min="2000" Max="2100" Variant="Variant.Outlined" Margin="Margin.Dense" />
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(_busy || _branchId == Guid.Empty)"
-                           FullWidth="true" OnClick="CreateAsync">Abrir competência</MudButton>
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
-}
+<MudPaper Elevation="0" Class="pa-4 my-4" Style="border-radius:12px;">
+    <MudDatePicker @bind-Date="_month" Label="Mês de referência" DateFormat="MM/yyyy" OpenTo="OpenTo.Month"
+                   FixDay="1" Variant="Variant.Outlined" Disabled="@(_initializing || _busy)" />
+    @if (_initializing)
+    { <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-3" /> }
+    @if (_clockError is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mt-3">@_clockError</MudAlert>
+        <MudButton OnClick="InitializeMonthAsync">Tentar novamente</MudButton>
+    }
+    @if (_month is { } month)
+    {
+        var period = PayrollPeriod.FromMonth(month);
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Período: @period.Start.ToString("dd/MM/yyyy") a @period.End.ToString("dd/MM/yyyy")</MudText>
+    }
+</MudPaper>
 
-@if (_showAccountants && !IsAccountant)
-{
-    <MudPaper Class="pa-4 mb-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-2">Contadores com acesso à filial</MudText>
-        @if (_accountants.Count == 0)
-        {
-            <MudText Color="Color.Secondary">Nenhum contador associado a esta filial.</MudText>
-        }
-        @foreach (var accountant in _accountants)
-        {
-            <div class="d-flex align-center justify-space-between py-2">
-                <MudText>@accountant.Name</MudText>
-                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
-                           OnClick="@(() => RevokeAsync(accountant))">Revogar acesso</MudButton>
-            </div>
-        }
-    </MudPaper>
-}
+<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+    O DottIn prepara os dados de jornada. O cálculo de salários, descontos e o pagamento são realizados no seu sistema de folha, como o Domínio.
+</MudAlert>
 
-@if (_busy)
-{
-    <MudProgressLinear Indeterminate="true" Class="mb-4" />
-}
-
-@if (_payrolls.Count == 0 && !_busy)
-{
-    <MudAlert Severity="Severity.Info">Nenhuma folha disponível. Selecione uma competência para começar.</MudAlert>
-}
-else
-{
-    <MudPaper Class="pa-4 mb-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-3">Competências</MudText>
-        <MudTable Items="_payrolls" Dense="true" Hover="true">
-            <HeaderContent>
-                <MudTh>Filial</MudTh><MudTh>Competência</MudTh><MudTh>Status</MudTh>
-                <MudTh>Colaboradores</MudTh><MudTh>Total</MudTh><MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate Context="payroll">
-                <MudTd DataLabel="Filial">@payroll.BranchName</MudTd>
-                <MudTd DataLabel="Competência">@payroll.Month.ToString("D2")/@payroll.Year</MudTd>
-                <MudTd DataLabel="Status">@StatusLabel(payroll.Status)</MudTd>
-                <MudTd DataLabel="Colaboradores">@payroll.EmployeeCount</MudTd>
-                <MudTd DataLabel="Total">@Money(payroll.TotalAmount)</MudTd>
-                <MudTd><MudButton Size="Size.Small" OnClick="@(() => OpenAsync(payroll.Id))">Abrir</MudButton></MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
-}
-
-@if (_selected is not null)
-{
-    <MudPaper Class="pa-4" Elevation="0">
-        <div class="d-flex align-center justify-space-between flex-wrap gap-3 mb-3">
-            <div>
-                <MudText Typo="Typo.h6">Folha @_selected.Month.ToString("D2")/@_selected.Year</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">@StatusLabel(_selected.Status) · Total @Money(_selected.TotalAmount)</MudText>
-            </div>
-            <div class="d-flex gap-2 flex-wrap">
-                @if (!IsAccountant && _selected.Status == "Draft")
-                {
-                    <MudButton Variant="Variant.Outlined" Disabled="_busy" OnClick="RecalculateAsync">Recalcular horas</MudButton>
-                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="CloseAsync">Finalizar folha</MudButton>
-                }
-                @if (IsAccountant && _selected.Status != "Draft")
-                {
-                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload"
-                               Disabled="_busy" OnClick="ExportAsync">Exportar CSV</MudButton>
-                }
-            </div>
-        </div>
-        @if (_selected.Items.Any(x => x.HasIncompleteRecords))
-        {
-            <MudAlert Severity="Severity.Warning" Class="mb-3">Há jornadas incompletas. Corrija-as antes de finalizar a folha.</MudAlert>
-        }
-        @if (_selected.Items.Any(x => string.IsNullOrWhiteSpace(x.DominioCode)))
-        {
-            <MudAlert Severity="Severity.Warning" Class="mb-3">Há colaboradores sem código Domínio. Complete o mapeamento para finalizar.</MudAlert>
-        }
-        <MudTable Items="_selected.Items" Dense="true" Hover="true">
-            <HeaderContent>
-                <MudTh>Colaborador</MudTh><MudTh>ID Domínio</MudTh><MudTh>Horas</MudTh>
-                <MudTh>Calculado</MudTh><MudTh>Valor da folha</MudTh><MudTh>Observação</MudTh><MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate Context="item">
-                <MudTd DataLabel="Colaborador">@item.EmployeeName</MudTd>
-                <MudTd DataLabel="ID Domínio">@(item.DominioCode ?? "Pendente")</MudTd>
-                <MudTd DataLabel="Horas">@Hours(item.WorkedMinutes) @(item.HasIncompleteRecords ? "· pendente" : "")</MudTd>
-                <MudTd DataLabel="Calculado">@(item.CalculatedAmount.HasValue ? Money(item.CalculatedAmount.Value) : "Sem base salarial")</MudTd>
-                <MudTd DataLabel="Valor da folha">
-                    @if (!IsAccountant && _selected.Status == "Draft")
-                    {
-                        <MudNumericField T="decimal?" @bind-Value="_amounts[item.EmployeeId]" Min="0" Step="0.01m"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
-                    }
-                    else { @Money(item.PaymentAmount ?? 0m) }
-                </MudTd>
-                <MudTd DataLabel="Observação">
-                    @if (!IsAccountant && _selected.Status == "Draft")
-                    {
-                        <MudTextField T="string" @bind-Value="_notes[item.EmployeeId]" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    }
-                    else { @item.Notes }
-                </MudTd>
-                <MudTd>
-                    @if (!IsAccountant && _selected.Status == "Draft")
-                    {
-                        <MudButton Size="Size.Small" Disabled="@(_busy || !_amounts[item.EmployeeId].HasValue)"
-                                   OnClick="@(() => SaveAsync(item.EmployeeId))">Salvar</MudButton>
-                    }
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
-}
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="4">
+        <MudPaper Elevation="0" Class="pa-4" Style="border-radius:12px; height:100%; overflow-wrap:anywhere;">
+            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Class="mb-2" />
+            <MudText Typo="Typo.h6">1. Conferir funcionários</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-3">Associe cada funcionário ao seu código interno no Domínio antes da importação.</MudText>
+            <MudButton FullWidth="true" Variant="Variant.Outlined" Color="Color.Primary" Disabled="_busy" OnClick="MappingsAsync">Mapear funcionários</MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudPaper Elevation="0" Class="pa-4" Style="border-radius:12px; height:100%; overflow-wrap:anywhere;">
+            <MudIcon Icon="@Icons.Material.Filled.FileDownload" Color="Color.Primary" Class="mb-2" />
+            <MudText Typo="Typo.h6">2. Exportar para Domínio</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-3">Confira empresa e rubricas e gere o arquivo de lançamentos do mês selecionado.</MudText>
+            <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_busy || _month is null)" OnClick="DominioAsync">Exportar Domínio (.txt)</MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudPaper Elevation="0" Class="pa-4" Style="border-radius:12px; height:100%; overflow-wrap:anywhere;">
+            <MudIcon Icon="@Icons.Material.Filled.TableChart" Color="Color.Primary" Class="mb-2" />
+            <MudText Typo="Typo.h6">3. Conferir relatório</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-3">Baixe todos os registros do mês em CSV para conferência, sem limitação à página exibida.</MudText>
+            <MudButton FullWidth="true" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_busy || _month is null)" OnClick="CsvAsync">@(_exportingCsv ? "Exportando..." : "Exportar CSV (.csv)")</MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
 
 @code {
-    private readonly List<PayrollSummary> _payrolls = [];
-    private readonly List<BranchSummary> _branches = [];
-    private readonly List<AccountantAccess> _accountants = [];
-    private readonly Dictionary<Guid, decimal?> _amounts = [];
-    private readonly Dictionary<Guid, string?> _notes = [];
-    private PayrollDetails? _selected;
-    private Guid _branchId;
-    private int _year = DateTime.Today.Year;
-    private int _month = DateTime.Today.Month;
-    private bool _busy;
-    private bool _showAccountants;
-    private bool IsAccountant => State.Role == "Accountant";
-    private static string Money(decimal amount) => amount.ToString("C2", CultureInfo.GetCultureInfo("pt-BR"));
-    private static string Hours(long minutes) => $"{minutes / 60:D2}:{minutes % 60:D2}";
-    private static string StatusLabel(string status) => status switch
-    {
-        "Draft" => "Rascunho", "ReadyForAccounting" => "Pronta para contabilidade",
-        "Exported" => "Exportada", _ => status
-    };
+    private DateTime? _month;
+    private bool _initializing = true, _busy, _exportingCsv;
+    private string? _clockError;
 
-    private void OnBranchChanged()
-    {
-        _showAccountants = false;
-        _accountants.Clear();
-    }
+    protected override Task OnInitializedAsync() => InitializeMonthAsync();
 
-    protected override async Task OnInitializedAsync()
+    private async Task InitializeMonthAsync()
     {
-        if (!State.IsAuthenticated) return;
-        _branchId = State.BranchId;
-        if (!IsAccountant && State.Role is not ("Owner" or "Administrator"))
-        {
-            Navigation.NavigateTo("/dashboard", replace: true);
-            return;
-        }
+        _initializing = true;
+        _clockError = null;
         try
         {
-            if (State.IsOwner)
-                _branches.AddRange(await Api.GetBranchesByOwnerAsync(State.EmployeeId));
-            else if (!IsAccountant)
-                _branches.Add(new BranchSummary(State.BranchId, "Filial atual", null, null, true, false, ""));
-            await ReloadAsync();
+            await Clock.SynchronizeAsync(State.BranchId);
+            _month = new DateTime(Clock.Today.Year, Clock.Today.Month, 1);
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        catch { _clockError = "Não foi possível consultar o horário da unidade. Selecione o mês de referência ou tente novamente."; }
+        finally { _initializing = false; }
     }
 
-    private async Task ReloadAsync()
+    private async Task MappingsAsync()
     {
-        _payrolls.Clear();
-        _payrolls.AddRange(await Api.GetPayrollsAsync());
-    }
-
-    private void SetSelected(PayrollDetails details)
-    {
-        _selected = details;
-        _amounts.Clear(); _notes.Clear();
-        foreach (var item in details.Items)
-        {
-            _amounts[item.EmployeeId] = item.PaymentAmount;
-            _notes[item.EmployeeId] = item.Notes;
-        }
-    }
-
-    private async Task OpenAsync(Guid id)
-    {
-        _busy = true;
-        try { SetSelected(await Api.GetPayrollAsync(id)); }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task CreateAsync()
-    {
+        if (_busy) return;
         _busy = true;
         try
         {
-            SetSelected(await Api.CreatePayrollAsync(_branchId, _year, _month));
-            await ReloadAsync();
+            var dialog = await Dialogs.ShowAsync<DominioMappingDialog>("Mapeamento Domínio",
+                new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium, BackdropClick = false });
+            await dialog.Result;
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
         finally { _busy = false; }
     }
 
-    private async Task RecalculateAsync()
+    private async Task DominioAsync()
     {
-        if (_selected is null) return;
-        _busy = true;
-        try { SetSelected(await Api.CalculatePayrollAsync(_selected.Id, _selected.Version)); }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task SaveAsync(Guid employeeId)
-    {
-        if (_selected is null || !_amounts[employeeId].HasValue) return;
+        if (_busy || _month is null) return;
         _busy = true;
         try
         {
-            SetSelected(await Api.SavePayrollPaymentAsync(_selected.Id, employeeId,
-                _amounts[employeeId]!.Value, _notes[employeeId], _selected.Version));
-            await ReloadAsync();
-            Snackbar.Add("Valor salvo.", Severity.Success);
+            var parameters = new DialogParameters<ExportDominioDialog> { { d => d.ReferenceMonth, _month } };
+            var dialog = await Dialogs.ShowAsync<ExportDominioDialog>("Exportar Domínio", parameters,
+                new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, BackdropClick = false });
+            await dialog.Result;
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
         finally { _busy = false; }
     }
 
-    private async Task CloseAsync()
+    private async Task CsvAsync()
     {
-        if (_selected is null) return;
-        var confirmed = await Dialogs.ShowMessageBox("Finalizar folha",
-            "Os valores serão disponibilizados ao contador e não poderão mais ser alterados normalmente. Deseja continuar?",
-            yesText: "Finalizar", cancelText: "Cancelar");
-        if (confirmed != true) return;
-        _busy = true;
+        if (_busy || _month is not { } month) return;
+        _busy = _exportingCsv = true;
         try
         {
-            SetSelected(await Api.ClosePayrollAsync(_selected.Id, _selected.Version));
-            await ReloadAsync();
+            var period = PayrollPeriod.FromMonth(month);
+            var bytes = await Api.ExportCsvAsync(State.BranchId, period.Start, period.End);
+            await Download.DownloadAsync(bytes, $"folha_registros_{period.Start:yyyyMM}.csv", "text/csv;charset=utf-8");
+            Snackbar.Add("Relatório mensal exportado.", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task ExportAsync()
-    {
-        if (_selected is null) return;
-        _busy = true;
-        try
-        {
-            var bytes = await Api.ExportPayrollAsync(_selected.Id);
-            await Download.DownloadAsync(bytes, $"folha-{_selected.Year:D4}-{_selected.Month:D2}.csv", "text/csv;charset=utf-8");
-            SetSelected(await Api.GetPayrollAsync(_selected.Id));
-            await ReloadAsync();
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task InviteAccountantAsync()
-    {
-        _busy = true;
-        try
-        {
-            var invite = await Api.InviteAccountantAsync(_branchId);
-            var link = $"{Navigation.BaseUri.TrimEnd('/')}/accountant/join?token={Uri.EscapeDataString(invite.Token)}";
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", link);
-            Snackbar.Add("Convite do contador copiado. Válido por 72 horas.", Severity.Success);
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task LoadAccountantsAsync()
-    {
-        if (_branchId == Guid.Empty) return;
-        _busy = true;
-        try
-        {
-            _accountants.Clear();
-            _accountants.AddRange(await Api.GetAccountantAccessAsync(_branchId));
-            _showAccountants = true;
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
-    }
-
-    private async Task RevokeAsync(AccountantAccess accountant)
-    {
-        var confirmed = await Dialogs.ShowMessageBox("Revogar acesso",
-            $"Remover o acesso de {accountant.Name} às folhas desta filial?",
-            yesText: "Revogar", cancelText: "Cancelar");
-        if (confirmed != true) return;
-        _busy = true;
-        try
-        {
-            await Api.RevokeAccountantAccessAsync(_branchId, accountant.EmployeeId);
-            _accountants.Remove(accountant);
-            Snackbar.Add("Acesso revogado.", Severity.Success);
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _busy = false; }
+        finally { _busy = _exportingCsv = false; }
     }
 }

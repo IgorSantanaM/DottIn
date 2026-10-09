@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DottIn.Infra.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DottIn.Infra.Data.Migrations
 {
     [DbContext(typeof(DottInContext))]
-    partial class DottInContextModelSnapshot : ModelSnapshot
+    [Migration("20261009145118_TrackBranchCreator")]
+    partial class TrackBranchCreator
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -343,7 +346,7 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.ToTable("Employees", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Employees_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner', 'Accountant')");
+                            t.HasCheckConstraint("CK_Employees_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Owner')");
                         });
                 });
 
@@ -411,7 +414,7 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.ToTable("EmployeeInvitations", null, t =>
                         {
-                            t.HasCheckConstraint("CK_EmployeeInvitations_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator', 'Accountant')");
+                            t.HasCheckConstraint("CK_EmployeeInvitations_Role", "\"Role\" IN ('Employee', 'Manager', 'Administrator')");
                         });
                 });
 
@@ -507,190 +510,6 @@ namespace DottIn.Infra.Data.Migrations
                     b.HasIndex("CountryCode", "RegionCode", "Year");
 
                     b.ToTable("HolidayCalendars", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.AccountantBranchAccess", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AccountantEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("GrantedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("GrantedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountantEmployeeId");
-
-                    b.HasIndex("BranchId", "AccountantEmployeeId")
-                        .IsUnique();
-
-                    b.ToTable("AccountantBranchAccesses", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.Payroll", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ClosedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ExportedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ExportedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByEmployeeId");
-
-                    b.HasIndex("BranchId", "Year", "Month")
-                        .IsUnique();
-
-                    b.ToTable("Payrolls", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollExportEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("ExportedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ExportedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("PayrollId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PayrollId", "ExportedAt");
-
-                    b.ToTable("PayrollExportEvents", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal?>("CalculatedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("DominioCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EmployeeName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<bool>("HasIncompleteRecords")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<decimal?>("PaymentAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("PayrollId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("WorkedMinutes")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("PayrollId", "EmployeeId")
-                        .IsUnique();
-
-                    b.ToTable("PayrollItems", (string)null);
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollPaymentChange", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ChangedByEmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("NewAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("PayrollId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal?>("PreviousAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PayrollId", "ChangedAt");
-
-                    b.ToTable("PayrollPaymentChanges", (string)null);
                 });
 
             modelBuilder.Entity("DottIn.Domain.Subscriptions.StripeWebhookReceipt", b =>
@@ -1204,7 +1023,8 @@ namespace DottIn.Infra.Data.Migrations
 
                     b.HasOne("DottIn.Domain.Employees.Employee", null)
                         .WithMany()
-                        .HasForeignKey("InvitedByEmployeeId")
+                        .HasForeignKey("BranchId", "InvitedByEmployeeId")
+                        .HasPrincipalKey("BranchId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1258,69 +1078,6 @@ namespace DottIn.Infra.Data.Migrations
                         });
 
                     b.Navigation("Holidays");
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.AccountantBranchAccess", b =>
-                {
-                    b.HasOne("DottIn.Domain.Employees.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("AccountantEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DottIn.Domain.Branches.Branch", null)
-                        .WithMany()
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.Payroll", b =>
-                {
-                    b.HasOne("DottIn.Domain.Branches.Branch", null)
-                        .WithMany()
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DottIn.Domain.Employees.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedByEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollExportEvent", b =>
-                {
-                    b.HasOne("DottIn.Domain.Payrolls.Payroll", null)
-                        .WithMany()
-                        .HasForeignKey("PayrollId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollItem", b =>
-                {
-                    b.HasOne("DottIn.Domain.Employees.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DottIn.Domain.Payrolls.Payroll", null)
-                        .WithMany()
-                        .HasForeignKey("PayrollId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DottIn.Domain.Payrolls.PayrollPaymentChange", b =>
-                {
-                    b.HasOne("DottIn.Domain.Payrolls.Payroll", null)
-                        .WithMany()
-                        .HasForeignKey("PayrollId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("DottIn.Domain.Subscriptions.TenantSubscription", b =>

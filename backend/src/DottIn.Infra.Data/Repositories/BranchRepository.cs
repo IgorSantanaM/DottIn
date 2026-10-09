@@ -6,6 +6,18 @@ namespace DottIn.Infra.Data.Repositories
 {
     public class BranchRepository(DottInContext context) : Repository<Branch, Guid>(context), IBranchRepository
     {
+        // Transaction-scoped locks serialize quota checks across API instances, not just within one process.
+        public async Task LockOwnerAsync(Guid ownerId, CancellationToken token = default)
+            => await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({"branch-owner:" + ownerId.ToString()}, 0))", token);
+
+        public async Task LockDocumentAsync(string document, CancellationToken token = default)
+            => await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({"branch-document:" + document}, 0))", token);
+
+        public Task ReloadAsync(Branch branch, CancellationToken token = default)
+            => context.Entry(branch).ReloadAsync(token);
+
         public async Task<IEnumerable<Branch>> GetActiveBranchesAsync(CancellationToken token = default)
             => await context.Branches
                 .AsNoTracking()

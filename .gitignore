@@ -5,6 +5,7 @@
 
 # dotenv files
 .env
+.tmp/branch-tests/
 .hermes
 
 # User-specific files

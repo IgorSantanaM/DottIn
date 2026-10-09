@@ -73,6 +73,13 @@
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public DateTime? ReferenceMonth { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (ReferenceMonth is { } month)
+            _selectedMonth = new DateTime(month.Year, month.Month, 1);
+    }
 
     private DateTime? _selectedMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
     private string _companyCode = "";

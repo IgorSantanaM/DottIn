@@ -1,13 +1,13 @@
 ﻿using DottIn.Application.Features.Branches.Commands.CreateBranch;
 using DottIn.Domain.ValueObjects;
+using DottIn.Domain.Branches;
+using DottIn.Domain.Core.Exceptions;
 using FluentValidation;
 
 namespace DottIn.Application.Features.Branches.Validators
 {
     public class CreateBranchCommandValidator : AbstractValidator<CreateBranchCommand>
     {
-        private static readonly HashSet<string> ValidTimeZones = new(TimeZoneInfo.GetSystemTimeZones().Select(tz => tz.Id));
-
         public CreateBranchCommandValidator()
         {
             RuleFor(x => x.Name)
@@ -201,7 +201,8 @@ namespace DottIn.Application.Features.Branches.Validators
             if (string.IsNullOrWhiteSpace(timeZoneId))
                 return false;
 
-            return ValidTimeZones.Contains(timeZoneId);
+            try { BranchTime.Resolve(timeZoneId); return true; }
+            catch (DomainException) { return false; }
         }
 
         private static bool HaveValidShiftDuration(CreateBranchCommand command)

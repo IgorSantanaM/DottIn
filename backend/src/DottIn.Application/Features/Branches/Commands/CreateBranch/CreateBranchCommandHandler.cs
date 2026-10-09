@@ -25,6 +25,27 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
 
+            if (!request.OwnerId.HasValue || request.OwnerId.Value == Guid.Empty)
+                throw new DomainException("Informe o proprietário da empresa.");
+
+            var result = Guid.Empty;
+            await unitOfWork.ExecuteInTransactionAsync(async token =>
+            {
+                await branchRepository.LockOwnerAsync(request.OwnerId.Value, token);
+                var document = new string(request.Document.Value.Where(char.IsDigit).ToArray());
+                await branchRepository.LockDocumentAsync(document, token);
+                if (await branchRepository.GetByDocumentAsync(document, token) is not null)
+                    throw new DomainException("Já existe uma empresa cadastrada com este CNPJ.");
+                // Never trust the headquarters flag from the browser or a stale pre-transaction check.
+                var existing = await branchRepository.GetByOwnerIdAsync(request.OwnerId.Value, token);
+                result = await CreateAsync(request with { IsHeadQuarters = !existing.Any() }, token);
+            }, cancellationToken);
+            return result;
+        }
+
+        private async Task<Guid> CreateAsync(CreateBranchCommand request, CancellationToken cancellationToken)
+        {
+
             Employee? owner = null;
             if (request.OwnerId.HasValue && request.OwnerId.Value != Guid.Empty)
             {
@@ -35,6 +56,22 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
 
                 if (!owner.IsActive)
                     throw new DomainException("O funcionário não está ativo.");
+                if (owner.Role != EmployeeRole.Owner)
+                    throw new DomainException("Somente o proprietário pode cadastrar filiais.");
+            }
+
+            // Recheck a distinct billing owner inside the transaction as well: an earlier
+            // authorization check must not survive removal of that ownership while waiting for the lock.
+            if (request.CreatedByEmployeeId.HasValue && request.CreatedByEmployeeId != owner?.Id)
+            {
+                var creator = await employeeRepository.GetByIdAsync(request.CreatedByEmployeeId.Value, cancellationToken);
+                var headquarters = (await branchRepository.GetByOwnerIdAsync(request.OwnerId!.Value, cancellationToken))
+                    .FirstOrDefault(b => b.IsHeadquarters);
+                var subscription = headquarters is null ? null
+                    : await tenantSubscriptionRepository.GetByHeadquartersIdAsync(headquarters.Id, cancellationToken);
+                if (creator is null || !creator.IsActive || creator.Role != EmployeeRole.Owner ||
+                    request.IsHeadQuarters || subscription?.OwnerId != creator.Id)
+                    throw new DomainException("Somente o proprietário da matriz ou da assinatura vinculada pode cadastrar filiais.");
             }
 
             // Check branch limit if this is NOT a headquarters (HQ is always allowed as it's the first branch)
@@ -46,7 +83,9 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
                     var subscription = await tenantSubscriptionService.GetByOwnerIdAsync(owner.Id, cancellationToken);
                     var maxBranches = subscription?.MaxBranches ?? 1;
                     throw new SubscriptionLimitExceededException(
-                        $"O limite de filiais do plano foi atingido ({maxBranches} filiais).");
+                        subscription is null || subscription.Status is not ("Free" or "Active" or "Trialing")
+                            ? "A assinatura não está elegível para criar filiais. Confira seu plano e o status da assinatura."
+                            : $"O limite do plano foi atingido ({maxBranches} unidades, incluindo a matriz).");
                 }
             }
 
@@ -72,7 +111,8 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
                             request.PhoneNumber,
                             request.IsHeadQuarters,
                             request.AllowedRadiusMeters,
-                            request.ToleranceMinutes);
+                            request.ToleranceMinutes,
+                            createdByEmployeeId: request.CreatedByEmployeeId ?? owner?.Id);
 
             await branchRepository.AddAsync(branch, cancellationToken);
 
@@ -86,11 +126,8 @@ namespace DottIn.Application.Features.Branches.Commands.CreateBranch
             {
                 // Employee.BranchId is an alternate key used by tenant-safe foreign keys.
                 // Persist the branch first, then update the owner directly in one transaction.
-                await unitOfWork.ExecuteInTransactionAsync(async token =>
-                {
-                    await unitOfWork.SaveChangesAsync(token);
-                    await employeeRepository.AssociateUnassignedOwnerWithBranchAsync(owner.Id, branch.Id, token);
-                }, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                await employeeRepository.AssociateUnassignedOwnerWithBranchAsync(owner.Id, branch.Id, cancellationToken);
             }
             else
             {
