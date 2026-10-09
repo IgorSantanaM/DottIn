@@ -12,7 +12,7 @@
 
 <PageTitle>DottIn - Dashboard</PageTitle>
 
-<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-4">
+<div class="dottin-page-header mb-4">
     <div>
         @if (State.IsOwner)
         {
@@ -44,7 +44,7 @@
 <div style="text-align: center;" class="mb-4">
     @if (_clockReady)
     {
-        <MudText Typo="Typo.h2" Style="font-weight: 300; letter-spacing: 4px;">@BranchNow.ToString("HH:mm:ss")</MudText>
+        <MudText Typo="Typo.h2" Class="dottin-dashboard-clock">@BranchNow.ToString("HH:mm:ss")</MudText>
     }
     else
     {
@@ -123,7 +123,7 @@
             Identifique o funcionário para registrar ponto
         </MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
-                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   StartIcon="@Icons.Material.Filled.PersonAdd" Class="dottin-punch-button"
                    Disabled="_isProcessing" OnClick="HandleKioskAction">
             @if (_isProcessing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
             REGISTRAR PONTO
@@ -213,7 +213,7 @@ else
                         <MudIcon Icon="@GetPersonalStatusIcon()" />
                     </MudAvatar>
                     <div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="dottin-actions">
                             <MudText Typo="Typo.h6" Style="font-weight: 600;">@GetPersonalStatusText()</MudText>
                             @if (_myRecord?.IsNocturnal == true)
                             {
@@ -225,7 +225,7 @@ else
                 </div>
 
                 @* Action Buttons *@
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <div class="dottin-actions dottin-punch-actions">
                     @if (_personalStatus == PersonalStatus.NotClocked)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Large"
@@ -264,7 +264,7 @@ else
             <MudItem xs="12" md="6">
                 @* Day Summary *@
                 <MudText Typo="Typo.subtitle1" Style="font-weight: 600;" Class="mb-3">Resumo do Dia</MudText>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="dottin-day-summary">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Success" Size="Size.Small" />
                         <div>

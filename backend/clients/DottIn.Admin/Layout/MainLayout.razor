@@ -2,6 +2,7 @@
 @inject AdminState State
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
+@implements IDisposable
 
 @if (!State.IsAuthenticated)
 {
@@ -10,15 +11,19 @@
 else
 {
     <MudLayout>
-        <MudAppBar Elevation="1" Dense="true" Fixed="true"
+        <MudAppBar Elevation="1" Dense="true" Fixed="true" Class="dottin-appbar"
                    Style="background-color: var(--mud-palette-appbar-background); color: var(--mud-palette-appbar-text);">
             @if (State.CanAccessOperationalModules && State.Role != "Accountant")
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
-                               Edge="Edge.Start" OnClick="ToggleDrawer" />
+                               Edge="Edge.Start" OnClick="@(() => _desktopDrawerOpen = !_desktopDrawerOpen)"
+                               Class="dottin-desktop-menu" aria-label="Abrir ou fechar navegação" aria-expanded="@_desktopDrawerOpen" />
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                               Edge="Edge.Start" OnClick="@(() => _mobileDrawerOpen = !_mobileDrawerOpen)"
+                               Class="dottin-mobile-menu" aria-label="Abrir ou fechar navegação" aria-expanded="@_mobileDrawerOpen" />
             }
             <DottInLogo Dark="@State.IsDarkMode" Height="32" />
-            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2">@State.RoleLabel</MudChip>
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2 dottin-role-chip">@State.RoleLabel</MudChip>
             <MudSpacer />
             <MudTooltip Text="@(State.IsDarkMode ? "Modo claro" : "Modo escuro")">
                 <MudIconButton Icon="@(State.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
@@ -40,39 +45,18 @@ else
 
         @if (State.CanAccessOperationalModules)
         {
-            <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
-                       Variant="DrawerVariant.Mini" OpenMiniOnHover="true">
-                <MudNavMenu>
-                    @if (State.Role == "Accountant")
-                    {
-                        <MudNavLink Href="/payroll" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Folha</MudNavLink>
-                    }
-                    else
-                    {
-                    <MudNavLink Href="/dashboard" Match="NavLinkMatch.All"
-                                Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-                    <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix"
-                                Icon="@Icons.Material.Filled.People">Funcionários</MudNavLink>
-                    <MudNavLink Href="/timekeeping" Match="NavLinkMatch.Prefix"
-                                Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
-                    <MudNavLink Href="/holidays" Match="NavLinkMatch.Prefix"
-                                Icon="@Icons.Material.Filled.CalendarMonth">Feriados</MudNavLink>
-                    @if (State.Role is "Owner" or "Administrator")
-                    {
-                        <MudNavLink Href="/payroll" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Folha</MudNavLink>
-                    }
-                    @if (State.IsOwner)
-                    {
-                        <MudNavLink Href="/billing" Match="NavLinkMatch.Prefix"
-                                    Icon="@Icons.Material.Filled.CreditCard">Assinatura</MudNavLink>
-                    }
-                    }
-                </MudNavMenu>
+            <MudDrawer @bind-Open="_desktopDrawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
+                       Variant="DrawerVariant.Mini" OpenMiniOnHover="true" Class="dottin-desktop-navigation">
+                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" />
+            </MudDrawer>
+            <MudDrawer @bind-Open="_mobileDrawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
+                       Variant="DrawerVariant.Temporary" Class="dottin-mobile-navigation">
+                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" />
             </MudDrawer>
         }
 
-        <MudMainContent Class="pa-6 dottin-main-content"
-                        Style="min-height: 100vh; padding-top: calc(var(--mud-appbar-height) + 24px); background: var(--mud-palette-background);">
+        <MudMainContent Class="dottin-main-content"
+                        Style="background: var(--mud-palette-background);">
             @if (!State.SessionPersistenceAvailable)
             {
                 <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4" role="status">
@@ -85,8 +69,20 @@ else
 }
 
 @code {
-    private bool _drawerOpen = true;
-    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    // CSS selects the appropriate navigation instantly, including during rotation.
+    // Independent open states prevent the desktop drawer from opening the phone menu.
+    private bool _desktopDrawerOpen = true;
+    private bool _mobileDrawerOpen;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        _mobileDrawerOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 
     private async Task Logout()
     {

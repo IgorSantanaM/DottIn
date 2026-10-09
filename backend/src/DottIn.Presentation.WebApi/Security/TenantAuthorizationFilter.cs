@@ -93,6 +93,7 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
 
         var suffix = path[(index + marker.Length)..].TrimEnd('/');
         return suffix.Length == 0 ||
+               suffix.Equals("/paged", StringComparison.OrdinalIgnoreCase) ||
                suffix.Equals("/active", StringComparison.OrdinalIgnoreCase) ||
                suffix.StartsWith("/cpf/", StringComparison.OrdinalIgnoreCase);
     }

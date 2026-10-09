@@ -247,6 +247,37 @@ public sealed class AdminStateSessionTests
         var snapshot = JsonSerializer.Deserialize<AdminSessionSnapshot>(browser.Local["admin.session.snapshot"]);
         Assert.Equal("Employee", snapshot?.Role);
     }
+    [Theory]
+    [InlineData("Owner", true)]
+    [InlineData("Administrator", true)]
+    [InlineData("Manager", true)]
+    [InlineData("Employee", false)]
+    [InlineData("Unknown", false)]
+    public async Task EmployeeDirectoryAccessUsesExplicitManagementRoles(string role, bool expected)
+    {
+        var state = new AdminState(new SessionStorageService(new MemoryBrowserStorage()), new AdminQueryCache());
+        Assert.False(state.CanViewEmployees);
+        await state.SetAuthenticatedAsync(new LoginResponse(
+            "token", "refresh", DateTime.UtcNow.AddMinutes(15),
+            new EmployeeInfo(Guid.NewGuid(), "Test", "", null), Guid.NewGuid(),
+            role == "Owner", false, "TEST", role));
+        Assert.Equal(expected, state.CanViewEmployees);
+        await state.LogoutAsync();
+        Assert.False(state.CanViewEmployees);
+    }
+
+    [Fact]
+    public async Task EmployeeDirectoryAccessIsRemovedAfterRoleDowngrade()
+    {
+        var state = new AdminState(new SessionStorageService(new MemoryBrowserStorage()), new AdminQueryCache());
+        await state.SetAuthenticatedAsync(new LoginResponse(
+            "token", "refresh", DateTime.UtcNow.AddMinutes(15),
+            new EmployeeInfo(Guid.NewGuid(), "Test", "", null), Guid.NewGuid(), false, false, "TEST", "Manager"));
+        Assert.True(state.CanViewEmployees);
+        await state.CompleteRefreshAsync(new RefreshTokenResponse("next", "refresh", DateTime.UtcNow.AddMinutes(15), "Employee"));
+        Assert.False(state.CanViewEmployees);
+    }
+
     private sealed class DelayedRefreshHandler : HttpMessageHandler
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
