@@ -134,6 +134,10 @@
             }
             MudDialog.Close(DialogResult.Ok(response.Employee));
         }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _errorMessage = AuthenticationAccessMessages.Forbidden(apiEx.Content);
+        }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             _errorMessage = "CPF ou senha incorretos";
@@ -170,6 +174,10 @@
                 return;
             }
             MudDialog.Close(DialogResult.Ok(response.Employee));
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _errorMessage = AuthenticationAccessMessages.Forbidden(apiEx.Content);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {

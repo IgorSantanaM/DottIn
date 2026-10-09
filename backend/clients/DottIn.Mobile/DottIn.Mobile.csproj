@@ -26,9 +26,10 @@
 </PropertyGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#2563EB" />
+    <Content Include="..\DottIn.Admin\wwwroot\branding\*.svg" Link="wwwroot\branding\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" ForegroundScale="0.65" Color="#0F172A" />
 
-    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#2563EB" BaseSize="128,128" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F172A" BaseSize="128,128" />
 
     <MauiImage Include="Resources\Images\*" />
 

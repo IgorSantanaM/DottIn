@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.WebAssembly.Http;
@@ -487,8 +488,9 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSes
 
     public async Task<CompanyJoinLinkResolutionResponse?> ResolveCompanyJoinLinkAsync(string token, CancellationToken cancellationToken = default)
     {
-        var response = await http.GetAsync($"/api/company-join-links/resolve?token={Uri.EscapeDataString(token)}", cancellationToken);
-        if (!response.IsSuccessStatusCode) return null;
+        using var response = await http.GetAsync($"/api/company-join-links/resolve?token={Uri.EscapeDataString(token)}", cancellationToken);
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound) return null;
+        await EnsureSuccessOrThrowAsync(response);
         return await response.Content.ReadFromJsonAsync<CompanyJoinLinkResolutionResponse>(cancellationToken: cancellationToken);
     }
 

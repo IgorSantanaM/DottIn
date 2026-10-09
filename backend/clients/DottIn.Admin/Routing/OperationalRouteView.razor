@@ -26,7 +26,7 @@
 }
 else if (CanRenderRoute)
 {
-    <RouteView @key="(State.EmployeeId, State.BranchId, RouteData.PageType)" RouteData="RouteData" DefaultLayout="DefaultLayout" />
+    <RouteView @key="RouteKey" RouteData="RouteData" DefaultLayout="DefaultLayout" />
 }
 else if (IsResolving)
 {
@@ -42,6 +42,9 @@ else if (IsResolving)
 </style>
 
 @code {
+    private object RouteKey => RouteData.PageType == typeof(DottIn.Admin.Pages.Join)
+        ? RouteData.PageType
+        : (State.EmployeeId, State.BranchId, RouteData.PageType);
     [Parameter, EditorRequired]
     public RouteData RouteData { get; set; } = default!;
 

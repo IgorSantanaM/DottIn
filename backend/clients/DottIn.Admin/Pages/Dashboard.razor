@@ -6,6 +6,7 @@
 @inject DashboardSessionCache DashboardCache
 @inject BrowserGeolocationService BrowserGeolocation
 @inject ISnackbar Snackbar
+@inject CompanyJoinNotice JoinNotice
 @inject IDialogService DialogService
 @implements IDisposable
 
@@ -312,6 +313,12 @@ else
     private Severity _lastKioskSeverity = Severity.Success;
     private bool _loaded;
     private bool _initialLoadCompleted;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && JoinNotice.Consume(State.EmployeeId) is { } message)
+            Snackbar.Add(message, Severity.Success);
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -9,7 +9,7 @@
     <link rel="preload" id="webassembly" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="branding/DottIn_Favicon.svg" />
     <link href="DottIn.Admin.styles.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <script type="importmap"></script>
@@ -86,6 +86,8 @@
             height: 30px;
             color: white;
         }
+
+        .loading-logo-image { width: 196px; height: 56px; display: block; margin-bottom: 8px; }
 
         .loading-wordmark {
             display: flex;
@@ -222,16 +224,8 @@
 <body>
     <div id="loading-screen">
         <div class="loading-logo-wrap">
-            <div class="loading-logo-mark">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <polyline points="12 7 12 12 15.5 14" />
-                </svg>
-            </div>
             <div>
-                <div class="loading-wordmark">
-                    <span class="loading-wordmark-text">Dott</span><span class="loading-wordmark-dot">In</span>
-                </div>
+                <img class="loading-logo-image" src="branding/DottIn_White.svg" alt="DottIn" width="196" height="56" />
                 <div class="loading-subtitle">Painel Administrativo</div>
             </div>
         </div>

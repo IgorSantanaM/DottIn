@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="pa-4">
+    <DottInLogo Height="48" />
     <MudText Typo="Typo.h5">Criar conta de proprietário</MudText>
     <MudText Class="mb-4">Depois, cadastre sua empresa para começar.</MudText>
     @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
