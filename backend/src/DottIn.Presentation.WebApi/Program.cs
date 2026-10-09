@@ -29,12 +29,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddCors(opt =>
 {
-    opt.AddDefaultPolicy(policy =>
-    {
-        var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
-        if (origins.Length > 0)
-            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
-    });
+    var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+    opt.AddDefaultPolicy(CorsPolicyFactory.Create(origins));
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -113,6 +109,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseRouting();
 app.UseCors();
 app.UseRateLimiter();
 
@@ -142,18 +139,6 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environm
 
 await AuthenticationWarmup.TryWarmAsync(app.Services, app.Logger);
 
-app.MapGet("/", () => Results.Ok(new { service = "DottIn API", status = "healthy" }));
-app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }))
-    .AllowAnonymous()
-    .ExcludeFromDescription();
-
-app.MapGet("/health/ready", async (DottInContext dbContext, CancellationToken cancellationToken) =>
-    await DatabaseReadinessProbe.IsReadyAsync(
-        token => dbContext.Database.CanConnectAsync(token),
-        cancellationToken)
-        ? Results.Ok(new { status = "ready" })
-        : Results.Json(new { status = "unavailable", dependency = "database" }, statusCode: StatusCodes.Status503ServiceUnavailable))
-    .AllowAnonymous()
-    .ExcludeFromDescription();
+HealthEndpoints.Map(app);
 
 app.Run();

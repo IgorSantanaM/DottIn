@@ -33,7 +33,8 @@ public static class ProductionConfigurationValidator
 
         var origins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
         if (origins.Length == 0 || origins.Any(origin =>
-                !Uri.TryCreate(origin, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+                !CorsPolicyFactory.TryNormalizeOrigin(origin, out var normalized) ||
+                !normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
         {
             errors.Add("AllowedOrigins deve conter apenas origens HTTPS explícitas.");
         }
