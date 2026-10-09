@@ -23,6 +23,10 @@ namespace DottIn.Presentation.WebApi.Endpoints
     {
         private const string Tag = "Auth";
         private const string PersistSessionHeader = "X-DottIn-Persist-Session";
+        private static IResult InactiveEmployeeAccess() => Results.Json(new AuthAccessErrorResponse(
+            "employee_inactive",
+            "Você não possui mais vínculo ativo com esta empresa. Para esclarecer ou reativar seu acesso, entre em contato com o responsável pela empresa."),
+            statusCode: StatusCodes.Status403Forbidden);
 
         public static void DefineEndpoints(WebApplication app)
         {
@@ -36,6 +40,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Authenticates an employee using CPF, Password, and CompanyCode.")
                 .Produces<LoginResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
+                .Produces<AuthAccessErrorResponse>(StatusCodes.Status403Forbidden)
                 .Produces(StatusCodes.Status404NotFound)
                 .AllowAnonymous()
                 .RequireRateLimiting("public-auth");
@@ -46,6 +51,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 .WithDescription("Authenticates an employee using CPF, PIN, and CompanyCode.")
                 .Produces<LoginResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status401Unauthorized)
+                .Produces<AuthAccessErrorResponse>(StatusCodes.Status403Forbidden)
                 .Produces(StatusCodes.Status404NotFound)
                 .AllowAnonymous()
                 .RequireRateLimiting("public-auth");
@@ -137,15 +143,23 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
 
-            if (!employee.IsActive)
-                return Results.Unauthorized();
-
             if (!employee.VerifyPassword(request.Password))
                 return Results.Unauthorized();
 
+            if (!employee.IsActive)
+                return InactiveEmployeeAccess();
+
+            var companyJoinAlreadyMember = false;
             if (!string.IsNullOrWhiteSpace(request.CompanyJoinToken))
             {
-                if (employee.BranchId == Guid.Empty)
+                var validation = await CompanyJoinLinkEndpoints.ValidateAsync(
+                    request.CompanyJoinToken, db, companyJoinLinkTokenService, cancellationToken);
+                if (validation is null)
+                    return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
+
+                companyJoinAlreadyMember = await CompanyJoinMembership.IsMemberAsync(
+                    db, employee.Id, validation.Value.Branch.OwnerId!.Value, cancellationToken);
+                if (!companyJoinAlreadyMember && employee.BranchId == Guid.Empty)
                 {
                     var joinError = await JoinCompanyFromLinkAsync(employee, request.CompanyJoinToken, db,
                         companyJoinLinkTokenService, cancellationToken);
@@ -154,19 +168,14 @@ namespace DottIn.Presentation.WebApi.Endpoints
                     employee = await employeeRepository.GetByIdAsync(employee.Id, cancellationToken)
                         ?? throw new InvalidOperationException("Conta associada não encontrada.");
                 }
-                else
+                else if (!companyJoinAlreadyMember)
                 {
-                    var validation = await CompanyJoinLinkEndpoints.ValidateAsync(
-                        request.CompanyJoinToken, db, companyJoinLinkTokenService, cancellationToken);
-                    if (validation is null)
-                        return Results.BadRequest(new { Message = "Link de convite inválido ou expirado." });
-                    if (validation.Value.Branch.Id != employee.BranchId)
-                        return Results.Conflict(new { Message = "Esta conta já pertence a outra filial. Use uma conta diferente para aceitar o convite." });
+                    return Results.Conflict(new { Message = "Esta conta já pertence a outra empresa. Use uma conta diferente para aceitar o convite." });
                 }
             }
 
             if (employee.BranchId == Guid.Empty && employee.Role == EmployeeRole.Owner)
-                return await GenerateUnassignedOwnerLoginResponseAsync(employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
+                return await GenerateUnassignedOwnerLoginResponseAsync(employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken, companyJoinAlreadyMember);
 
             var branch = await branchRepository.GetByIdAsync(employee.BranchId, cancellationToken);
             if (branch == null)
@@ -175,7 +184,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (!branch.IsActive)
                 return Results.Unauthorized();
 
-            return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
+            return await GenerateLoginResponseAsync(branch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken, companyJoinAlreadyMember);
         }
 
         private static async Task<IResult?> JoinCompanyFromLinkAsync(
@@ -257,7 +266,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
 
-            if (!branch.IsActive || !employee.IsActive)
+            if (!branch.IsActive)
                 return Results.Unauthorized();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
@@ -266,6 +275,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             if (!employee.VerifyPin(request.Pin))
                 return Results.Unauthorized();
+
+            if (!employee.IsActive)
+                return InactiveEmployeeAccess();
 
             return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
         }
@@ -290,7 +302,7 @@ namespace DottIn.Presentation.WebApi.Endpoints
             if (employee == null)
                 return Results.NotFound(new { Message = "Funcionário não encontrado" });
 
-            if (!branch.IsActive || !employee.IsActive)
+            if (!branch.IsActive)
                 return Results.Unauthorized();
 
             var employeeBranch = await ValidateEmployeeBelongsToCompanyAsync(employee, branch, branchRepository, cancellationToken);
@@ -299,6 +311,9 @@ namespace DottIn.Presentation.WebApi.Endpoints
 
             if (!employee.VerifyFingerprint(request.FingerprintToken))
                 return Results.Unauthorized();
+
+            if (!employee.IsActive)
+                return InactiveEmployeeAccess();
 
             return await GenerateLoginResponseAsync(employeeBranch, employee, tokenService, refreshTokenRepository, unitOfWork, configuration, httpContext, cancellationToken);
         }
@@ -607,7 +622,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             IUnitOfWork unitOfWork,
             IConfiguration configuration,
             HttpContext httpContext,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool companyJoinAlreadyMember = false)
         {
             var jwtSettings = configuration.GetSection("JwtSettings");
             var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
@@ -639,7 +655,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 IsHeadquarters: false,
                 Subscription: null,
                 CompanyCode: string.Empty,
-                Role: employee.Role.ToString());
+                Role: employee.Role.ToString(),
+                CompanyJoinAlreadyMember: companyJoinAlreadyMember);
 
             return Results.Ok(response);
         }
@@ -652,7 +669,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             IUnitOfWork unitOfWork,
             IConfiguration configuration,
             HttpContext httpContext,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool companyJoinAlreadyMember = false)
         {
             var jwtSettings = configuration.GetSection("JwtSettings");
             var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
@@ -686,7 +704,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
                 IsHeadquarters: branch.IsHeadquarters,
                 Subscription: null,
                 CompanyCode: branch.CompanyCode,
-                Role: employee.Role.ToString()
+                Role: employee.Role.ToString(),
+                CompanyJoinAlreadyMember: companyJoinAlreadyMember
             );
 
             return Results.Ok(response);

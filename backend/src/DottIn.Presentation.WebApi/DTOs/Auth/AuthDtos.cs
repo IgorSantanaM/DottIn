@@ -1,5 +1,6 @@
 namespace DottIn.Presentation.WebApi.DTOs.Auth
 {
+    public sealed record AuthAccessErrorResponse(string Code, string Message);
     public record PinLoginRequest(string Cpf, string Pin, string CompanyCode);
     public record RegisterFingerprintRequest(string CompanyCode, string Cpf, string Password, string FingerprintToken);
     public record FingerprintLoginRequest(string CompanyCode, string Cpf, string FingerprintToken);
@@ -17,7 +18,8 @@ namespace DottIn.Presentation.WebApi.DTOs.Auth
         bool IsHeadquarters,
         SubscriptionInfoDto? Subscription,
         string CompanyCode,
-        string Role = "Employee");
+        string Role = "Employee",
+        bool CompanyJoinAlreadyMember = false);
 
     public record RefreshTokenResponse(
         string AccessToken,

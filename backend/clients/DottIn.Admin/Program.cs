@@ -31,6 +31,8 @@ builder.Services.AddScoped(sp =>
 });
 builder.Services.AddScoped<AdminQueryCache>();
 builder.Services.AddScoped<AdminApiClient>();
+builder.Services.AddScoped<CompanyJoinFlow>();
+builder.Services.AddScoped<CompanyJoinNotice>();
 builder.Services.AddScoped<BranchClockService>();
 builder.Services.AddScoped<OperationalAccessService>();
 

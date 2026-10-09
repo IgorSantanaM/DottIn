@@ -10,7 +10,7 @@ public record ClockInResponse(Guid TimeKeepingId);
 public record LoginResponse(
     string AccessToken, string RefreshToken, DateTime ExpiresAt,
     EmployeeInfo Employee, Guid BranchId, bool IsOwner, bool IsHeadquarters, string CompanyCode,
-    string? Role = null);
+    string? Role = null, bool CompanyJoinAlreadyMember = false);
 
 public record RefreshTokenRequest(string? RefreshToken);
 public record RefreshTokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt, string? Role = null);
@@ -138,6 +138,6 @@ public record CreateCheckoutSessionRequest(Guid PlanId);
 public record CheckoutSessionResponse(string CheckoutUrl);
 public record PortalSessionResponse(string PortalUrl);
 public record CompanyJoinLinkResponse(string Token, DateTime ExpiresAt, string CompanyName);
-public record CompanyJoinLinkResolutionResponse(string CompanyName, bool CanJoin);
+public record CompanyJoinLinkResolutionResponse(string CompanyName, bool CanJoin, bool AlreadyMember = false);
 public record RegisterFromCompanyJoinLinkRequest(string Token, string Name, string Cpf, string Password);
 public record RegisterFromCompanyJoinLinkResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt, Guid EmployeeId, Guid BranchId);

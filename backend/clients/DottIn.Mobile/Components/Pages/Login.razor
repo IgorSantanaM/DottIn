@@ -525,16 +525,8 @@
         
         @* Cabeçalho de Identidade *@
         <div class="brand-logo-wrap">
-            <div class="brand-logo-mark">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <polyline points="12 7 12 12 15.5 14" />
-                </svg>
-            </div>
             <div class="text-center">
-                <div class="brand-wordmark">
-                    <span class="brand-wordmark-text">Dott</span><span class="brand-wordmark-dot">In</span>
-                </div>
+                <DottInLogo Dark="true" Height="56" />
                 <div class="brand-subtitle-text">Controle de Ponto Inteligente</div>
             </div>
             <div class="mobile-auth-kicker">
@@ -873,6 +865,11 @@
             _formError = "Empresa ou colaborador não encontrado.";
             Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
         }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _formError = AuthenticationAccessMessages.Forbidden(apiEx.Content);
+            Snackbar.Add(_formError, Severity.Warning);
+        }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             _formError = "CPF ou senha incorretos. Confira os dados e tente novamente.";
@@ -914,6 +911,11 @@
             Snackbar.Add("Empresa ou funcionário não encontrado", Severity.Error);
             _pin = "";
             TriggerHaptic(HapticFeedbackType.LongPress);
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _formError = AuthenticationAccessMessages.Forbidden(apiEx.Content);
+            Snackbar.Add(_formError, Severity.Warning);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -986,6 +988,11 @@
 
             TriggerHaptic(HapticFeedbackType.Click);
             Navigation.NavigateTo(Session.LandingPage, replace: true);
+        }
+        catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _formError = AuthenticationAccessMessages.Forbidden(apiEx.Content);
+            Snackbar.Add(_formError, Severity.Warning);
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {

@@ -73,6 +73,17 @@ public class AuthService(HttpClient http, AdminState state)
         string password,
         string? companyJoinToken = null)
     {
+        var result = await LoginCoreAsync(cpf, password, companyJoinToken, CancellationToken.None);
+        return (result.Success, result.Error);
+    }
+
+    public Task<(bool Success, bool AlreadyMember, string? Error)> LoginFromCompanyJoinLinkAsync(
+        string cpf, string password, string token, CancellationToken cancellationToken = default)
+        => LoginCoreAsync(cpf, password, token, cancellationToken);
+
+    private async Task<(bool Success, bool AlreadyMember, string? Error)> LoginCoreAsync(
+        string cpf, string password, string? companyJoinToken, CancellationToken cancellationToken)
+    {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
@@ -82,28 +93,42 @@ public class AuthService(HttpClient http, AdminState state)
             request.Headers.TryAddWithoutValidation(PersistSessionHeader, "true");
             request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
 
-            using var response = await http.SendAsync(request);
+            using var response = await http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    return (false, false, "CPF ou senha incorretos, ou conta sem acesso.");
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                    return (false, false, await ReadForbiddenMessageAsync(response));
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
                 var validation = JsonSerializer.Deserialize<ValidationErrorResponse>(
                     body,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                return (false, validation?.Errors.Select(x => x.Error).FirstOrDefault()
+                return (false, false, validation?.Errors?.Select(x => x.Error).FirstOrDefault()
+                    ?? validation?.Message
                     ?? "Não foi possível validar o acesso.");
             }
 
-            var login = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            var login = await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken);
             if (login is null)
-                return (false, "Resposta inválida do servidor");
+                return (false, false, "Resposta inválida do servidor");
 
+            cancellationToken.ThrowIfCancellationRequested();
             await state.SetAuthenticatedAsync(login);
-            return (true, null);
+            return (true, login.CompanyJoinAlreadyMember, null);
         }
         catch (HttpRequestException)
         {
-            return (false, "Não foi possível conectar ao servidor");
+            return (false, false, "Não foi possível conectar ao servidor");
+        }
+        catch (JsonException)
+        {
+            return (false, false, "Não foi possível validar a resposta do servidor.");
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (false, false, "O servidor demorou para responder. Tente novamente.");
         }
     }
 
@@ -114,9 +139,11 @@ public class AuthService(HttpClient http, AdminState state)
     {
         try
         {
-            var response = await http.PostAsJsonAsync("/api/auth/login", new LoginRequest(cpf, password));
+            using var response = await http.PostAsJsonAsync("/api/auth/login", new LoginRequest(cpf, password));
             if (!response.IsSuccessStatusCode)
             {
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                    return (false, null, await ReadForbiddenMessageAsync(response));
                 var error = response.StatusCode == HttpStatusCode.Unauthorized
                     ? "CPF ou senha incorretos"
                     : "Funcionário não encontrado";
@@ -144,12 +171,14 @@ public class AuthService(HttpClient http, AdminState state)
     {
         try
         {
-            var response = await http.PostAsJsonAsync(
+            using var response = await http.PostAsJsonAsync(
                 "/api/auth/login/pin",
                 new PinLoginRequest(cpf, pin, companyCode));
 
             if (!response.IsSuccessStatusCode)
             {
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                    return (false, null, await ReadForbiddenMessageAsync(response));
                 var error = response.StatusCode == HttpStatusCode.Unauthorized
                     ? "PIN incorreto"
                     : "Funcionário não encontrado";
@@ -164,6 +193,19 @@ public class AuthService(HttpClient http, AdminState state)
         catch (HttpRequestException)
         {
             return (false, null, "Erro de conexão");
+        }
+    }
+
+    private static async Task<string> ReadForbiddenMessageAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var error = await response.Content.ReadFromJsonAsync<ValidationErrorResponse>();
+            return error?.Message ?? "Esta conta não tem acesso à empresa. Entre em contato com o responsável.";
+        }
+        catch (JsonException)
+        {
+            return "Esta conta não tem acesso à empresa. Entre em contato com o responsável.";
         }
     }
 
@@ -206,6 +248,7 @@ public class AuthService(HttpClient http, AdminState state)
     {
         public int Status { get; set; }
         public string? Title { get; set; }
+        public string? Message { get; set; }
         public List<FieldError> Errors { get; set; } = [];
     }
 

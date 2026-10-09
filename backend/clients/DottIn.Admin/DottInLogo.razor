@@ -1,0 +1,11 @@
+@inject AdminState State
+
+<img src="branding/@(Dark ?? State.IsDarkMode ? "DottIn_White.svg" : "DottIn_Primary.svg")"
+     alt="DottIn" class="dottin-logo @Class" width="@(Height * 3.5)" height="@Height"
+     style="height: @(Height)px; width: auto; max-width: 100%; object-fit: contain; display: block;" />
+
+@code {
+    [Parameter] public bool? Dark { get; set; }
+    [Parameter] public int Height { get; set; } = 40;
+    [Parameter] public string? Class { get; set; }
+}

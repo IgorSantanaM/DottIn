@@ -82,6 +82,7 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
         [FromQuery] string token,
         [FromServices] DottInContext db,
         [FromServices] ICompanyJoinLinkTokenService tokenService,
+        [FromServices] CurrentUserContext currentUser,
         CancellationToken cancellationToken)
     {
         var validation = await ValidateAsync(token, db, tokenService, cancellationToken);
@@ -91,7 +92,9 @@ public sealed class CompanyJoinLinkEndpoints : IEndpoint
         var (_, branch, subscription) = validation.Value;
         var employeeCount = await CountBillableEmployeesAsync(db, branch.OwnerId!.Value, cancellationToken);
         var canJoin = subscription.Plan!.HasUnlimitedEmployees || employeeCount < subscription.Plan.MaxEmployees;
-        return Results.Ok(new CompanyJoinLinkResolutionResponse(branch.Name, canJoin));
+        var alreadyMember = currentUser.IsAuthenticated && await CompanyJoinMembership.IsMemberAsync(
+            db, currentUser.EmployeeId, branch.OwnerId.Value, cancellationToken);
+        return Results.Ok(new CompanyJoinLinkResolutionResponse(branch.Name, canJoin, alreadyMember));
     }
 
     private static async Task<IResult> RegisterAsync(
