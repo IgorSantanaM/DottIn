@@ -145,6 +145,21 @@ public sealed class LayoutAndQueryPerformanceContractTests
         Assert.Contains("URL.createObjectURL", helper, StringComparison.Ordinal);
         Assert.Contains("URL.revokeObjectURL", helper, StringComparison.Ordinal);
     }
+    [Fact]
+    public void OwnerNavigationIsReactiveAndPayrollExportIsAvailableWithoutCurrentPeriodRecords()
+    {
+        var layout = ReadSource("clients/DottIn.Admin/Layout/MainLayout.razor");
+        var menu = ReadSource("clients/DottIn.Admin/Layout/OperationalNavMenu.razor");
+        var records = ReadSource("clients/DottIn.Admin/Pages/TimeKeeping.razor");
+        Assert.Equal(2, layout.Split("IsOwner=\"@State.IsOwner\"", StringSplitOptions.None).Length - 1);
+        Assert.Contains("[Parameter] public bool IsOwner", menu);
+        Assert.Contains("@if (IsOwner)", menu);
+        Assert.Contains("Href=\"/billing\"", menu);
+        Assert.Contains("@if (State.IsOwner)", records);
+        Assert.DoesNotContain("State.IsOwner && _records.Any()", records);
+        Assert.Contains("OnClick=\"ExportDominio\"", records);
+    }
+
     private static string ReadSource(string relativePath)
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)

@@ -690,7 +690,8 @@ namespace DottIn.Presentation.WebApi.Endpoints
             await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var isOwner = branch.OwnerId == employee.Id;
+            // Match the role carried by the JWT and used by the authorization policies.
+            var isOwner = employee.Role == EmployeeRole.Owner;
 
             SetRefreshCookieIfRequested(httpContext, refreshToken.PlainTextToken!);
 

@@ -47,11 +47,11 @@ else
         {
             <MudDrawer @bind-Open="_desktopDrawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
                        Variant="DrawerVariant.Mini" OpenMiniOnHover="true" Class="dottin-desktop-navigation">
-                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" />
+                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" IsOwner="@State.IsOwner" />
             </MudDrawer>
             <MudDrawer @bind-Open="_mobileDrawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always"
                        Variant="DrawerVariant.Temporary" Class="dottin-mobile-navigation">
-                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" />
+                <OperationalNavMenu CanViewEmployees="@State.CanViewEmployees" IsOwner="@State.IsOwner" />
             </MudDrawer>
         }
 

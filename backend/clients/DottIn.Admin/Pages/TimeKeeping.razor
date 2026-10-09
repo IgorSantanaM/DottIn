@@ -39,7 +39,7 @@
                        OnClick="SearchAsync" Disabled="_loading" FullWidth="true">
                 Buscar
             </MudButton>
-            @if (State.IsOwner && _records.Any())
+            @if (State.IsOwner)
             {
                 <MudMenu Icon="@Icons.Material.Filled.FileDownload" Variant="Variant.Outlined"
                          Color="Color.Default" Size="Size.Medium"
