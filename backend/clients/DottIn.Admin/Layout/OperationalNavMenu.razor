@@ -1,5 +1,3 @@
-@inject AdminState State
-
 <MudNavMenu>
     <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
     @if (CanViewEmployees)
@@ -8,7 +6,7 @@
     }
     <MudNavLink Href="/timekeeping" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">Registros</MudNavLink>
     <MudNavLink Href="/holidays" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth">Feriados</MudNavLink>
-    @if (State.IsOwner)
+    @if (IsOwner)
     {
         <MudNavLink Href="/billing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CreditCard">Assinatura</MudNavLink>
     }
@@ -16,4 +14,5 @@
 
 @code {
     [Parameter] public bool CanViewEmployees { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
 }

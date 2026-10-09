@@ -278,6 +278,78 @@ public sealed class AdminStateSessionTests
         Assert.False(state.CanViewEmployees);
     }
 
+    [Theory]
+    [InlineData("Owner", false, true)]
+    [InlineData("Owner", true, true)]
+    [InlineData("Administrator", true, false)]
+    [InlineData("Manager", true, false)]
+    [InlineData("Employee", true, false)]
+    [InlineData("Unknown", true, false)]
+    public async Task OwnerCapabilitiesFollowRoleNotConflictingLegacyFlag(string role, bool legacyFlag, bool expected)
+    {
+        var browser = new MemoryBrowserStorage();
+        var state = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
+        await state.SetAuthenticatedAsync(new LoginResponse(
+            "token", "refresh", DateTime.UtcNow.AddMinutes(15),
+            new EmployeeInfo(Guid.NewGuid(), "Test", "", null), Guid.NewGuid(), legacyFlag, false, "TEST", role));
+
+        Assert.Equal(expected, state.IsOwner);
+        Assert.Equal(expected, (await state.GetSessionAsync())!.IsOwner);
+        var restored = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
+        Assert.True(await restored.RestoreSnapshotAsync());
+        await restored.CompleteRefreshAsync(new RefreshTokenResponse("next", "refresh", DateTime.UtcNow.AddMinutes(15), role));
+        Assert.Equal(expected, restored.IsOwner);
+        Assert.Equal(expected, JsonSerializer.Deserialize<AdminSessionSnapshot>(browser.Local["admin.session.snapshot"])!.IsOwner);
+        await restored.LogoutAsync();
+        Assert.False(restored.IsOwner);
+    }
+
+    [Fact]
+    public async Task OwnerRoleChangesUpdateCapabilitiesAndInvalidatePrivilegedData()
+    {
+        var browser = new MemoryBrowserStorage();
+        var cache = new AdminQueryCache();
+        var state = new AdminState(new SessionStorageService(browser), cache);
+        await state.SetAuthenticatedAsync(new LoginResponse(
+            "token", "refresh", DateTime.UtcNow.AddMinutes(15),
+            new EmployeeInfo(Guid.NewGuid(), "Test", "", null), Guid.NewGuid(), false, false, "TEST", "Administrator"));
+        Assert.False(state.IsOwner);
+
+        await state.CompleteRefreshAsync(new RefreshTokenResponse("next", "refresh", DateTime.UtcNow.AddMinutes(15), "Owner"));
+        Assert.True(state.IsOwner);
+        Assert.True(state.CanViewEmployees);
+        Assert.True(state.CanViewBranchRecords);
+        await cache.GetOrCreateAsync("privileged", TimeSpan.FromMinutes(1), () => Task.FromResult("company data"), cancellationToken: TestContext.Current.CancellationToken);
+        browser.Session[DashboardSessionCache.StorageKey] = "company dashboard";
+        var version = state.SessionVersion;
+
+        await state.CompleteRefreshAsync(new RefreshTokenResponse("next", "refresh", DateTime.UtcNow.AddMinutes(15), "Employee"));
+        Assert.False(state.IsOwner);
+        Assert.False(state.CanViewEmployees);
+        Assert.False(state.CanViewBranchRecords);
+        Assert.True(state.SessionVersion > version);
+        Assert.False(browser.Session.ContainsKey(DashboardSessionCache.StorageKey));
+        Assert.Equal("own data", await cache.GetOrCreateAsync("privileged", TimeSpan.FromMinutes(1), () => Task.FromResult("own data"), cancellationToken: TestContext.Current.CancellationToken));
+        Assert.False((await state.GetSessionAsync())!.IsOwner);
+    }
+
+    [Fact]
+    public async Task LegacySnapshotWithoutRoleRetainsOwnerUntilServerValidatesRole()
+    {
+        var browser = new MemoryBrowserStorage();
+        browser.Local["admin.session.snapshot"] = JsonSerializer.Serialize(new
+        {
+            Employee = new EmployeeInfo(Guid.NewGuid(), "Owner", "", null),
+            BranchId = Guid.NewGuid(), IsOwner = true, CompanyCode = "TEST"
+        });
+        var state = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
+        Assert.True(await state.RestoreSnapshotAsync());
+        Assert.True(state.IsOwner);
+        Assert.True(state.IsSessionRestoring);
+        await state.CompleteRefreshAsync(new RefreshTokenResponse("next", "refresh", DateTime.UtcNow.AddMinutes(15), "Employee"));
+        Assert.False(state.IsOwner);
+    }
+
     private sealed class DelayedRefreshHandler : HttpMessageHandler
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

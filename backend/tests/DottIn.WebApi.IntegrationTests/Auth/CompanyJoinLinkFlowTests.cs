@@ -81,6 +81,7 @@ public sealed class CompanyJoinLinkFlowTests
             Assert.True(login.CompanyJoinAlreadyMember);
             Assert.Equal(member.BranchId, login.BranchId);
             Assert.Equal(member.Role.ToString(), login.Role);
+            Assert.Equal(member.Role == EmployeeRole.Owner, login.IsOwner);
             Assert.Contains(response.Headers.GetValues("Set-Cookie"), value => value.Contains("httponly", StringComparison.OrdinalIgnoreCase));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
             Assert.True((await ResolveAsync(client, token, ct)).AlreadyMember);
@@ -88,6 +89,23 @@ public sealed class CompanyJoinLinkFlowTests
             Assert.Equal(member.BranchId, persisted.BranchId);
             Assert.Equal(member.Role, persisted.Role);
             Assert.Equal(member.SessionVersion, persisted.SessionVersion);
+            // Payroll management belongs to the owner, including sibling branches,
+            // but never grants access to another tenant or ordinary employees.
+            var payrollStatus = member.Role == EmployeeRole.Owner ? HttpStatusCode.OK : HttpStatusCode.Forbidden;
+            using (var mappings = await client.GetAsync($"/api/branches/{headquarters.Id}/dominio-mappings", ct))
+                Assert.Equal(payrollStatus, mappings.StatusCode);
+            using (var csv = await client.GetAsync($"/api/branches/{headquarters.Id}/exports/csv?startDate=2026-08-01&endDate=2026-08-31", ct))
+                Assert.Equal(payrollStatus, csv.StatusCode);
+            if (member.Role == EmployeeRole.Owner)
+            {
+                using (var save = await client.PutAsJsonAsync($"/api/branches/{headquarters.Id}/dominio-mappings",
+                           new[] { new SaveDominioMappingRequest(employee.Id, "1") }, ct))
+                    Assert.Equal(HttpStatusCode.NoContent, save.StatusCode);
+                using (var siblingMappings = await client.GetAsync($"/api/branches/{sibling.Id}/dominio-mappings", ct))
+                    Assert.Equal(HttpStatusCode.OK, siblingMappings.StatusCode);
+                using (var otherMappings = await client.GetAsync($"/api/branches/{otherCompany.Id}/dominio-mappings", ct))
+                    Assert.Equal(HttpStatusCode.Forbidden, otherMappings.StatusCode);
+            }
             client.DefaultRequestHeaders.Authorization = null;
         }
 
@@ -227,6 +245,7 @@ public sealed class CompanyJoinLinkFlowTests
         app.UseAuthorization();
         AuthEndpoints.DefineEndpoints(app);
         CompanyJoinLinkEndpoints.DefineEndpoints(app);
+        ExportEndpoints.DefineEndpoints(app);
         await app.StartAsync(ct);
         return app;
     }

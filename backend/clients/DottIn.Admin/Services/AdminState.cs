@@ -20,7 +20,7 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
     public EmployeeInfo? User { get; private set; }
     public Guid EmployeeId { get; private set; }
     public Guid BranchId { get; private set; }
-    public bool IsOwner { get; private set; }
+    public bool IsOwner => IsAuthenticated && Role == "Owner";
     public string Role { get; private set; } = "Employee";
     public string RoleLabel => Role switch
     {
@@ -108,9 +108,9 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
     public async Task SetAuthenticatedAsync(AdminSession session)
     {
         cache.Clear();
-        currentSession = session;
         SessionVersion++;
         ApplySession(session);
+        currentSession = session with { IsOwner = IsOwner, Role = Role };
         await storage.RemoveItemAsync(DashboardSessionCache.StorageKey);
         await PersistSnapshotAsync();
         OnChange?.Invoke();
@@ -121,7 +121,14 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         if (User is null)
             throw new InvalidOperationException("Não há sessão local para renovar.");
 
-        Role = response.Role ?? Role;
+        var refreshedRole = response.Role ?? Role;
+        if (refreshedRole != Role)
+        {
+            cache.Clear();
+            SessionVersion++;
+            await storage.RemoveItemAsync(DashboardSessionCache.StorageKey);
+        }
+        Role = refreshedRole;
         currentSession = new AdminSession(
             response.AccessToken,
             response.ExpiresAt,
@@ -193,8 +200,8 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         User = snapshot.Employee;
         EmployeeId = snapshot.Employee.Id;
         BranchId = snapshot.BranchId;
-        IsOwner = snapshot.IsOwner;
-        Role = snapshot.Role;
+        // The authenticated role is authoritative; the flag only supports legacy snapshots without a role.
+        Role = snapshot.Role ?? (snapshot.IsOwner ? "Owner" : "Employee");
         CompanyCode = snapshot.CompanyCode;
         HasLinkedPlan = false;
         IsOperationalAccessResolved = snapshot.BranchId == Guid.Empty;
@@ -211,7 +218,6 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         User = null;
         EmployeeId = Guid.Empty;
         BranchId = Guid.Empty;
-        IsOwner = false;
         Role = "Employee";
         CompanyCode = "";
         HasLinkedPlan = false;
@@ -226,11 +232,11 @@ public record AdminSession(
     Guid BranchId,
     bool IsOwner,
     string CompanyCode,
-    string Role = "Employee");
+    string? Role = null);
 
 public record AdminSessionSnapshot(
     EmployeeInfo Employee,
     Guid BranchId,
     bool IsOwner,
     string CompanyCode,
-    string Role = "Employee");
+    string? Role = null);
