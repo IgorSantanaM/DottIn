@@ -8,6 +8,28 @@ namespace DottIn.Admin.Services;
 
 public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSessionCache? dashboardCache = null)
 {
+    public Task<BranchManagement> GetBranchManagementAsync(bool forceRefresh = false)
+        => cache.GetOrCreateAsync("owner:branch-management", TimeSpan.FromSeconds(30), async () =>
+        {
+            using var response = await http.GetAsync("/api/branches/management");
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+                throw new ApiException("A gestão de filiais é exclusiva do proprietário da matriz ou da assinatura da empresa.");
+            await EnsureSuccessOrThrowAsync(response);
+            return await response.Content.ReadFromJsonAsync<BranchManagement>()
+                ?? throw new ApiException("Não foi possível carregar as filiais.");
+        }, forceRefresh);
+
+    public async Task<CreatedBranch> CreateManagedBranchAsync(CreateManagedBranchRequest request)
+    {
+        using var response = await http.PostAsJsonAsync("/api/branches", request);
+        if (!response.IsSuccessStatusCode)
+            throw new ApiException(BranchRegistrationErrorFormatter.Format(response.StatusCode, await response.Content.ReadAsStringAsync()));
+        cache.Invalidate("owner:");
+        cache.Invalidate("billing:");
+        return await response.Content.ReadFromJsonAsync<CreatedBranch>()
+            ?? throw new ApiException("A filial foi criada, mas não foi possível obter sua identificação. Atualize a lista.");
+    }
+
     public Task<List<BranchSummary>> GetBranchesByOwnerAsync(Guid ownerId, bool forceRefresh = false)
         => cache.GetOrCreateAsync(
             $"owner:{ownerId}:branches",
@@ -454,6 +476,9 @@ public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSes
     private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return;
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+            throw new ApiException("Você não tem permissão para esta operação.");
 
         var body = await response.Content.ReadAsStringAsync();
         try

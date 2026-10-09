@@ -160,6 +160,45 @@ public sealed class LayoutAndQueryPerformanceContractTests
         Assert.Contains("OnClick=\"ExportDominio\"", records);
     }
 
+    [Fact]
+    public void BranchCreationRequiresOwnerAndUsesReviewBeforeSaving()
+    {
+        var page = ReadSource("clients/DottIn.Admin/Pages/Branches.razor");
+        var dialog = ReadSource("clients/DottIn.Admin/Pages/CreateBranchDialog.razor");
+        var route = ReadSource("clients/DottIn.Admin/Routing/OperationalRouteView.razor");
+        Assert.Contains("@attribute [OwnerAccessRequired]", page);
+        Assert.Contains("(!RequiresOwnerAccess || State.IsOwner)", route);
+        Assert.Contains("RequiresOwnerAccess && !State.IsOwner", route);
+        Assert.Contains("Subscription?.CanAddBranch != true", page);
+        Assert.Contains("GetBranchManagementAsync(forceRefresh: true)", page);
+        Assert.Contains("State.SelectBranchAsync(allowed)", page);
+        Assert.Contains("Copiar configurações da matriz", dialog);
+        Assert.Contains("if (_saving || !_reviewing) return;", dialog);
+        Assert.Contains("_timezone = Headquarters.TimeZoneId", dialog);
+        Assert.Contains("_radius = Headquarters.AllowedRadiusMeters", dialog);
+        Assert.Contains("xs=\"12\" sm=\"6\"", dialog);
+        Assert.DoesNotContain("CreateCheckout", dialog);
+    }
+
+    [Fact]
+    public void PayrollHasDedicatedOwnerNavigationRouteAndFunctionalExportActions()
+    {
+        var menu = ReadSource("clients/DottIn.Admin/Layout/OperationalNavMenu.razor");
+        var page = ReadSource("clients/DottIn.Admin/Pages/Payroll.razor");
+        var ownerSection = menu[menu.IndexOf("@if (IsOwner)", StringComparison.Ordinal)..];
+        Assert.Contains("Href=\"/payroll\"", ownerSection);
+        Assert.Contains(">Folha de pagamento</MudNavLink>", ownerSection);
+        Assert.Contains("@page \"/payroll\"", page);
+        Assert.Contains("@attribute [OwnerAccessRequired]", page);
+        Assert.Contains("@attribute [OperationalAccessRequired]", page);
+        Assert.Contains("ShowAsync<DominioMappingDialog>", page);
+        Assert.Contains("ShowAsync<ExportDominioDialog>", page);
+        Assert.Contains("d => d.ReferenceMonth", page);
+        Assert.Contains("Api.ExportCsvAsync(State.BranchId, period.Start, period.End)", page);
+        Assert.Contains("Clock.SynchronizeAsync(State.BranchId)", page);
+        Assert.DoesNotContain("_records.Any()", page);
+    }
+
     private static string ReadSource(string relativePath)
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)

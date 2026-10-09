@@ -150,6 +150,22 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
     public Task<AdminSession?> GetSessionAsync()
         => Task.FromResult(currentSession);
 
+    public async Task SelectBranchAsync(ManagedBranch branch)
+    {
+        if (!IsOwner || !IsSessionReady || currentSession is null || !branch.IsActive || branch.Id == Guid.Empty)
+            throw new InvalidOperationException("Filial indisponível para gerenciamento.");
+        // Callers obtain the selectable branches from the owner-authorized management endpoint.
+        // The API still validates every request against the authenticated tenant.
+        cache.Clear();
+        SessionVersion++;
+        BranchId = branch.Id;
+        CompanyCode = branch.CompanyCode;
+        currentSession = currentSession with { BranchId = BranchId, CompanyCode = CompanyCode };
+        await storage.RemoveItemAsync(DashboardSessionCache.StorageKey);
+        await PersistSnapshotAsync();
+        OnChange?.Invoke();
+    }
+
     public async Task LogoutAsync()
     {
         cache.Clear();

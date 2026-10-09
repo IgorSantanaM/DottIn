@@ -10,6 +10,8 @@ h1:focus {
     outline: none;
 }
 
+.dottin-branch-card { height: 100%; overflow-wrap: anywhere; }
+
 a, .btn-link {
     color: #0071c1;
 }

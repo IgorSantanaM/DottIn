@@ -1,0 +1,124 @@
+@inject AdminApiClient Api
+@inject BrowserGeolocationService Geolocation
+
+<MudDialog>
+    <DialogContent>
+        @if (_error is not null)
+        { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+        @if (!_reviewing)
+        {
+            <MudText Class="mb-3">A filial terá endereço e localização próprios. A assinatura e a propriedade permanecem vinculadas à matriz.</MudText>
+            <MudForm @ref="_form">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12"><MudTextField @bind-Value="_name" Label="Nome da filial" Required="true" MaxLength="150" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_document" Label="CNPJ da filial" Mask="@(new PatternMask("00.000.000/0000-00"))" Required="true" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_phone" Label="Telefone" Required="true" MaxLength="20" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_email" Label="E-mail" Required="true" InputType="InputType.Email" MaxLength="255" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="8"><MudTextField @bind-Value="_street" Label="Rua" Required="true" MaxLength="200" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="_number" Label="Número" Min="0" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_complement" Label="Complemento" MaxLength="100" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_city" Label="Cidade" Required="true" MaxLength="100" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6" sm="2"><MudTextField @bind-Value="_state" Label="UF" Required="true" MaxLength="2" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTextField @bind-Value="_zip" Label="CEP" Mask="@(new PatternMask("00000-000"))" Required="true" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle2">Localização da filial</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">Informe as coordenadas da unidade ou capture a localização somente se estiver no local.</MudText></MudItem>
+                    <MudItem xs="12" sm="6"><MudNumericField T="double?" @bind-Value="_latitude" Label="Latitude" Required="true" Min="-90" Max="90" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudNumericField T="double?" @bind-Value="_longitude" Label="Longitude" Required="true" Min="-180" Max="180" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><MudButton OnClick="CaptureAsync" Disabled="_capturing" StartIcon="@Icons.Material.Filled.MyLocation">@(_capturing ? "Obtendo localização..." : "Usar minha localização atual")</MudButton></MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox T="bool" Value="_copyDefaults" ValueChanged="CopyDefaults" Label="Copiar configurações da matriz" Disabled="@(Headquarters is null)" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Copia fuso, jornada, raio e tolerância. Você pode ajustar os valores abaixo. Não copia endereço, localização nem calendário de feriados.</MudText>
+                    </MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_timezone" Label="Fuso horário" Required="true" MaxLength="100" HelperText="Ex.: America/Cuiaba, America/Sao_Paulo ou America/Manaus" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTimePicker @bind-Time="_start" Label="Início da jornada" Required="true" AmPm="false" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTimePicker @bind-Time="_end" Label="Fim da jornada" Required="true" AmPm="false" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudNumericField T="int" @bind-Value="_radius" Label="Raio permitido (metros)" Min="10" Max="10000" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudNumericField T="int" @bind-Value="_tolerance" Label="Tolerância (minutos)" Min="5" Max="60" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+            </MudForm>
+        }
+        else
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">Revise a nova filial</MudText>
+            <MudText Style="overflow-wrap:anywhere;">@_name · @_document</MudText>
+            <MudText>@_street, @_number · @_city / @_state · @_zip</MudText>
+            <MudText Style="overflow-wrap:anywhere;">@_email · @_phone</MudText>
+            <MudText>Localização: @_latitude, @_longitude</MudText>
+            <MudText>@_timezone · @_start?.ToString(@"hh\:mm") – @_end?.ToString(@"hh\:mm")</MudText>
+            <MudText>Raio: @_radius m · Tolerância: @_tolerance min</MudText>
+            <MudAlert Severity="Severity.Info" Class="mt-3">A filial será vinculada à empresa da matriz, usando uma vaga da assinatura atual. Não será criada uma nova assinatura nem iniciado um pagamento.</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="@(_saving || _capturing)">Cancelar</MudButton>
+        @if (_reviewing)
+        {
+            <MudButton OnClick="@(() => _reviewing = false)" Disabled="_saving">Editar dados</MudButton>
+            <MudButton OnClick="SaveAsync" Disabled="_saving" Variant="Variant.Filled" Color="Color.Primary">@(_saving ? "Criando..." : "Confirmar criação")</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="ReviewAsync" Disabled="_capturing" Variant="Variant.Filled" Color="Color.Primary">Revisar filial</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public ManagedBranch? Headquarters { get; set; }
+    private MudForm _form = default!;
+    private string _name = "", _document = "", _email = "", _phone = "", _street = "", _complement = "", _city = "", _state = "", _zip = "";
+    private string _timezone = "America/Sao_Paulo";
+    private int _number, _radius = 100, _tolerance = 10;
+    private double? _latitude, _longitude;
+    private TimeSpan? _start = TimeSpan.FromHours(8), _end = TimeSpan.FromHours(17);
+    private bool _copyDefaults = true, _capturing, _reviewing, _saving;
+    private string? _error;
+
+    protected override void OnInitialized() => CopyDefaults(Headquarters is not null);
+    private void CopyDefaults(bool copy)
+    {
+        _copyDefaults = copy;
+        if (!copy || Headquarters is null) return;
+        _timezone = Headquarters.TimeZoneId;
+        _start = Headquarters.StartWork.ToTimeSpan();
+        _end = Headquarters.EndWork.ToTimeSpan();
+        _radius = Headquarters.AllowedRadiusMeters;
+        _tolerance = Headquarters.ToleranceMinutes;
+    }
+
+    private async Task CaptureAsync()
+    {
+        _capturing = true;
+        _error = null;
+        try { var location = await Geolocation.GetCurrentPositionAsync(); _latitude = location.Latitude; _longitude = location.Longitude; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _capturing = false; }
+    }
+    private async Task ReviewAsync()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+        if (_latitude == 0 && _longitude == 0) { _error = "Informe a localização real da filial."; return; }
+        _error = null;
+        _reviewing = true;
+    }
+    private async Task SaveAsync()
+    {
+        if (_saving || !_reviewing) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var created = await Api.CreateManagedBranchAsync(new CreateManagedBranchRequest(
+                _name.Trim(), new DocumentInfo(Digits(_document), "CNPJ"), new BranchCoordinates(_latitude!.Value, _longitude!.Value),
+                new BranchAddress(_street.Trim(), _number, _complement.Trim(), _city.Trim(), _state.Trim().ToUpperInvariant(), Digits(_zip)),
+                _timezone.Trim(), TimeOnly.FromTimeSpan(_start!.Value), TimeOnly.FromTimeSpan(_end!.Value),
+                _email.Trim(), _phone.Trim(), null, false, _radius, _tolerance));
+            Dialog.Close(DialogResult.Ok(created));
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+    private static string Digits(string value) => new(value.Where(char.IsDigit).ToArray());
+    private void Cancel() { if (!_saving && !_capturing) Dialog.Cancel(); }
+}

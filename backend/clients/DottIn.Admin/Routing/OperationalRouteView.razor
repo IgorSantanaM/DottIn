@@ -60,7 +60,11 @@ else if (IsResolving)
 
     private bool CanRenderRoute
         => (!RequiresOperationalAccess || State.CanAccessOperationalModules)
-           && (!RequiresEmployeeDirectoryAccess || State.CanViewEmployees);
+           && (!RequiresEmployeeDirectoryAccess || State.CanViewEmployees)
+           && (!RequiresOwnerAccess || State.IsOwner);
+
+    private bool RequiresOwnerAccess
+        => Attribute.IsDefined(RouteData.PageType, typeof(OwnerAccessRequiredAttribute));
 
     private bool RequiresEmployeeDirectoryAccess
         => Attribute.IsDefined(RouteData.PageType, typeof(EmployeeDirectoryAccessRequiredAttribute));
@@ -74,11 +78,17 @@ else if (IsResolving)
     {
         get
         {
-            if (State.IsSessionRestoring || !RequiresOperationalAccess)
+            if (State.IsSessionRestoring || (!RequiresOperationalAccess && !RequiresOwnerAccess))
                 return null;
 
             if (!State.IsAuthenticated)
                 return "/";
+
+            if (RequiresOwnerAccess && !State.IsOwner)
+                return State.CanAccessOperationalModules ? "/dashboard" : "/welcome";
+
+            if (!RequiresOperationalAccess)
+                return null;
 
             if (State.CanAccessOperationalModules && RequiresEmployeeDirectoryAccess && !State.CanViewEmployees)
                 return "/dashboard";

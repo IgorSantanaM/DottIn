@@ -350,6 +350,35 @@ public sealed class AdminStateSessionTests
         Assert.False(state.IsOwner);
     }
 
+    [Fact]
+    public async Task OwnerCanSelectBranchWithoutLosingSessionAndSelectionSurvivesRefresh()
+    {
+        var browser = new MemoryBrowserStorage();
+        var state = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
+        await state.SetAuthenticatedAsync(new LoginResponse("token", "refresh", DateTime.UtcNow.AddMinutes(15),
+            new EmployeeInfo(Guid.NewGuid(), "Owner", "", null), Guid.NewGuid(), true, true, "HQ", "Owner"));
+        state.SetOperationalAccess(true);
+        browser.Session[DashboardSessionCache.StorageKey] = "previous branch dashboard";
+        var branch = new ManagedBranch(Guid.NewGuid(), "Filial", "04252011000110", "branch-code", true, false,
+            0, "America/Manaus", new(8, 0), new(17, 0), 100, 10);
+        await state.SelectBranchAsync(branch);
+        Assert.True(state.IsAuthenticated);
+        Assert.True(state.CanAccessOperationalModules);
+        Assert.Equal("token", state.AccessToken);
+        Assert.Equal(branch.Id, state.BranchId);
+        Assert.Equal(branch.CompanyCode, (await state.GetSessionAsync())!.CompanyCode);
+        Assert.False(browser.Session.ContainsKey(DashboardSessionCache.StorageKey));
+        var restored = new AdminState(new SessionStorageService(browser), new AdminQueryCache());
+        Assert.True(await restored.RestoreSnapshotAsync());
+        await restored.CompleteRefreshAsync(new RefreshTokenResponse("new", "refresh", DateTime.UtcNow.AddMinutes(15), "Owner"));
+        Assert.Equal(branch.Id, restored.BranchId);
+        Assert.Equal(branch.CompanyCode, restored.CompanyCode);
+        Assert.True(restored.IsOwner);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => restored.SelectBranchAsync(branch with { IsActive = false }));
+        await restored.CompleteRefreshAsync(new RefreshTokenResponse("new", "refresh", DateTime.UtcNow.AddMinutes(15), "Employee"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => restored.SelectBranchAsync(branch));
+    }
+
     private sealed class DelayedRefreshHandler : HttpMessageHandler
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

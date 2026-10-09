@@ -6,6 +6,27 @@ namespace DottIn.Presentation.WebApi.Security;
 
 public sealed class TenantAccessService(DottInContext db, CurrentUserContext currentUser)
 {
+    public async Task<bool> CanManageBranchesAsync(bool allowFirstHeadquarters = false, CancellationToken token = default)
+    {
+        if (!currentUser.IsAuthenticated || !currentUser.IsOwner)
+            return false;
+
+        var employeeId = currentUser.EmployeeId;
+        var tenantId = currentUser.TenantId;
+        if (!await db.Employees.AsNoTracking().AnyAsync(e => e.Id == employeeId && e.IsActive && e.Role == EmployeeRole.Owner, token))
+            return false;
+
+        var headquarters = await db.Branches.AsNoTracking()
+            .Where(b => b.OwnerId == tenantId && b.IsHeadquarters)
+            .Select(b => new { b.Id, b.OwnerId }).FirstOrDefaultAsync(token);
+        if (headquarters is null)
+            return allowFirstHeadquarters && employeeId == tenantId &&
+                   !await db.Branches.AnyAsync(b => b.OwnerId == tenantId, token);
+
+        return headquarters.OwnerId == employeeId || await db.TenantSubscriptions.AsNoTracking()
+            .AnyAsync(s => s.HeadquartersId == headquarters.Id && s.OwnerId == employeeId, token);
+    }
+
     public async Task<bool> CanAccessBranchAsync(Guid branchId, bool requireManager = false, bool requireAdministrator = false, CancellationToken token = default)
     {
         if (!currentUser.IsAuthenticated || branchId == Guid.Empty)

@@ -1,0 +1,132 @@
+@page "/branches"
+@attribute [OwnerAccessRequired]
+@inject AdminApiClient Api
+@inject AdminState State
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>DottIn - Filiais</PageTitle>
+<div class="dottin-page-header">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700;">Matriz e filiais</MudText>
+        <MudText Color="Color.Secondary">Gerencie as unidades da sua empresa com a mesma assinatura.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddBusiness"
+               Disabled="@(_loading || _busy || _data?.Subscription?.CanAddBranch != true)" OnClick="CreateAsync">Criar filial</MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
+}
+else if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="my-4">@_error</MudAlert>
+    <MudButton OnClick="@(() => LoadAsync(true))" Disabled="_busy">Tentar novamente</MudButton>
+}
+else if (_data is not null)
+{
+    <MudPaper Class="pa-4 my-4" Elevation="0" Style="border-radius:12px;">
+        @if (_data.Subscription is { } subscription)
+        {
+            <MudText Typo="Typo.subtitle1">Plano @subscription.PlanName</MudText>
+            <MudText>@subscription.CurrentBranchCount unidade(s) ativa(s) de @(subscription.MaxBranches == -1 ? "um limite ilimitado" : subscription.MaxBranches.ToString())</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">A matriz também ocupa uma unidade do plano. Filiais inativas não ocupam vagas.</MudText>
+            @if (!subscription.CanAddBranch)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    @(subscription.Status is "Free" or "Active" or "Trialing"
+                        ? "Seu plano atingiu o limite de unidades ativas. Confira as opções de assinatura para criar uma filial."
+                        : "A assinatura não está elegível para criar filiais. Confira o status da assinatura.")
+                </MudAlert>
+                <MudButton Href="/billing" Class="mt-2" Color="Color.Primary">Ver assinatura</MudButton>
+            }
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning">Vincule uma assinatura à matriz para criar filiais.</MudAlert>
+            <MudButton Href="/billing" Color="Color.Primary">Ver assinatura</MudButton>
+        }
+    </MudPaper>
+
+    <MudGrid>
+        @foreach (var branch in _data.Branches)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <MudPaper Class="pa-4 dottin-branch-card" Elevation="0" Style="border-radius:12px;">
+                    <MudText Typo="Typo.h6" Style="overflow-wrap:anywhere;">@branch.Name</MudText>
+                    <div class="d-flex flex-wrap gap-2 my-2">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">@(branch.IsHeadquarters ? "Matriz" : "Filial")</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="@(branch.IsActive ? Color.Success : Color.Default)">@(branch.IsActive ? "Ativa" : "Inativa")</MudChip>
+                        @if (branch.Id == State.BranchId)
+                        { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Selecionada</MudChip> }
+                    </div>
+                    <MudText Typo="Typo.body2">CNPJ: @branch.Document</MudText>
+                    <MudText Typo="Typo.body2">@branch.ActiveEmployeeCount funcionário(s) ativo(s)</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@branch.TimeZoneId · @branch.StartWork.ToString("HH:mm") – @branch.EndWork.ToString("HH:mm")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Raio: @branch.AllowedRadiusMeters m · Tolerância: @branch.ToleranceMinutes min</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Class="mt-4"
+                               Disabled="@(_busy || !branch.IsActive)" OnClick="@(() => SelectAsync(branch))">Gerenciar @(branch.IsHeadquarters ? "matriz" : "filial")</MudButton>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private BranchManagement? _data;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync(bool force = false)
+    {
+        _loading = true;
+        _error = null;
+        try { _data = await Api.GetBranchManagementAsync(force); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_busy || _data?.Subscription?.CanAddBranch != true) return;
+        _busy = true;
+        try
+        {
+            var parameters = new DialogParameters<CreateBranchDialog>
+            {
+                { d => d.Headquarters, _data.Branches.FirstOrDefault(b => b.IsHeadquarters) }
+            };
+            var dialog = await Dialogs.ShowAsync<CreateBranchDialog>("Criar filial", parameters,
+                new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium, BackdropClick = false, CloseOnEscapeKey = false });
+            if (await dialog.Result is { Canceled: false })
+            {
+                Snackbar.Add("Filial criada! Ela utiliza a assinatura da matriz, sem nova contratação.", Severity.Success);
+                await LoadAsync(true);
+            }
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SelectAsync(ManagedBranch branch)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            // Revalidate the selected unit against the server before changing local context.
+            var fresh = await Api.GetBranchManagementAsync(forceRefresh: true);
+            var allowed = fresh.Branches.FirstOrDefault(b => b.Id == branch.Id && b.IsActive)
+                ?? throw new InvalidOperationException("Essa filial não está mais disponível.");
+            await State.SelectBranchAsync(allowed);
+            Snackbar.Add($"Unidade selecionada: {allowed.Name}", Severity.Success);
+            Navigation.NavigateTo("/dashboard");
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _busy = false; }
+    }
+}

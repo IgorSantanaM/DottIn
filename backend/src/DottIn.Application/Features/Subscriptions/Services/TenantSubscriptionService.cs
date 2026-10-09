@@ -23,7 +23,7 @@ namespace DottIn.Application.Features.Subscriptions.Services
 
         public async Task<TenantSubscriptionDto?> GetByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken = default)
         {
-            var subscription = await _subscriptionRepository.GetByOwnerIdAsync(ownerId, cancellationToken);
+            var subscription = await GetCompanySubscriptionAsync(ownerId, cancellationToken);
             if (subscription?.Plan == null)
                 return null;
 
@@ -57,7 +57,7 @@ namespace DottIn.Application.Features.Subscriptions.Services
 
         public async Task<bool> CanAddBranchAsync(Guid ownerId, CancellationToken cancellationToken = default)
         {
-            var subscription = await _subscriptionRepository.GetByOwnerIdAsync(ownerId, cancellationToken);
+            var subscription = await GetCompanySubscriptionAsync(ownerId, cancellationToken);
             if (subscription?.Plan == null)
                 return false;
 
@@ -81,10 +81,22 @@ namespace DottIn.Application.Features.Subscriptions.Services
             return await _branchRepository.CountActiveByOwnerIdAsync(ownerId, cancellationToken);
         }
 
+        private async Task<TenantSubscription?> GetCompanySubscriptionAsync(Guid companyOwnerId, CancellationToken token)
+        {
+            // Billing ownership may differ from headquarters ownership. Resolve the plan through
+            // the persisted headquarters, never through a branch or owner ID supplied by the browser.
+            var headquarters = (await _branchRepository.GetByOwnerIdAsync(companyOwnerId, token)).FirstOrDefault(b => b.IsHeadquarters);
+            return headquarters is not null
+                ? await _subscriptionRepository.GetByHeadquartersIdAsync(headquarters.Id, token)
+                : await _subscriptionRepository.GetByOwnerIdAsync(companyOwnerId, token);
+        }
+
         private async Task<TenantSubscriptionDto> MapToDto(TenantSubscription subscription, CancellationToken cancellationToken)
         {
-            var employeeCount = await _employeeRepository.CountActiveByOwnerIdAsync(subscription.OwnerId, cancellationToken);
-            var branchCount = await _branchRepository.CountActiveByOwnerIdAsync(subscription.OwnerId, cancellationToken);
+            var headquarters = await _branchRepository.GetByIdAsync(subscription.HeadquartersId, cancellationToken);
+            var companyOwnerId = headquarters?.OwnerId ?? subscription.OwnerId;
+            var employeeCount = await _employeeRepository.CountActiveByOwnerIdAsync(companyOwnerId, cancellationToken);
+            var branchCount = await _branchRepository.CountActiveByOwnerIdAsync(companyOwnerId, cancellationToken);
 
             var canAddEmployee = subscription.Plan!.HasUnlimitedEmployees || 
                                  subscription.Plan.CanAddEmployee(employeeCount);

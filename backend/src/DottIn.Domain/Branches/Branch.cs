@@ -32,6 +32,7 @@ namespace DottIn.Domain.Branches
         public TimeOnly StartWorkTime { get; private set; }
         public TimeOnly EndWorkTime { get; private set; }
         public DateTime CreatedAt { get; private set; }
+        public Guid? CreatedByEmployeeId { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
 
         private Branch() { }
@@ -50,7 +51,8 @@ namespace DottIn.Domain.Branches
             bool isHeadquarters = false,
             int allowedRadiusMeters = 100,
             int toleranceMinutes = 10,
-            string? companyCode = null)
+            string? companyCode = null,
+            Guid? createdByEmployeeId = null)
         {
 
             Id = Guid.NewGuid();
@@ -88,6 +90,7 @@ namespace DottIn.Domain.Branches
             ToleranceMinutes = toleranceMinutes;
             IsActive = true;
             CreatedAt = DateTime.UtcNow;
+            CreatedByEmployeeId = createdByEmployeeId;
         }
 
         public void MoveLocation(Address newAddress, Geolocation newLocation, string? newTimeZoneId = null)

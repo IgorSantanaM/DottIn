@@ -16,5 +16,6 @@ public record CreateBranchCommand(string Name,
                 Guid? OwnerId,
                 bool IsHeadQuarters,
                 int AllowedRadiusMeters,
-                int ToleranceMinutes)
+                int ToleranceMinutes,
+                Guid? CreatedByEmployeeId = null)
                 : IRequest<Guid>;
