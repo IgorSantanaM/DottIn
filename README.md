@@ -52,11 +52,15 @@ docker compose ps
 
 Point the host's HTTPS reverse proxy at `http://127.0.0.1:32850`, preserve `Host`, and send `X-Forwarded-Proto: https` and `X-Forwarded-For`. Nginx serves client-side routes such as `/dashboard` and `/join`, and forwards `/api/`, `/health/` and `/webhook` to the API. The browser uses this same origin for API calls, so a separate public API domain is optional; if needed, proxy that domain to port 32851. The outer proxy should redirect public HTTP traffic to HTTPS. TLS is terminated by the host proxy, as with the portfolio.
 
-The API trusts forwarded headers from the Compose network (`172.28.85.0/24` by default). Change `COMPOSE_SUBNET` if that network is already in use. The same value configures Docker IPAM and the API's trusted network. If an outer proxy connects from another network, add its specific network to `ReverseProxy__KnownNetworks__1` in the deployment configuration. `TOOLS_BIND_ADDRESS` can change the bind address of infrastructure ports. RabbitMQ management is available locally at `http://localhost:32854`, with user `dottin` and the configured RabbitMQ password.
+The declared `default` bridge network becomes `dottin_default`. Docker allocates its subnet automatically, avoiding collisions with the portfolio and other stacks; an old `COMPOSE_SUBNET` value in `.env` is no longer used. Inside the container, the API discovers its attached private network to trust forwarded headers from Nginx. This is opt-in via `ReverseProxy__TrustContainerNetwork=true`; it does not trust arbitrary proxies or all private address ranges. If an outer proxy connects from another network, add its specific network to `ReverseProxy__KnownNetworks__0` in the deployment configuration. `TOOLS_BIND_ADDRESS` can change the bind address of infrastructure ports. RabbitMQ management is available locally at `http://localhost:32854`, with user `dottin` and the configured RabbitMQ password.
 
 Named volumes persist PostgreSQL data, RabbitMQ state and invitation-signing keys. The API runs as the .NET non-root user and its key directory is writable by that user. On initial startup it applies EF migrations and seeds the Free plan; `APPLY_MIGRATIONS_ON_STARTUP=false` disables this when migrations are managed separately. Existing Stripe paid plans still need valid Price IDs in the database. Azure Blob Storage and Stripe remain external services and do not publish local ports. No demo data is loaded automatically.
 
 `docker compose down` stops the stack and retains its volumes. Run Docker Compose 2.20 or newer; `backend/docker-compose.yml` includes the root configuration for compatibility with commands run from `backend/`.
+
+### Recovering from a subnet overlap during startup
+
+Update this checkout with the current Compose files and API source, then rerun `docker compose up -d --build`. The network and named volumes are created automatically. Existing volume names remain `dottin_dottin-postgres`, `dottin_dottin-rabbitmq`, `dottin_dottin-data-protection`, and, locally, `dottin_dottin-azurite`; existing data is reused. If an older `dottin_default` network was already created, run `docker compose down` first (without `-v`) to release that stack's containers and network, then start it again. Do not prune other projects' networks or remove volumes to fix a subnet collision.
 
 ## Stripe local setup
 

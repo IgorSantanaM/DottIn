@@ -78,7 +78,6 @@ Set-MissingValue API_ALLOWED_HOSTS '*'
 Set-MissingValue AZURE_BLOB_CONTAINER_NAME 'employee-images'
 Set-MissingValue APPLY_MIGRATIONS_ON_STARTUP 'true'
 Set-MissingValue TOOLS_BIND_ADDRESS '127.0.0.1'
-Set-MissingValue COMPOSE_SUBNET '172.28.85.0/24'
 Set-MissingValue MASSTRANSIT_DISABLED $(if ($Mode -eq 'Local' -and !$values['MT_LICENSE']) { 'true' } else { 'false' })
 if ($DisableMessaging) { $values['MASSTRANSIT_DISABLED'] = 'true' }
 if ($Mode -eq 'Local') {
