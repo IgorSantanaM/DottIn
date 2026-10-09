@@ -1,4 +1,5 @@
 using System.Reflection;
+using DottIn.Domain.Employees;
 
 namespace DottIn.Presentation.WebApi.Security;
 
@@ -9,6 +10,8 @@ public sealed class TenantAuthorizationFilter(TenantAccessService access, Curren
     {
         if (!currentUser.IsAuthenticated)
             return Results.Unauthorized();
+        if (currentUser.Role == EmployeeRole.Accountant)
+            return Results.Forbid();
 
         var http = context.HttpContext;
         var mutation = HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsPut(http.Request.Method) ||

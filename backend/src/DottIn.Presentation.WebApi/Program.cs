@@ -42,6 +42,7 @@ if (!string.IsNullOrWhiteSpace(keyDirectory))
     dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 builder.Services.AddScoped<CurrentUserContext>();
 builder.Services.AddScoped<TenantAccessService>();
+builder.Services.AddScoped<PayrollAccessService>();
 builder.Services.AddScoped<TenantAuthorizationFilter>();
 builder.Services.AddScoped<ICompanyJoinLinkTokenService, CompanyJoinLinkTokenService>();
 
@@ -142,3 +143,5 @@ await AuthenticationWarmup.TryWarmAsync(app.Services, app.Logger);
 HealthEndpoints.Map(app);
 
 app.Run();
+
+public partial class Program { }

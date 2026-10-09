@@ -159,7 +159,7 @@ else
             await OperationalAccess.RefreshAsync();
 
         Navigation.NavigateTo(
-            OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
+            State.Role == "Accountant" ? "/payroll" : OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
             replace: true);
     }
 
@@ -195,7 +195,7 @@ else
 
             await OperationalAccess.RefreshAsync();
             Navigation.NavigateTo(
-                OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
+                State.Role == "Accountant" ? "/payroll" : OperationalAccessPolicy.GetAuthenticatedDestination(State.CanAccessOperationalModules),
                 replace: true);
         }
         catch
