@@ -6,9 +6,22 @@
     <meta name="theme-color" content="#07101F" />
     <title>DottIn Admin</title>
     <base href="/" />
+    <script>
+        // Apply only a non-sensitive appearance preference before the loading screen is painted.
+        try {
+            const snapshot = JSON.parse(localStorage.getItem('admin.session.snapshot') || 'null');
+            const userId = snapshot?.Employee?.Id || '00000000-0000-0000-0000-000000000000';
+            const theme = JSON.parse(localStorage.getItem('admin.theme:' + userId) || '"system"');
+            const dark = theme === 'dark' || theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.style.setProperty('--dottin-boot-background', dark ? '#0A0F1E' : '#F1F5F9');
+            document.documentElement.style.setProperty('--dottin-boot-text', dark ? '#CBD5E1' : '#334155');
+            document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+            document.documentElement.dataset.dottinTheme = dark ? 'dark' : 'light';
+        } catch { /* A blocked or malformed preference must never prevent startup. */ }
+    </script>
     <link rel="preload" id="webassembly" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="css/app.css?v=20261009-branches-1" rel="stylesheet" />
+    <link href="css/app.css?v=20261009-settings-1" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="branding/DottIn_Favicon.svg" />
     <link href="DottIn.Admin.styles.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -21,7 +34,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: #0A0F1E;
+            background: var(--dottin-boot-background, #0A0F1E);
             z-index: 9999;
             gap: 0;
             font-family: 'Inter', sans-serif;
@@ -88,6 +101,9 @@
         }
 
         .loading-logo-image { width: 196px; height: 56px; display: block; margin-bottom: 8px; }
+        .loading-logo-light { display: none; }
+        html[data-dottin-theme="light"] .loading-logo-dark { display: none; }
+        html[data-dottin-theme="light"] .loading-logo-light { display: block; }
 
         .loading-wordmark {
             display: flex;
@@ -121,7 +137,7 @@
             position: relative;
             z-index: 1;
             margin-bottom: 16px;
-            color: #CBD5E1;
+            color: var(--dottin-boot-text, #CBD5E1);
             font-size: 13px;
             font-weight: 500;
         }
@@ -225,7 +241,8 @@
     <div id="loading-screen">
         <div class="loading-logo-wrap">
             <div>
-                <img class="loading-logo-image" src="branding/DottIn_White.svg" alt="DottIn" width="196" height="56" />
+                <img class="loading-logo-image loading-logo-dark" src="branding/DottIn_White.svg" alt="DottIn" width="196" height="56" />
+                <img class="loading-logo-image loading-logo-light" src="branding/DottIn_Primary.svg" alt="DottIn" width="196" height="56" />
                 <div class="loading-subtitle">Painel Administrativo</div>
             </div>
         </div>
@@ -251,6 +268,13 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script>
         window.dottin = window.dottin || {};
+        window.dottin.watchTheme = reference => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+            if (window.dottin.themeListener) media.removeEventListener('change', window.dottin.themeListener);
+            window.dottin.themeListener = event => reference.invokeMethodAsync('SystemThemeChanged', event.matches).catch(() => {});
+            media.addEventListener('change', window.dottin.themeListener);
+            return media.matches;
+        };
         window.dottin.getCurrentPosition = () => new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error('A geolocalização não é compatível com este navegador.'));

@@ -3,12 +3,12 @@ namespace DottIn.WebApi.IntegrationTests.Auth;
 public sealed class LoginOwnershipContractTests
 {
     [Fact]
-    public void LoginResponse_IdentifiesOwnerByBranchOwnership()
+    public void LoginResponse_UsesAuthenticatedRoleConsistentlyWithJwt()
     {
         var source = ReadSource("src/DottIn.Presentation.WebApi/Endpoints/AuthEndpoints.cs");
 
-        Assert.Contains("var isOwner = branch.OwnerId == employee.Id;", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("var isOwner = employee.Role == EmployeeRole.Owner;", source, StringComparison.Ordinal);
+        Assert.Contains("var isOwner = employee.Role == EmployeeRole.Owner;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var isOwner = branch.OwnerId == employee.Id;", source, StringComparison.Ordinal);
     }
 
     private static string ReadSource(string relativePath)

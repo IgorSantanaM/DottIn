@@ -15,6 +15,8 @@
   <!-- Exercise the actual platform-independent mobile services without requiring an emulator. -->
   <ItemGroup>
     <Compile Include="../../clients/DottIn.Mobile/Services/AppState.cs" Link="Mobile/AppState.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/MobileAppearanceService.cs" Link="Mobile/MobileAppearanceService.cs" />
+    <Compile Include="../../clients/DottIn.Mobile/Services/Interfaces/ISettingsApi.cs" Link="Mobile/ISettingsApi.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileSessionService.cs" Link="Mobile/MobileSessionService.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/MobileTokenRefreshService.cs" Link="Mobile/MobileTokenRefreshService.cs" />
     <Compile Include="../../clients/DottIn.Mobile/Services/AuthorizationHandler.cs" Link="Mobile/AuthorizationHandler.cs" />

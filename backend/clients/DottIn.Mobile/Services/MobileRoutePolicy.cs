@@ -14,7 +14,7 @@ public static class MobileRoutePolicy
         if (IsPublic(path)) return null;
         if (!authenticated) return "/login";
         if (IsManagement(path) && !owner) return "/dashboard";
-        if (owner && branchId == Guid.Empty && path != "/onboarding/company") return "/onboarding/company";
+        if (owner && branchId == Guid.Empty && path is not ("/onboarding/company" or "/profile" or "/settings")) return "/onboarding/company";
         return null;
     }
 }

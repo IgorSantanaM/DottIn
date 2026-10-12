@@ -1,0 +1,159 @@
+@page "/settings/unit"
+@inject AppState State
+@inject ISettingsApi Api
+@inject IHolidayCalendarApi Calendars
+@inject ILocationService LocationService
+@inject BranchClockService Clock
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<NavigationLock ConfirmExternalNavigation="Dirty" OnBeforeInternalNavigation="BeforeNavigationAsync" />
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-4">
+    <MudText Typo="Typo.h5" HtmlTag="h1">Configurações da unidade</MudText>
+    @if (!State.CanEditUnitSettings) { <MudAlert Severity="Severity.Warning">Seu perfil não tem permissão para configurar a unidade.</MudAlert> }
+    else
+    {
+        @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="my-3" role="alert">@_error</MudAlert> }
+        @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+        else if (_settings is not null)
+        {
+            <MudText Class="my-3">@_settings.Name · @_settings.CompanyCode</MudText>
+            <MudSelect T="string" Label="Seção" Value="@_section" ValueChanged="SwitchAsync" Disabled="_busy">
+                <MudSelectItem Value='@("location")'>Endereço e localização</MudSelectItem>
+                <MudSelectItem Value='@("schedule")'>Jornada padrão</MudSelectItem>
+                <MudSelectItem Value='@("rules")'>Regras de ponto</MudSelectItem>
+            </MudSelect>
+            <MudForm @ref="_form" Class="mt-4">
+                <MudGrid Spacing="2">
+                    @if (_section == "location")
+                    {
+                        <MudItem xs="12"><MudTextField @bind-Value="_street" Label="Rua" Required="true" MaxLength="200" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudNumericField T="int" @bind-Value="_number" Label="Número (0 para S/N)" Min="0" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_complement" Label="Complemento" MaxLength="100" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_city" Label="Cidade" Required="true" MaxLength="100" Disabled="_busy" /></MudItem>
+                        <MudItem xs="6"><MudTextField @bind-Value="_state" Label="UF" Required="true" MaxLength="2" Disabled="_busy" /></MudItem>
+                        <MudItem xs="6"><MudTextField @bind-Value="_zip" Label="CEP" Required="true" Mask="@(new PatternMask("00000-000"))" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudNumericField T="double" @bind-Value="_lat" Label="Latitude" Min="-90" Max="90" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudNumericField T="double" @bind-Value="_lon" Label="Longitude" Min="-180" Max="180" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudButton OnClick="CaptureAsync" Disabled="_busy">Capturar localização (somente se estiver na unidade)</MudButton></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_timezone" Label="Fuso horário" Required="true" MaxLength="100" HelperText="Ex.: America/Cuiaba" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudText Typo="Typo.body2">O relógio será atualizado, sem reescrever os instantes históricos em UTC.</MudText></MudItem>
+                    }
+                    else if (_section == "schedule")
+                    {
+                        <MudItem xs="12"><MudTimePicker @bind-Time="_start" Label="Início" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudTimePicker @bind-Time="_end" Label="Fim" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudText Typo="Typo.body2">Não modifica automaticamente as jornadas individuais dos funcionários.</MudText></MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12"><MudNumericField T="int" @bind-Value="_radius" Label="Raio permitido (metros)" Min="10" Max="10000" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudNumericField T="int" @bind-Value="_tolerance" Label="Tolerância (minutos)" Min="5" Max="60" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12"><MudSelect T="Guid?" @bind-Value="_calendar" Label="Calendário de feriados" Clearable="true" Disabled="_busy">
+                            @foreach (var calendar in _calendars.Where(c => c.IsActive))
+                            { <MudSelectItem T="Guid?" Value="@((Guid?)calendar.Id)">@calendar.Name (@calendar.Year)</MudSelectItem> }
+                        </MudSelect></MudItem>
+                        <MudItem xs="12"><MudAlert Severity="Severity.Warning">As regras atuais podem afetar relatórios recalculados. Folhas fechadas não serão reabertas.</MudAlert></MudItem>
+                    }
+                </MudGrid>
+                <MudButton OnClick="SaveAsync" Disabled="@(_busy || !Dirty || _section == "rules" && !_calendarsLoaded)" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Class="mt-4">Salvar seção</MudButton>
+            </MudForm>
+        }
+        <MudButton OnClick="ReloadAsync" Disabled="@(_busy || _loading)" Class="mt-3">Recarregar seção</MudButton>
+    }
+</MudContainer>
+
+@code {
+    private UnitSettings? _settings;
+    private UpdateUnitSettings? _baseline;
+    private MudForm? _form;
+    private bool _busy, _loading;
+    private bool _calendarsLoaded;
+    private string _section = "location", _street = "", _city = "", _state = "", _zip = "", _complement = "", _timezone = "";
+    private string? _error;
+    private int _number, _radius, _tolerance;
+    private double _lat, _lon;
+    private Guid? _calendar;
+    private TimeSpan? _start, _end;
+    private List<HolidayCalendarSummary> _calendars = [];
+    private bool Dirty => _settings is not null && Request() != _baseline;
+    protected override async Task OnInitializedAsync() { if (State.CanEditUnitSettings) await LoadAsync(); }
+    private UpdateUnitSettings Request() => _section switch
+    {
+        "location" => new(_section, _settings!.Version, new(_street, _number, _city, _state.ToUpperInvariant(), ManagementRules.Digits(_zip), _complement), new(_lat, _lon), _timezone),
+        "schedule" => new(_section, _settings!.Version, StartWork: _start.HasValue ? TimeOnly.FromTimeSpan(_start.Value) : null, EndWork: _end.HasValue ? TimeOnly.FromTimeSpan(_end.Value) : null),
+        _ => new(_section, _settings!.Version, AllowedRadiusMeters: _radius, ToleranceMinutes: _tolerance, HolidayCalendarId: _calendar)
+    };
+    private void Apply(UnitSettings settings)
+    {
+        _settings = settings;
+        (_street, _number, _city, _state, _zip, _complement) = (settings.Address.Street, settings.Address.Number,
+            settings.Address.City, settings.Address.State, settings.Address.ZipCode, settings.Address.Complement ?? "");
+        (_lat, _lon, _timezone, _start, _end) = (settings.Location.Latitude, settings.Location.Longitude, settings.TimeZoneId,
+            settings.StartWork.ToTimeSpan(), settings.EndWork.ToTimeSpan());
+        (_radius, _tolerance, _calendar) = (settings.AllowedRadiusMeters, settings.ToleranceMinutes, settings.HolidayCalendarId);
+        _baseline = Request();
+    }
+    private async Task<bool> DiscardAsync() => !Dirty || await Dialogs.ShowMessageBox("Alterações não salvas",
+        "Deseja descartar as alterações?", yesText: "Descartar", cancelText: "Continuar editando") == true;
+    private async Task BeforeNavigationAsync(LocationChangingContext context) { if (_busy || !await DiscardAsync()) context.PreventNavigation(); }
+    private async Task SwitchAsync(string section)
+    {
+        if (_busy || section == _section || !await DiscardAsync()) return;
+        _section = section; _error = null;
+        Apply(_settings!);
+        if (section == "rules")
+        {
+            _busy = true;
+            _calendarsLoaded = false;
+            try { _calendars = (await Calendars.GetAllAsync(State.BranchId)).ToList(); _calendarsLoaded = true; }
+            catch (Exception e) { _error = ManagementRules.Error(e); }
+            finally { _busy = false; }
+        }
+    }
+    private async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try
+        {
+            Apply(await Api.GetUnitAsync(State.BranchId));
+            if (_section == "rules")
+            { _calendarsLoaded = false; _calendars = (await Calendars.GetAllAsync(State.BranchId)).ToList(); _calendarsLoaded = true; }
+        }
+        catch (Exception e) { _error = ManagementRules.Error(e); }
+        finally { _loading = false; }
+    }
+    private async Task ReloadAsync() { if (!_busy && await DiscardAsync()) await LoadAsync(); }
+    private async Task CaptureAsync()
+    {
+        if (_busy) return;
+        _busy = true; _error = null;
+        try
+        {
+            if (await LocationService.RequestPermissionAsync() != PermissionStatus.Granted) throw new InvalidOperationException("Permita o acesso à localização.");
+            var location = await LocationService.GetCurrentLocationAsync() ?? throw new InvalidOperationException("Não foi possível obter sua localização.");
+            _lat = location.Latitude; _lon = location.Longitude;
+        }
+        catch (Exception e) { _error = ManagementRules.Error(e); }
+        finally { _busy = false; }
+    }
+    private async Task SaveAsync()
+    {
+        if (_busy || _form is null || !Dirty || _section == "rules" && !_calendarsLoaded) return;
+        await _form.Validate(); if (!_form.IsValid) return;
+        if (await Dialogs.ShowMessageBox("Salvar configurações", $"Confirma a alteração para {_settings!.Name}?", yesText: "Salvar", cancelText: "Revisar") != true) return;
+        _busy = true; _error = null;
+        try
+        {
+            Apply(await Api.SaveUnitAsync(State.BranchId, Request()));
+            Snackbar.Add("Configurações salvas.", Severity.Success);
+            if (_section == "location")
+            {
+                try { await Clock.SynchronizeAsync(State.BranchId); }
+                catch { Snackbar.Add("Dados salvos. O relógio será sincronizado no dashboard.", Severity.Warning); }
+            }
+        }
+        catch (Exception e) { _error = ManagementRules.Error(e); }
+        finally { _busy = false; }
+    }
+}

@@ -213,6 +213,41 @@ namespace DottIn.Infra.Data.Migrations
                     b.ToTable("Branches", (string)null);
                 });
 
+            modelBuilder.Entity("DottIn.Domain.Branches.BranchSettingsAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AfterJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("BeforeJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Section")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId", "CreatedAtUtc");
+
+                    b.ToTable("BranchSettingsAudits", (string)null);
+                });
+
             modelBuilder.Entity("DottIn.Domain.Employees.CompanyJoinLink", b =>
                 {
                     b.Property<Guid>("Id")

@@ -179,9 +179,10 @@ public record LoginResponse(
     Guid BranchId,
     bool IsOwner,
     bool IsHeadquarters,
-    string CompanyCode = "");
+    string CompanyCode = "",
+    string? Role = null);
 
-public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
+public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt, string? Role = null);
 public record ClockInResponse(Guid TimeKeepingId);
 
 public record PagedResponse<T>(IEnumerable<T> Items, int TotalPages, int TotalCount);

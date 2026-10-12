@@ -8,6 +8,87 @@ namespace DottIn.Admin.Services;
 
 public class AdminApiClient(HttpClient http, AdminQueryCache cache, DashboardSessionCache? dashboardCache = null)
 {
+    public Task<BranchManagement> GetBranchManagementAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+        => cache.GetOrCreateAsync(
+            "branch-management",
+            TimeSpan.FromMinutes(5),
+            async () => await http.GetFromJsonAsync<BranchManagement>(
+                "/api/branches/management", cancellationToken)
+                ?? throw new ApiException("Não foi possível carregar as filiais."),
+            forceRefresh, cancellationToken);
+
+    public async Task<CreatedBranch> CreateManagedBranchAsync(
+        CreateManagedBranchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await http.PostAsJsonAsync("/api/branches", request, cancellationToken);
+        await EnsureSuccessOrThrowAsync(response);
+        cache.Invalidate("branch-management");
+        cache.Invalidate("owner:");
+        cache.Invalidate("billing:subscription");
+        return await response.Content.ReadFromJsonAsync<CreatedBranch>(cancellationToken: cancellationToken)
+            ?? throw new ApiException("Não foi possível criar a filial.");
+    }
+
+    public Task<PersonalSettings> GetPersonalSettingsAsync(bool forceRefresh = false, CancellationToken ct = default)
+        => cache.GetOrCreateAsync("settings:me", TimeSpan.FromMinutes(5),
+            () => GetSettingsAsync<PersonalSettings>("/api/settings/me", ct), forceRefresh, ct);
+
+    public async Task<PersonalSettings> SavePersonalSettingsAsync(UpdatePersonalSettings request, CancellationToken ct = default)
+    {
+        using var response = await http.PutAsJsonAsync("/api/settings/me", request, ct);
+        await EnsureSuccessOrThrowAsync(response);
+        cache.Invalidate("settings:me");
+        return await response.Content.ReadFromJsonAsync<PersonalSettings>(cancellationToken: ct)
+            ?? throw new ApiException("Não foi possível salvar seu perfil.");
+    }
+
+    public Task<UnitSettings> GetUnitSettingsAsync(Guid branchId, bool forceRefresh = false, CancellationToken ct = default)
+        => cache.GetOrCreateAsync($"branch:{branchId}:settings", TimeSpan.FromMinutes(5),
+            () => GetSettingsAsync<UnitSettings>($"/api/settings/branches/{branchId}", ct), forceRefresh, ct);
+
+    public async Task<UnitSettings> SaveUnitSettingsAsync(Guid branchId, UpdateUnitSettings request, CancellationToken ct = default)
+    {
+        using var response = await http.PutAsJsonAsync($"/api/settings/branches/{branchId}", request, ct);
+        await EnsureSuccessOrThrowAsync(response);
+        cache.Invalidate($"branch:{branchId}:settings");
+        cache.Invalidate($"branch:{branchId}:clock");
+        cache.Invalidate($"branch:{branchId}:dashboard");
+        cache.Invalidate($"branch:{branchId}:history:");
+        cache.Invalidate($"branch:{branchId}:holiday-work:");
+        cache.Invalidate("branch-management");
+        if (dashboardCache is not null) await dashboardCache.ClearAsync();
+        return await response.Content.ReadFromJsonAsync<UnitSettings>(cancellationToken: ct)
+            ?? throw new ApiException("Não foi possível salvar a unidade.");
+    }
+
+    public async Task ChangeCredentialAsync(bool pin, string currentPassword, string newValue, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, pin ? "/api/settings/pin" : "/api/settings/password")
+        { Content = JsonContent.Create(new { CurrentPassword = currentPassword, NewValue = newValue }) };
+        request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+        using var response = await http.SendAsync(request, ct);
+        await EnsureSuccessOrThrowAsync(response);
+    }
+
+    public async Task EndAllSessionsAsync(CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+        using var response = await http.SendAsync(request, ct);
+        await EnsureSuccessOrThrowAsync(response);
+    }
+
+    private async Task<T> GetSettingsAsync<T>(string url, CancellationToken ct)
+    {
+        using var response = await http.GetAsync(url, ct);
+        await EnsureSuccessOrThrowAsync(response);
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct)
+            ?? throw new ApiException("Não foi possível carregar as configurações.");
+    }
+
     public async Task<List<PayrollSummary>> GetPayrollsAsync()
         => await http.GetFromJsonAsync<List<PayrollSummary>>("/api/payrolls") ?? [];
 

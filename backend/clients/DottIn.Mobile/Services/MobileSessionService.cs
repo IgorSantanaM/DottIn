@@ -11,6 +11,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
     public string LandingPage => state.IsOwner && state.BranchId == Guid.Empty ? "/onboarding/company" : "/dashboard";
     public async Task AcceptAsync(LoginResponse response, bool remember = true)
     {
+        response = response with { IsOwner = response.Role is null ? response.IsOwner : response.Role == "Owner" };
         _remember = remember;
         _session = response;
         await PersistAsync();
@@ -31,7 +32,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         else state.SetAvailableBranches([]);
         await PersistAsync();
         await storage.SetAsync("company_code", _session.CompanyCode);
-        state.SetAuthenticated(_session.Employee, _session.BranchId, _session.IsOwner, _session.IsHeadquarters);
+        state.SetAuthenticated(_session.Employee, _session.BranchId, _session.IsOwner, _session.IsHeadquarters, _session.Role);
         _initialized = true;
     }
     public async Task RestoreAsync()
@@ -54,7 +55,7 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
             var token = await storage.GetAsync("refresh_token");
             if (string.IsNullOrEmpty(token)) { await ClearAsync(); return; }
             var refreshed = await auth.RefreshTokenAsync(new RefreshTokenRequest(token));
-            await AcceptAsync(session with { AccessToken = refreshed.AccessToken, RefreshToken = refreshed.RefreshToken, ExpiresAt = refreshed.ExpiresAt });
+            await AcceptAsync(session with { AccessToken = refreshed.AccessToken, RefreshToken = refreshed.RefreshToken, ExpiresAt = refreshed.ExpiresAt, Role = refreshed.Role ?? session.Role });
         }
         catch (Refit.ApiException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
         { await ClearAsync(); }
@@ -76,6 +77,14 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         if (_session is null || !state.IsAuthenticated) throw new InvalidOperationException("Entre novamente para continuar.");
         await SyncCurrentTokensAsync();
         await AcceptAsync(_session with { BranchId = branch.BranchId, CompanyCode = branch.CompanyCode, IsHeadquarters = true }, _remember);
+    }
+    public async Task UpdateProfileAsync(PersonalSettings profile)
+    {
+        if (_session is null || profile.Id != state.EmployeeId) throw new InvalidOperationException("Perfil indisponível.");
+        await SyncCurrentTokensAsync();
+        _session = _session with { Employee = _session.Employee with { Name = profile.Name, ImageUrl = profile.ImageUrl } };
+        await PersistAsync();
+        state.SetAuthenticated(_session.Employee, _session.BranchId, _session.IsOwner, _session.IsHeadquarters, _session.Role);
     }
     private async Task SyncCurrentTokensAsync()
     {
@@ -105,6 +114,12 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         if (_remember) await storage.SetAsync("mobile_session", JsonSerializer.Serialize(_session));
         else await storage.RemoveAsync("mobile_session");
     }
+    public async Task EndAllSessionsAsync()
+    {
+        // Do not report global revocation as successful when the server is unreachable.
+        await auth.LogoutAsync();
+        await ClearAsync();
+    }
     public async Task ClearAsync()
     {
         _session = null;
@@ -113,6 +128,10 @@ public sealed class MobileSessionService(IAuthApi auth, IBranchApi branches, ISe
         await storage.RemoveAsync("access_token");
         await storage.RemoveAsync("refresh_token");
         await storage.RemoveAsync(MobileTokenRefreshService.ExpirationKey);
+        await storage.RemoveAsync("company_code");
+        await storage.RemoveAsync("fingerprint_token");
+        await storage.RemoveAsync("fingerprint_cpf");
+        await storage.RemoveAsync("fingerprint_company");
         state.Logout();
     }
 }

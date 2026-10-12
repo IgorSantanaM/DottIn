@@ -95,7 +95,7 @@
     [Parameter] public string CompanyCode { get; set; } = "";
     [Parameter] public string Cpf { get; set; } = "";
 
-    [Inject] private IAuthApi AuthApi { get; set; } = default!;
+    [Inject] private ISettingsApi SettingsApi { get; set; } = default!;
 
     private PinStep _step = PinStep.Password;
     private string _password = "";
@@ -156,8 +156,8 @@
 
         try
         {
-            var request = new ChangePinRequest(CompanyCode, Cpf, _password, _newPin);
-            await AuthApi.ChangePinAsync(request);
+            await SettingsApi.ChangePinAsync(new(_password, _newPin));
+            _password = _newPin = _confirmPin = "";
             MudDialog.Close(DialogResult.Ok(true));
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -170,8 +170,9 @@
         }
         catch (Refit.ApiException apiEx) when (apiEx.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            _errorMessage = "PIN inválido. Deve conter 6 dígitos numéricos.";
-            _step = PinStep.NewPin;
+            _errorMessage = ManagementRules.Error(apiEx);
+            _step = PinStep.Password;
+            _password = "";
             _newPin = "";
             _confirmPin = "";
         }

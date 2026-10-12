@@ -1,0 +1,58 @@
+@inject ISettingsApi Api
+@inject MobileSessionService Session
+@inject ISnackbar Snackbar
+<MudDialog>
+    <DialogContent>
+        @if (_error is not null) { <MudAlert Severity="Severity.Error" role="alert">@_error</MudAlert> }
+        @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+        else if (_profile is not null)
+        {
+            <MudForm @ref="_form">
+                <MudTextField T="string" @bind-Value="_name" Label="Nome" Required="true" RequiredError="Informe seu nome." MaxLength="150" Disabled="_busy" />
+                <MudText Typo="Typo.body2" Class="my-3">A identificação e as permissões da conta não podem ser alteradas aqui.</MudText>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelAsync" Disabled="_busy">Cancelar</MudButton>
+        <MudButton OnClick="LoadAsync" Disabled="@(_busy || _loading)">Recarregar</MudButton>
+        <MudButton OnClick="SaveAsync" Disabled="@(_busy || _loading || _profile is null || _name == _profile.Name)" Color="Color.Primary">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+    [Inject] public IDialogService Dialogs { get; set; } = default!;
+    private PersonalSettings? _profile;
+    private MudForm? _form;
+    private string _name = "";
+    private string? _error;
+    private bool _loading, _busy;
+    private bool Dirty => _profile is not null && _name != _profile.Name;
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task<bool> ConfirmDiscardAsync() => !Dirty || await Dialogs.ShowMessageBox("Descartar alterações?",
+        "Seu nome editado ainda não foi salvo.", yesText: "Descartar", cancelText: "Continuar editando") == true;
+    private async Task CancelAsync() { if (await ConfirmDiscardAsync()) Dialog.Cancel(); }
+    private async Task LoadAsync()
+    {
+        if (_loading || _busy || !await ConfirmDiscardAsync()) return;
+        _loading = true; _error = null;
+        try { _profile = await Api.GetPersonalAsync(); _name = _profile.Name; }
+        catch (Exception e) { _error = ManagementRules.Error(e); }
+        finally { _loading = false; }
+    }
+    private async Task SaveAsync()
+    {
+        if (_busy || _form is null || _profile is null) return;
+        await _form.Validate(); if (!_form.IsValid) return;
+        _busy = true; _error = null;
+        try
+        {
+            _profile = await Api.SavePersonalAsync(new(_name, _profile.Version));
+            await Session.UpdateProfileAsync(_profile);
+            Snackbar.Add("Perfil atualizado.", Severity.Success);
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e) { _error = ManagementRules.Error(e); }
+        finally { _busy = false; }
+    }
+}

@@ -74,6 +74,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IConnectivityService, ConnectivityService>();
 
         builder.Services.AddSingleton<AppState>();
+        builder.Services.AddSingleton<MobileAppearanceService>();
         builder.Services.AddSingleton<BranchClockService>();
 
         builder.Services.AddHttpClient(MobileTokenRefreshService.ClientName, client =>
@@ -82,6 +83,10 @@ public static class MauiProgram
         builder.Services.AddTransient<AuthorizationHandler>();
 
         builder.Services.AddRefitClient<IAuthApi>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
+            .AddHttpMessageHandler<AuthorizationHandler>();
+
+        builder.Services.AddRefitClient<ISettingsApi>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(apiBaseUrl))
             .AddHttpMessageHandler<AuthorizationHandler>();
 

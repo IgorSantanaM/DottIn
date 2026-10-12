@@ -1,4 +1,5 @@
 @page "/profile"
+@page "/settings"
 @inject MobileSessionService Session
 @inject AppState AppState
 @inject IAuthApi AuthApi
@@ -8,6 +9,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ProfileExternalLinks ExternalLinks
+@inject MobileAppearanceService Appearance
 
 <div class="profile-container">
     @* Profile Header *@
@@ -27,6 +29,22 @@
     </div>
 
     @* Settings Sections *@
+    <MudCard Class="settings-card">
+        <MudCardContent>
+            <MudText Typo="Typo.overline" Color="Color.Secondary">MINHA CONTA</MudText>
+            <MudButton OnClick="EditProfileAsync" StartIcon="@Icons.Material.Filled.Edit">Editar nome</MudButton>
+            @if (AppState.CanEditUnitSettings && AppState.BranchId != Guid.Empty)
+            {
+                <MudButton Href="/settings/unit" StartIcon="@Icons.Material.Filled.Settings">Configurações da unidade</MudButton>
+            }
+            @if (AppState.IsOwner)
+            {
+                <MudButton Href="/management">Empresa e filiais</MudButton>
+                <MudButton Href="/management/billing">Assinatura</MudButton>
+                <MudButton Href="/management/dominio">Integração Domínio</MudButton>
+            }
+        </MudCardContent>
+    </MudCard>
     <MudCard Class="settings-card">
         <MudCardContent>
             <MudText Typo="Typo.overline" Color="Color.Secondary">SEGURANÇA</MudText>
@@ -49,6 +67,9 @@
                 <MudListItem Icon="@Icons.Material.Filled.Password" OnClick="ChangePassword">
                     <MudText>Alterar Senha</MudText>
                 </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Logout" OnClick="EndAllSessionsAsync" Disabled="_endingSessions">
+                    <MudText>Encerrar todas as sessões</MudText>
+                </MudListItem>
             </MudList>
         </MudCardContent>
     </MudCard>
@@ -60,8 +81,11 @@
             <MudList T="string" Dense="true">
                 <MudListItem Icon="@(AppState.IsDarkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)">
                     <div class="list-item-content">
-                        <MudText>Modo Escuro</MudText>
-                        <MudSwitch T="bool" Value="AppState.IsDarkMode" ValueChanged="ToggleDarkMode" Color="Color.Primary" />
+                        <MudSelect T="string" Label="Tema" Value="@AppState.ThemePreference" ValueChanged="SetThemeAsync" Style="width:100%;">
+                            <MudSelectItem Value='@("system")'>Automático (sistema)</MudSelectItem>
+                            <MudSelectItem Value='@("light")'>Claro</MudSelectItem>
+                            <MudSelectItem Value='@("dark")'>Escuro</MudSelectItem>
+                        </MudSelect>
                     </div>
                 </MudListItem>
                 <MudListItem Icon="@Icons.Material.Filled.Notifications">
@@ -220,6 +244,7 @@
 @code {
     private const bool NativeBiometricsEnabled = false;
     private bool _hasBiometric = false;
+    private bool _endingSessions;
     private bool _isLoadingEmployees = false;
     private List<EmployeeSummaryItem> _employees = [];
 
@@ -228,14 +253,19 @@
         var token = await SecureStorage.GetAsync("fingerprint_token");
         _hasBiometric = !string.IsNullOrEmpty(token);
 
-        if (AppState.IsOwner)
+        if (AppState.IsOwner && NativeBiometricsEnabled)
             await LoadEmployees();
     }
 
-    private async Task ToggleDarkMode(bool value)
+    private async Task SetThemeAsync(string value)
     {
-        AppState.SetDarkMode(value);
-        await SecureStorage.SetAsync("dark_mode", value.ToString().ToLower());
+        await Appearance.SetAsync(value, Microsoft.Maui.Controls.Application.Current?.RequestedTheme == AppTheme.Dark);
+    }
+
+    private async Task EditProfileAsync()
+    {
+        var dialog = await DialogService.ShowAsync<PersonalSettingsDialog>("Minha conta", new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false });
+        await dialog.Result;
     }
 
     private async Task LoadEmployees()
@@ -302,7 +332,8 @@
         {
             MaxWidth = MaxWidth.Small,
             FullWidth = true,
-            CloseOnEscapeKey = true
+            CloseOnEscapeKey = false,
+            BackdropClick = false
         };
 
         var dialog = await DialogService.ShowAsync<ChangePinDialog>("Alterar PIN", parameters, options);
@@ -310,7 +341,6 @@
 
         if (result is not null && !result.Canceled)
         {
-            await SecureStorage.ClearAllAsync();
             await Session.ClearAsync();
             Snackbar.Add("PIN alterado. Entre novamente para continuar.", Severity.Success);
             Navigation.NavigateTo("/login", replace: true);
@@ -389,7 +419,8 @@
         {
             MaxWidth = MaxWidth.Small,
             FullWidth = true,
-            CloseOnEscapeKey = true
+            CloseOnEscapeKey = false,
+            BackdropClick = false
         };
 
         var dialog = await DialogService.ShowAsync<ChangePasswordDialog>("Alterar Senha", parameters, options);
@@ -397,7 +428,6 @@
 
         if (result is not null && !result.Canceled)
         {
-            await SecureStorage.ClearAllAsync();
             await Session.ClearAsync();
             Snackbar.Add("Senha alterada. Entre novamente para continuar.", Severity.Success);
             Navigation.NavigateTo("/login", replace: true);
@@ -439,10 +469,27 @@
         if (result == true)
         {
             try { await AuthApi.LogoutAsync(); } catch { }
-            await SecureStorage.ClearAllAsync();
             await Session.ClearAsync();
             Navigation.NavigateTo("/login", true);
         }
+    }
+
+    private async Task EndAllSessionsAsync()
+    {
+        if (_endingSessions || await DialogService.ShowMessageBox("Encerrar todas as sessões",
+            "Você sairá também deste dispositivo. Deseja continuar?", yesText: "Encerrar sessões", cancelText: "Cancelar") != true) return;
+        _endingSessions = true;
+        try
+        {
+            await Session.EndAllSessionsAsync();
+            Snackbar.Add("Sessões encerradas com segurança.", Severity.Success);
+            Navigation.NavigateTo("/login", replace: true);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Não foi possível encerrar todas as sessões. Verifique a conexão e tente novamente.", Severity.Error);
+        }
+        finally { _endingSessions = false; }
     }
 
     private string FormatCpf(string cpf)
