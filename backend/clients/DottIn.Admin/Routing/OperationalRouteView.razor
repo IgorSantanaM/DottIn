@@ -61,7 +61,11 @@ else if (IsResolving)
     private bool CanRenderRoute
         => (!RequiresOperationalAccess || State.CanAccessOperationalModules)
            && (!RequiresEmployeeDirectoryAccess || State.CanViewEmployees)
-           && (!RequiresOwnerAccess || State.IsOwner);
+           && (!RequiresOwnerAccess || State.IsOwner)
+           && (!RequiresAuthenticatedAccess || State.IsAuthenticated && State.IsSessionReady);
+
+    private bool RequiresAuthenticatedAccess
+        => Attribute.IsDefined(RouteData.PageType, typeof(AuthenticatedAccessRequiredAttribute));
 
     private bool RequiresOwnerAccess
         => Attribute.IsDefined(RouteData.PageType, typeof(OwnerAccessRequiredAttribute));
@@ -78,7 +82,7 @@ else if (IsResolving)
     {
         get
         {
-            if (State.IsSessionRestoring || (!RequiresOperationalAccess && !RequiresOwnerAccess))
+            if (State.IsSessionRestoring || (!RequiresOperationalAccess && !RequiresOwnerAccess && !RequiresAuthenticatedAccess))
                 return null;
 
             if (!State.IsAuthenticated)

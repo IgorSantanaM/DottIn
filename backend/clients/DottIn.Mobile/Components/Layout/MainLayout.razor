@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IConnectivityService ConnectivityService
 @inject ISecureStorageService SecureStorage
+@inject MobileAppearanceService Appearance
 
 <MudThemeProvider Theme="_theme" IsDarkMode="@AppState.IsDarkMode" />
 <MudPopoverProvider />
@@ -105,11 +106,27 @@
     {
         _isOnline = ConnectivityService.IsConnected;
         ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
-        AppState.OnChange += StateHasChanged;
+        AppState.OnChange += HandleStateChanged;
 
-        var darkMode = await SecureStorage.GetAsync("dark_mode");
-        AppState.SetDarkMode(darkMode == "true");
+        _themeEmployee = AppState.EmployeeId;
+        await Appearance.RestoreAsync(SystemDark);
+        if (Microsoft.Maui.Controls.Application.Current is { } application)
+            application.RequestedThemeChanged += OnSystemThemeChanged;
     }
+
+    private Guid _themeEmployee;
+    private static bool SystemDark => Microsoft.Maui.Controls.Application.Current?.RequestedTheme == AppTheme.Dark;
+    private void HandleStateChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_themeEmployee != AppState.EmployeeId)
+        {
+            _themeEmployee = AppState.EmployeeId;
+            await Appearance.RestoreAsync(SystemDark);
+        }
+        StateHasChanged();
+    });
+    private void OnSystemThemeChanged(object? sender, AppThemeChangedEventArgs e)
+        => AppState.SetTheme(AppState.ThemePreference, e.RequestedTheme == AppTheme.Dark);
 
     private void OnConnectivityChanged(bool isConnected)
     {
@@ -120,6 +137,8 @@
     public void Dispose()
     {
         ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
-        AppState.OnChange -= StateHasChanged;
+        AppState.OnChange -= HandleStateChanged;
+        if (Microsoft.Maui.Controls.Application.Current is { } application)
+            application.RequestedThemeChanged -= OnSystemThemeChanged;
     }
 }

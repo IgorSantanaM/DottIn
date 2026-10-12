@@ -1,6 +1,7 @@
 @inject AdminState State
 @inject AuthService Auth
 @inject OperationalAccessService OperationalAccess
+@inject IJSRuntime JS
 @implements IDisposable
 
 <MudThemeProvider Theme="_theme" IsDarkMode="State.IsDarkMode" />
@@ -32,6 +33,10 @@ else
         try
         {
             restored = await Auth.RestoreLocalSessionAsync();
+            _themeReference = DotNetObjectReference.Create(this);
+            try { State.SetSystemDarkMode(await JS.InvokeAsync<bool>("dottin.watchTheme", _themeReference)); }
+            catch (JSException) { /* Use a safe default when browser preferences are unavailable. */ }
+            await State.RestoreThemeAsync();
         }
         finally
         {
@@ -52,7 +57,16 @@ else
 
     private void HandleStateChange() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => State.OnChange -= HandleStateChange;
+    private DotNetObjectReference<App>? _themeReference;
+
+    [JSInvokable]
+    public void SystemThemeChanged(bool dark) => State.SetSystemDarkMode(dark);
+
+    public void Dispose()
+    {
+        State.OnChange -= HandleStateChange;
+        _themeReference?.Dispose();
+    }
 
     private readonly MudTheme _theme = new()
     {

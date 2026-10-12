@@ -14,6 +14,7 @@ namespace DottIn.Infra.Data.Contexts
     public class DottInContext(DbContextOptions<DottInContext> options) : DbContext(options)
     {
         public DbSet<Branch> Branches { get; set; }
+        public DbSet<BranchSettingsAudit> BranchSettingsAudits { get; set; }
         public DbSet<Employee> Employees { get; set; }
         public DbSet<EmployeeInvitation> EmployeeInvitations { get; set; }
         public DbSet<CompanyJoinLink> CompanyJoinLinks { get; set; }

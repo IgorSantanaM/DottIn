@@ -1,0 +1,13 @@
+.settings-page { max-width: 1120px; margin: 0 auto; min-width: 0; }
+.settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; }
+.settings-navigation { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.settings-mobile-navigation { display: none; }
+.settings-panel { min-width: 0; overflow-wrap: anywhere; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 767px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .settings-navigation { display: none; }
+    .settings-mobile-navigation { display: block; margin-bottom: 16px; }
+    .settings-actions { flex-direction: column; }
+    .settings-page ::deep .mud-button-root { min-height: 44px; white-space: normal; }
+}

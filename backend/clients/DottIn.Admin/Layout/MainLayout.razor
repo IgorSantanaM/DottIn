@@ -35,10 +35,11 @@ else
                 <MudMenuItem Disabled="true">
                     <div style="min-width: 180px;">
                         <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">@State.User?.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(State.Role == "Accountant" ? "Contador" : "Administrador")</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@State.RoleLabel</MudText>
                     </div>
                 </MudMenuItem>
                 <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Settings" Href="/settings">Configurações</MudMenuItem>
                 <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="Logout">Sair</MudMenuItem>
             </MudMenu>
         </MudAppBar>

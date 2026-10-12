@@ -1,0 +1,215 @@
+@page "/settings"
+@attribute [AuthenticatedAccessRequired]
+@inject AdminState State
+@inject AdminApiClient Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@implements IDisposable
+
+<PageTitle>Configurações | DottIn</PageTitle>
+<NavigationLock ConfirmExternalNavigation="HasChanges" OnBeforeInternalNavigation="BeforeNavigationAsync" />
+<section class="settings-page">
+    <MudText Typo="Typo.h4" HtmlTag="h1">Configurações gerais</MudText>
+    <MudText Color="Color.Secondary" Class="mb-4">Sua conta e as preferências da operação, em um só lugar.</MudText>
+    <div class="settings-mobile-navigation">
+        <MudSelect T="string" Label="Seção de configurações" Value="@_section" ValueChanged="SelectSectionAsync" Disabled="_busy">
+            @foreach (var item in Sections)
+            { <MudSelectItem Value="@item.Key">@item.Label</MudSelectItem> }
+        </MudSelect>
+    </div>
+    <div class="settings-layout">
+        <nav class="settings-navigation" aria-label="Seções de configurações">
+            @foreach (var item in Sections)
+            {
+                <MudButton Variant="@(_section == item.Key ? Variant.Filled : Variant.Text)" Color="Color.Primary"
+                           Disabled="_busy" OnClick="@(() => SelectSectionAsync(item.Key))">@item.Label</MudButton>
+            }
+        </nav>
+        <MudPaper Class="pa-4 settings-panel" Elevation="0">
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3" role="alert">@_error</MudAlert>
+            }
+            @if (_section == "account")
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Minha conta</MudText>
+                @if (_loading) { <MudProgressLinear Indeterminate="true" Class="my-4" aria-label="Carregando perfil" /> }
+                else if (_profile is not null)
+                {
+                    <MudForm @ref="_profileForm">
+                        <MudTextField T="string" @bind-Value="_name" Label="Nome" Required="true" RequiredError="Informe seu nome."
+                                      MaxLength="150" Disabled="_busy" Class="my-3" />
+                        <MudTextField T="string" Value="@FormatCpf(_profile.Cpf)" Label="CPF" ReadOnly="true" />
+                        <MudText Typo="Typo.body2" Class="my-3">Perfil de acesso: @State.RoleLabel</MudText>
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(_busy || !HasChanges)"
+                                   OnClick="SaveProfileAsync">@(_busy ? "Salvando..." : "Salvar perfil")</MudButton>
+                    </MudForm>
+                }
+                <MudButton OnClick="@(() => LoadProfileAsync(true))" Disabled="_busy" Class="mt-3">Recarregar perfil</MudButton>
+            }
+            else if (_section == "security")
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Segurança</MudText>
+                <MudText Class="my-3">Após alterar sua senha ou PIN, será necessário entrar novamente em todos os dispositivos.</MudText>
+                <div class="settings-actions">
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => ChangeCredentialAsync(false))" Disabled="_busy">Alterar senha</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => ChangeCredentialAsync(true))" Disabled="_busy">Alterar PIN</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="EndSessionsAsync" Disabled="_busy">Encerrar todas as sessões</MudButton>
+                </div>
+            }
+            else if (_section == "appearance")
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Aparência</MudText>
+                <MudText Class="my-3">A preferência é salva para sua conta neste navegador, inclusive após atualizar a página.</MudText>
+                <MudSelect T="string" Label="Tema" Value="@State.ThemePreference" ValueChanged="SetThemeAsync">
+                    <MudSelectItem Value='@("system")'>Automático (sistema)</MudSelectItem>
+                    <MudSelectItem Value='@("light")'>Claro</MudSelectItem>
+                    <MudSelectItem Value='@("dark")'>Escuro</MudSelectItem>
+                </MudSelect>
+            }
+            else if (IsUnitSection && State.CanEditUnitSettings && State.BranchId != Guid.Empty)
+            {
+                <UnitSettingsEditor @ref="_unitEditor" @key="(State.BranchId, _section)" BranchId="State.BranchId" Section="@_section" DirtyChanged="@((bool dirty) => _unitDirty = dirty)" />
+            }
+            else if (_section == "company" && State.IsOwner)
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Empresa e assinatura</MudText>
+                <MudText Class="my-3">Gerencie a matriz, as filiais e sua assinatura nos fluxos próprios. As permissões de propriedade são verificadas pelo servidor.</MudText>
+                <div class="settings-actions">
+                    <MudButton Href="/branches" Variant="Variant.Outlined">Gerenciar filiais</MudButton>
+                    <MudButton Href="/billing" Variant="Variant.Outlined">Gerenciar assinatura</MudButton>
+                </div>
+            }
+            else if (_section == "integrations" && State.IsOwner)
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Integrações</MudText>
+                <MudText Class="my-3">Configure o mapeamento de funcionários e prepare as exportações para o Domínio na folha de pagamento.</MudText>
+                <MudButton Href="/payroll" Variant="Variant.Outlined" Color="Color.Primary">Abrir folha de pagamento</MudButton>
+            }
+            else if (_section == "about")
+            {
+                <MudText Typo="Typo.h6" HtmlTag="h2">Sobre e suporte</MudText>
+                <MudText Class="my-3">DottIn · versão @AppVersion</MudText>
+                @foreach (var link in SupportLinks)
+                {
+                    if (SafeLink(link.Key) is string url)
+                    { <MudButton Href="@url" Target="_blank" rel="noopener noreferrer">@link.Label</MudButton> }
+                    else
+                    { <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-2">@link.Label: endereço não configurado.</MudText> }
+                }
+            }
+        </MudPaper>
+    </div>
+</section>
+
+@code {
+    private string _section = "account", _name = "";
+    private string? _error;
+    private bool _loading, _busy, _disposed;
+    private PersonalSettings? _profile;
+    private MudForm? _profileForm;
+    private UnitSettingsEditor? _unitEditor;
+    private bool _unitDirty;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool IsUnitSection => _section is "location" or "schedule" or "rules";
+    private bool HasChanges => _section == "account" ? _profile is not null && _name != _profile.Name
+        : IsUnitSection && _unitDirty;
+    private string AppVersion => typeof(Settings).Assembly.GetName().Version?.ToString(3) ?? "—";
+    private IEnumerable<(string Key, string Label)> Sections
+    {
+        get
+        {
+            yield return ("account", "Minha conta");
+            yield return ("security", "Segurança");
+            yield return ("appearance", "Aparência");
+            if (State.CanEditUnitSettings && State.BranchId != Guid.Empty)
+            {
+                yield return ("location", "Unidade e localização");
+                yield return ("schedule", "Jornada padrão");
+                yield return ("rules", "Regras de ponto");
+            }
+            if (State.IsOwner)
+            {
+                yield return ("company", "Empresa e assinatura");
+                yield return ("integrations", "Integrações");
+            }
+            yield return ("about", "Sobre e suporte");
+        }
+    }
+    private static readonly (string Key, string Label)[] SupportLinks =
+        [("TermsUrl", "Termos de uso"), ("PrivacyUrl", "Política de privacidade"), ("SupportUrl", "Suporte")];
+    private string? SafeLink(string key) => Uri.TryCreate(Configuration[$"PublicLinks:{key}"], UriKind.Absolute, out var url)
+        && url.Scheme == Uri.UriSchemeHttps ? url.AbsoluteUri : null;
+
+    protected override Task OnInitializedAsync() => LoadProfileAsync();
+    private async Task LoadProfileAsync(bool force = false)
+    {
+        if (_loading || _busy || force && !await ConfirmDiscardAsync()) return;
+        _loading = true;
+        _error = null;
+        try { _profile = await Api.GetPersonalSettingsAsync(force, _lifetime.Token); _name = _profile.Name; }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception) { _error = "Não foi possível carregar seu perfil. Tente novamente."; }
+        finally { _loading = false; }
+    }
+    private async Task SelectSectionAsync(string key)
+    {
+        if (_busy || _unitEditor?.IsBusy == true || key == _section || !await ConfirmDiscardAsync()) return;
+        _section = key;
+        _error = null;
+        _unitEditor = null;
+        _unitDirty = false;
+        if (key == "account") await LoadProfileAsync();
+    }
+    private async Task<bool> ConfirmDiscardAsync() => !HasChanges || await Dialogs.ShowMessageBox(
+        "Alterações não salvas", "Deseja descartar as alterações desta seção?", yesText: "Descartar", cancelText: "Continuar editando") == true;
+    private async Task BeforeNavigationAsync(LocationChangingContext context)
+    {
+        if (_busy || _unitEditor?.IsBusy == true || !await ConfirmDiscardAsync()) context.PreventNavigation();
+    }
+    private async Task SaveProfileAsync()
+    {
+        if (_busy || _profile is null || _profileForm is null) return;
+        await _profileForm.Validate();
+        if (!_profileForm.IsValid) return;
+        _busy = true; _error = null;
+        try
+        {
+            _profile = await Api.SavePersonalSettingsAsync(new(_name, _profile.Version), _lifetime.Token);
+            _name = _profile.Name;
+            await State.UpdatePersonalSettingsAsync(_profile);
+            Snackbar.Add("Perfil atualizado.", Severity.Success);
+        }
+        catch (ApiException e) { _error = e.Message; }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception) { _error = "Não foi possível salvar. Verifique sua conexão e tente novamente."; }
+        finally { _busy = false; }
+    }
+    private static string FormatCpf(string value) => value.Length == 11
+        ? $"{value[..3]}.{value[3..6]}.{value[6..9]}-{value[9..]}" : value;
+    private async Task SetThemeAsync(string theme)
+    { await State.SetThemeAsync(theme); Snackbar.Add("Preferência de aparência atualizada.", Severity.Success); }
+    private async Task ChangeCredentialAsync(bool pin)
+    {
+        if (_busy) return;
+        var dialog = await Dialogs.ShowAsync<SettingsCredentialDialog>(pin ? "Alterar PIN" : "Alterar senha",
+            new DialogParameters<SettingsCredentialDialog> { { x => x.Pin, pin } }, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, BackdropClick = false });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await FinishSessionAsync("Credencial atualizada. Entre novamente para continuar.");
+    }
+    private async Task EndSessionsAsync()
+    {
+        if (_busy || await Dialogs.ShowMessageBox("Encerrar todas as sessões", "Você sairá também deste dispositivo. Deseja continuar?",
+            yesText: "Encerrar sessões", cancelText: "Cancelar") != true) return;
+        _busy = true; _error = null;
+        try { await Api.EndAllSessionsAsync(_lifetime.Token); await FinishSessionAsync("Sessões encerradas com segurança."); }
+        catch (ApiException e) { _error = e.Message; }
+        catch (Exception) { _error = "Não foi possível encerrar as sessões. Tente novamente."; }
+        finally { _busy = false; }
+    }
+    private async Task FinishSessionAsync(string message)
+    { await State.LogoutAsync(); _busy = false; Snackbar.Add(message, Severity.Success); Navigation.NavigateTo("/", replace: true); }
+    public void Dispose() { _disposed = true; _lifetime.Cancel(); _lifetime.Dispose(); }
+}

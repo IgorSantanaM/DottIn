@@ -29,6 +29,7 @@ public sealed class PayrollApiFlowTests
     private const string Audience = "DottInPayrollTestsClient";
 
     [Fact]
+    [Trait("Category", "Docker")]
     public async Task OwnerCloses_AccountantExports_AndOtherTenantCannotReadOrChange()
     {
         await using var postgres = new PostgreSqlBuilder()

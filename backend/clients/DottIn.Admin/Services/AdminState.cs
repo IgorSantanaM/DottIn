@@ -28,11 +28,15 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         "Administrator" => "Administrador",
         "Manager" => "Gestor",
         "Employee" => "Funcionário",
+        "Accountant" => "Contador",
         _ => "Usuário"
     };
     public bool CanViewBranchRecords => Role is "Owner" or "Administrator";
     public bool CanViewEmployees => IsAuthenticated && (Role is "Owner" or "Administrator" or "Manager");
     public bool IsDarkMode { get; private set; } = true;
+    public string ThemePreference { get; private set; } = "system";
+    private bool systemDarkMode = true;
+    public bool CanEditUnitSettings => IsAuthenticated && Role is "Owner" or "Administrator";
     public string CompanyCode { get; private set; } = "";
     public bool HasCompletedConfiguration => BranchId != Guid.Empty;
     public bool HasLinkedPlan { get; private set; }
@@ -44,9 +48,43 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
 
     public event Action? OnChange;
 
-    public void ToggleDarkMode()
+    public Task ToggleDarkMode()
+        => SetThemeAsync(IsDarkMode ? "light" : "dark");
+
+    public async Task SetThemeAsync(string preference)
     {
-        IsDarkMode = !IsDarkMode;
+        if (preference is not ("dark" or "light" or "system"))
+            throw new ArgumentException("Preferência de tema inválida.", nameof(preference));
+        ThemePreference = preference;
+        IsDarkMode = preference == "dark" || preference == "system" && systemDarkMode;
+        await storage.SetItemAsync($"admin.theme:{EmployeeId}", preference);
+        OnChange?.Invoke();
+    }
+
+    public void SetSystemDarkMode(bool value)
+    {
+        systemDarkMode = value;
+        if (ThemePreference == "system") IsDarkMode = value;
+        OnChange?.Invoke();
+    }
+
+    public async Task RestoreThemeAsync()
+    {
+        string? preference = null;
+        try { preference = await storage.GetItemAsync<string>($"admin.theme:{EmployeeId}"); }
+        catch (JsonException) { await storage.RemoveItemAsync($"admin.theme:{EmployeeId}"); }
+        ThemePreference = preference is "dark" or "light" or "system" ? preference : "system";
+        IsDarkMode = ThemePreference == "dark" || ThemePreference == "system" && systemDarkMode;
+        OnChange?.Invoke();
+    }
+
+    public async Task UpdatePersonalSettingsAsync(PersonalSettings profile)
+    {
+        if (!IsSessionReady || User is null || currentSession is null || profile.Id != EmployeeId)
+            throw new InvalidOperationException("Perfil indisponível.");
+        User = User with { Name = profile.Name, ImageUrl = profile.ImageUrl };
+        currentSession = currentSession with { Employee = User };
+        await PersistSnapshotAsync();
         OnChange?.Invoke();
     }
 
@@ -111,6 +149,7 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         SessionVersion++;
         ApplySession(session);
         currentSession = session with { IsOwner = IsOwner, Role = Role };
+        await RestoreThemeAsync();
         await storage.RemoveItemAsync(DashboardSessionCache.StorageKey);
         await PersistSnapshotAsync();
         OnChange?.Invoke();
@@ -171,6 +210,7 @@ public class AdminState(SessionStorageService storage, AdminQueryCache cache)
         cache.Clear();
         SessionVersion++;
         ResetState();
+        await RestoreThemeAsync();
         await storage.RemoveItemAsync(SessionKey);
         await storage.RemoveItemAsync(LegacySessionKey);
         await storage.RemoveItemAsync(DashboardSessionCache.StorageKey);
